@@ -1,0 +1,106 @@
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+
+const request = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  timeout: 10000,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json;charset=UTF-8'
+  }
+})
+
+const stripDuplicatedApiPrefix = (config) => {
+  if (typeof config.url === 'string' && config.url.startsWith('/api/')) {
+    config.url = config.url.slice(4)
+  }
+  if (config.url === '/api') {
+    config.url = '/'
+  }
+}
+
+const createBusinessError = (response, data) => {
+  const message = data?.message || data?.msg || '请求失败'
+  const error = new Error(message)
+  error.response = response
+  error.data = data
+  error.code = data?.code
+  return error
+}
+
+request.interceptors.request.use(
+  config => {
+    stripDuplicatedApiPrefix(config)
+
+    const userToken = localStorage.getItem('token')
+    const adminToken = localStorage.getItem('adminToken')
+    const isAdminRequest = typeof config.url === 'string' && config.url.startsWith('/admin/')
+
+    if (isAdminRequest && adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`
+    } else if (userToken) {
+      config.headers.Authorization = `Bearer ${userToken}`
+    }
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+
+    return config
+  },
+  error => Promise.reject(error)
+)
+
+request.interceptors.response.use(
+  response => {
+    const data = response.data
+    const hasBusinessStatus = data && typeof data === 'object' && (
+      Object.prototype.hasOwnProperty.call(data, 'success') ||
+      Object.prototype.hasOwnProperty.call(data, 'code')
+    )
+
+    if (!hasBusinessStatus) {
+      return data
+    }
+
+    const isSuccess = data.success === true || data.code === 200 || data.code === 1
+    if (isSuccess) {
+      return data
+    }
+
+    return Promise.reject(createBusinessError(response, data))
+  },
+  error => {
+    if (error.response) {
+      const { status, data } = error.response
+
+      if (status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('adminToken')
+        localStorage.removeItem('user')
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('adminUser')
+
+        window.location.href = window.location.pathname.startsWith('/admin/')
+          ? '/admin/login'
+          : '/login'
+      }
+
+      const messageMap = {
+        401: '登录已过期，请重新登录',
+        403: '没有权限访问该资源',
+        404: '请求的资源不存在',
+        500: '服务器内部错误'
+      }
+      ElMessage.error(data?.message || data?.msg || messageMap[status] || `请求失败 (${status})`)
+    } else if (error.request) {
+      ElMessage.error('网络连接失败，请检查网络')
+    } else {
+      ElMessage.error(error.message || '请求失败')
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+export default request

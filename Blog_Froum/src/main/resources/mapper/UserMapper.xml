@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog_froum.mapper.UserMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="UserResultMap" type="com.example.blog_froum.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="email" property="email"/>
+        <result column="password" property="password"/>
+        <result column="nickname" property="nickname"/>
+        <result column="bio" property="bio"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="role" property="role" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="status" property="status" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="login_count" property="loginCount"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 基础查询字段 -->
+    <sql id="Base_Column_List">
+        id, username, email, password, nickname, bio, avatar_url, role, status,
+        last_login_time, login_count, created_at, updated_at
+    </sql>
+
+    <!-- 根据ID查询用户 -->
+    <select id="findById" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据用户名查询用户 -->
+    <select id="findByUsername" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据邮箱查询用户 -->
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <!-- 根据用户名或邮箱查询用户 -->
+    <select id="findByUsernameOrEmail" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE username = #{username} OR email = #{email}
+    </select>
+
+    <!-- 插入用户 -->
+    <insert id="insert" parameterType="com.example.blog_froum.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (username, email, password, nickname, bio, avatar_url, role, status, 
+                          last_login_time, login_count, created_at, updated_at)
+        VALUES (#{username}, #{email}, #{password}, #{nickname}, #{bio}, #{avatarUrl}, 
+                #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <!-- 更新用户信息 -->
+    <update id="update" parameterType="com.example.blog_froum.entity.User">
+        UPDATE users
+        SET username = #{username},
+            email = #{email},
+            nickname = #{nickname},
+            bio = #{bio},
+            avatar_url = #{avatarUrl},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户登录信息 -->
+    <update id="updateLoginInfo" parameterType="com.example.blog_froum.entity.User">
+        UPDATE users
+        SET last_login_time = #{lastLoginTime},
+            login_count = #{loginCount},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户状态 -->
+    <update id="updateStatus">
+        UPDATE users
+        SET status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户角色 -->
+    <update id="updateRole">
+        UPDATE users
+        SET role = #{role},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户密码 -->
+    <update id="updatePassword">
+        UPDATE users
+        SET password = #{password},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除用户 -->
+    <delete id="deleteById">
+        DELETE FROM users WHERE id = #{id}
+    </delete>
+
+    <!-- 查询所有用户（分页） -->
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据状态查询用户（分页） -->
+    <select id="findByStatus" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据角色查询用户（分页） -->
+    <select id="findByRole" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE role = #{role}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计用户总数 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM users
+    </select>
+
+    <!-- 根据状态统计用户数 -->
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*) FROM users WHERE status = #{status}
+    </select>
+
+    <!-- 根据角色统计用户数 -->
+    <select id="countByRole" resultType="long">
+        SELECT COUNT(*) FROM users WHERE role = #{role}
+    </select>
+
+    <!-- 检查用户名是否存在 -->
+    <select id="existsByUsername" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE username = #{username}
+    </select>
+
+    <!-- 检查邮箱是否存在 -->
+    <select id="existsByEmail" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE email = #{email}
+    </select>
+
+    <!-- 管理员功能需要的SQL -->
+    <!-- 根据角色和状态查询用户 -->
+    <select id="findByRoleAndStatus" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE role = #{role} AND status = #{status}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据角色和状态统计用户数 -->
+    <select id="countByRoleAndStatus" resultType="long">
+        SELECT COUNT(*) FROM users WHERE role = #{role} AND status = #{status}
+    </select>
+
+    <!-- 统计指定时间范围内注册的用户数 -->
+    <select id="countCreatedBetween" resultType="long">
+        SELECT COUNT(*) FROM users
+        WHERE created_at &gt;= #{start} AND created_at &lt; #{end}
+    </select>
+
+    <!-- 统计指定时间范围内登录过的用户数 -->
+    <select id="countLastLoginBetween" resultType="long">
+        SELECT COUNT(*) FROM users
+        WHERE last_login_time &gt;= #{start} AND last_login_time &lt; #{end}
+    </select>
+
+    <!-- 搜索用户 -->
+    <select id="searchUsers" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE username LIKE CONCAT('%', #{keyword}, '%')
+           OR nickname LIKE CONCAT('%', #{keyword}, '%')
+           OR email LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计搜索结果数量 -->
+    <select id="countSearchUsers" resultType="long">
+        SELECT COUNT(*) FROM users
+        WHERE username LIKE CONCAT('%', #{keyword}, '%')
+           OR nickname LIKE CONCAT('%', #{keyword}, '%')
+           OR email LIKE CONCAT('%', #{keyword}, '%')
+    </select>
+
+    <!-- 获取最近注册的用户 -->
+    <select id="findRecentUsers" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

@@ -1,0 +1,101 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.cursor/
+.serena/
+*.iml
+*.suo
+*.swp
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+*.local
+froum/node_modules/
+froum/package.json
+froum/package-lock.json
+froum/debug.log
+froum/froum/node_modules/
+froum/froum/dist/
+froum/froum/views/
+froum/froum/个人页面功能完善总结.md
+
+# Java / Maven
+target/
+Blog_Froum/target/
+Blog_Froum/create_admin_user.sql
+Blog_Froum/.mvn/
+
+# Runtime uploads and local data
+uploads/
+Blog_Froum/uploads/
+
+# Local/test scratch files
+debug_*.html
+test_*.html
+froum/debug.log
+blog-frontend/
+今日重构计划-2026-06-12.md
+关注点赞功能完善总结.md
+错误修复总结.md
+项目完善实施计划.md
+项目工作日志.md
+用户与管理员功能重构执行计划.md
+froum/要求.md
+
+# Large vendored frontend assets; npm dependencies and required webfonts are committed instead.
+froum/froum/public/fontawesome/
+
+# Local frontend diagnostic/demo pages not wired into the app router.
+froum/froum/src/views/ApiTest.vue
+froum/froum/src/views/CommentDemo.vue
+froum/froum/src/views/CompleteTest.vue
+froum/froum/src/views/DebugArticle.vue
+froum/froum/src/views/DebugAuth.vue
+froum/froum/src/views/DeepDiagnosis.vue
+froum/froum/src/views/FinalTest.vue
+froum/froum/src/views/FollowStatsTest.vue
+froum/froum/src/views/Following.vue
+froum/froum/src/views/LikeFollowTest.vue
+froum/froum/src/views/SampleArticle.vue
+froum/froum/src/views/SimpleArticleTest.vue
+froum/froum/src/views/StoreDebug.vue
+froum/froum/src/views/TestArticle.vue
+froum/froum/src/views/TestArticleSimple.vue
+froum/froum/src/views/TestAuth.vue
+froum/froum/src/views/TestConnection.vue
+froum/froum/src/views/TestQuestionSimple.vue
+froum/froum/src/views/TestUpload.vue
+froum/froum/src/views/UserDebug.vue
+froum/froum/src/views/UserProfileSimple.vue
+froum/froum/src/views/UserProfileTest.vue
+froum/froum/src/components/ApiTest.vue
+froum/froum/src/components/CommentDisplay.vue
+froum/froum/src/components/HelloWorld.vue
+froum/froum/src/components/QuestionDetailPreview.vue
+froum/froum/src/components/TheWelcome.vue
+froum/froum/src/components/UserProfileSimple.vue
+froum/froum/src/components/UserProfileTest.vue
+froum/froum/src/components/WelcomeItem.vue
+froum/froum/src/components/icons/
+froum/froum/src/components/README.md
+froum/froum/src/assets/data/sample-comments.json
+froum/froum/src/services/mockService.js
+
+# Local backend diagnostic helpers.
+Blog_Froum/src/main/java/com/example/blog_froum/controller/admin/AdminTestController.java
+Blog_Froum/src/main/java/com/example/blog_froum/controller/user/TestUploadController.java
+Blog_Froum/src/test/java/com/example/blog_froum/GeneratePasswordHash.java
+Blog_Froum/src/test/java/com/example/blog_froum/PasswordHashTest.java

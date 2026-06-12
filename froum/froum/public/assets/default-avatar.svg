@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="100" cy="100" r="100" fill="#e0e0e0"/>
+  
+  <!-- 头部 -->
+  <circle cx="100" cy="85" r="40" fill="#bdbdbd"/>
+  
+  <!-- 身体 -->
+  <path d="M100,135 C135,135 155,175 155,195 L45,195 C45,175 65,135 100,135 Z" fill="#bdbdbd"/>
+</svg> 
