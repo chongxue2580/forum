@@ -10,6 +10,7 @@ import com.example.blog_froum.dto.user.UserSummaryResponse;
 import com.example.blog_froum.dto.user.PasswordUpdateRequest;
 import com.example.blog_froum.dto.user.ProfileUpdateRequest;
 import com.example.blog_froum.service.QuestionService;
+import com.example.blog_froum.service.CaptchaService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.service.UserStatsService;
 import com.example.blog_froum.utils.Result;
@@ -18,6 +19,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,6 +47,9 @@ public class UserController {
     @Autowired
     private QuestionService questionService;
 
+    @Autowired
+    private CaptchaService captchaService;
+
     /**
      * 用户注册
      */
@@ -54,6 +59,7 @@ public class UserController {
             @ApiParam(value = "注册信息", required = true) 
             @Valid @RequestBody RegisterRequest request) {
         try {
+            captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
             log.info("收到用户注册请求，用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
             UserResponse userResponse = userService.register(request);
             log.info("用户注册成功，用户名: {}", request.getUsername());
@@ -73,10 +79,14 @@ public class UserController {
             @ApiParam(value = "登录信息", required = true)
             @Valid @RequestBody LoginRequest request) {
         try {
+            if (!StringUtils.hasText(request.getTwoFactorToken())) {
+                captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
+            }
             log.info("收到用户登录请求，用户名/邮箱: {}", request.getUsername());
             LoginResponse loginResponse = userService.login(request);
-            log.info("用户登录成功，用户名/邮箱: {}", request.getUsername());
-            return Result.success("登录成功", loginResponse);
+            String message = Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor()) ? "需要两步验证码" : "登录成功";
+            log.info("用户登录处理完成，用户名/邮箱: {}, 状态: {}", request.getUsername(), message);
+            return Result.success(message, loginResponse);
         } catch (Exception e) {
             log.error("用户登录失败，用户名/邮箱: {}, 错误: {}", request.getUsername(), e.getMessage());
             return Result.error(e.getMessage());

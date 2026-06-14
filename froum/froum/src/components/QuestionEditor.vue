@@ -28,45 +28,53 @@
           v-model="question.title" 
           placeholder="请用一句话描述您的问题" 
           required
-          :maxlength="100"
+          :maxlength="200"
         />
         <div class="input-counter">
-          {{ question.title.length }}/100
+          {{ question.title.length }}/200
         </div>
       </div>
       
       <div class="form-group">
         <label for="content">问题详情</label>
         <div class="editor-toolbar">
-          <button type="button" class="toolbar-btn" title="加粗">
+          <button type="button" class="toolbar-btn" title="加粗" @click="wrapSelection('**', '**', '加粗文字')">
             <font-awesome-icon :icon="['fas', 'bold']" />
           </button>
-          <button type="button" class="toolbar-btn" title="斜体">
+          <button type="button" class="toolbar-btn" title="斜体" @click="wrapSelection('*', '*', '斜体文字')">
             <font-awesome-icon :icon="['fas', 'italic']" />
           </button>
-          <button type="button" class="toolbar-btn" title="链接">
+          <button type="button" class="toolbar-btn" title="链接" @click="wrapSelection('[', '](https://)', '链接文字')">
             <font-awesome-icon :icon="['fas', 'link']" />
           </button>
-          <button type="button" class="toolbar-btn" title="代码">
+          <button type="button" class="toolbar-btn" title="代码" @click="wrapSelection('`', '`', '代码')">
             <font-awesome-icon :icon="['fas', 'code']" />
           </button>
-          <button type="button" class="toolbar-btn" title="图片">
-            <font-awesome-icon :icon="['fas', 'image']" />
+          <button type="button" class="toolbar-btn" title="图片" :disabled="isUploadingImage" @click="triggerImagePicker">
+            <font-awesome-icon :icon="['fas', isUploadingImage ? 'spinner' : 'image']" :spin="isUploadingImage" />
           </button>
-          <button type="button" class="toolbar-btn" title="无序列表">
+          <button type="button" class="toolbar-btn" title="无序列表" @click="insertLinePrefix('- ')">
             <font-awesome-icon :icon="['fas', 'list-ul']" />
           </button>
-          <button type="button" class="toolbar-btn" title="有序列表">
+          <button type="button" class="toolbar-btn" title="有序列表" @click="insertLinePrefix('1. ')">
             <font-awesome-icon :icon="['fas', 'list-ol']" />
           </button>
-          <button type="button" class="toolbar-btn" title="引用">
+          <button type="button" class="toolbar-btn" title="引用" @click="insertLinePrefix('> ')">
             <font-awesome-icon :icon="['fas', 'quote-left']" />
           </button>
+          <input
+            ref="imageInput"
+            type="file"
+            accept="image/*"
+            class="hidden-file-input"
+            @change="handleImageSelect"
+          />
         </div>
-        <textarea 
-          id="content" 
-          v-model="question.content" 
-          placeholder="请详细描述您的问题，可以包含代码示例、错误信息等" 
+        <textarea
+          id="content"
+          ref="contentRef"
+          v-model="question.content"
+          placeholder="请详细描述您的问题，可以包含代码示例、错误信息等"
           rows="12"
           required
         ></textarea>
@@ -77,7 +85,7 @@
         <label for="tags">标签</label>
         <div class="tags-input-container">
           <div v-for="(tag, index) in question.tags" :key="index" class="tag-item">
-            <span class="tag-text">{{ tag }}</span>
+            <span class="tag-text">{{ getTagName(tag) }}</span>
             <button type="button" class="tag-remove" @click="removeTag(index)">
               <font-awesome-icon :icon="['fas', 'times']" />
             </button>
@@ -90,7 +98,19 @@
             @keydown.enter.prevent="addTag"
           />
         </div>
-        <p class="tags-hint">最多添加5个标签，每个标签不超过20个字符</p>
+        <div v-if="availableTags.length" class="tag-options">
+          <button
+            v-for="tag in availableTags.slice(0, 12)"
+            :key="tag.id"
+            type="button"
+            class="tag-option"
+            :class="{ selected: isTagSelected(tag) }"
+            @click="addTag(tag)"
+          >
+            {{ tag.name }}
+          </button>
+        </div>
+        <p class="tags-hint">最多选择5个已有标签</p>
       </div>
       
       <div class="preview-section" v-if="showPreview">
@@ -104,7 +124,7 @@
           <h1>{{ question.title || '问题标题' }}</h1>
           <div class="tags-preview">
             <span v-for="(tag, index) in question.tags" :key="index" class="tag-preview">
-              {{ tag }}
+              {{ getTagName(tag) }}
             </span>
           </div>
           <div class="content-preview">
@@ -132,6 +152,8 @@ import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { questionService } from '../services/questionService'
+import { articleService } from '../services/articleService'
+import { tagService } from '../services/tagService'
 import { ElMessage } from 'element-plus'
 
 export default defineComponent({
@@ -155,25 +177,141 @@ export default defineComponent({
     const isSubmitting = ref(false)
     const showPreview = ref(false)
     const tagInput = ref('')
+    const availableTags = ref([])
     
     const question = ref({
       title: '',
       content: '',
       tags: []
     })
+
+    // 编辑器工具栏
+    const contentRef = ref(null)
+    const imageInput = ref(null)
+    const isUploadingImage = ref(false)
+
+    // 在光标处包裹/插入文本
+    const applyEdit = (transform) => {
+      const el = contentRef.value
+      const value = question.value.content || ''
+      const start = el ? el.selectionStart : value.length
+      const end = el ? el.selectionEnd : value.length
+      const selected = value.slice(start, end)
+      const { text, cursorStart, cursorEnd } = transform(selected, value, start, end)
+      question.value.content = text
+      // 恢复光标
+      requestAnimationFrame(() => {
+        if (!el) return
+        el.focus()
+        el.setSelectionRange(cursorStart, cursorEnd)
+      })
+    }
+
+    const wrapSelection = (before, after, placeholder) => {
+      applyEdit((selected, value, start, end) => {
+        const inner = selected || placeholder
+        const text = value.slice(0, start) + before + inner + after + value.slice(end)
+        const cursorStart = start + before.length
+        return { text, cursorStart, cursorEnd: cursorStart + inner.length }
+      })
+    }
+
+    const insertLinePrefix = (prefix) => {
+      applyEdit((selected, value, start, end) => {
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1
+        const text = value.slice(0, lineStart) + prefix + value.slice(lineStart)
+        const pos = end + prefix.length
+        return { text, cursorStart: pos, cursorEnd: pos }
+      })
+    }
+
+    const insertText = (snippet) => {
+      applyEdit((selected, value, start, end) => {
+        const text = value.slice(0, start) + snippet + value.slice(end)
+        const pos = start + snippet.length
+        return { text, cursorStart: pos, cursorEnd: pos }
+      })
+    }
+
+    const triggerImagePicker = () => {
+      if (!isAuthenticated.value) {
+        ElMessage.warning('请先登录后再上传图片')
+        return
+      }
+      imageInput.value?.click()
+    }
+
+    const handleImageSelect = async (event) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      isUploadingImage.value = true
+      try {
+        const url = await articleService.uploadImage(file)
+        if (!url) throw new Error('图片上传未返回地址')
+        insertText(`![${file.name}](${url})\n`)
+        ElMessage.success('图片已插入')
+      } catch (error) {
+        console.error('图片上传失败:', error)
+        ElMessage.error(error.message || '图片上传失败')
+      } finally {
+        isUploadingImage.value = false
+        event.target.value = ''
+      }
+    }
+
+    const unwrapList = (response) => {
+      const data = response?.data ?? response
+      if (Array.isArray(data)) return data
+      if (Array.isArray(data?.content)) return data.content
+      return []
+    }
+
+    const getTagName = (tag) => typeof tag === 'string' ? tag : tag?.name || ''
+
+    const isTagSelected = (tag) => {
+      const tagName = getTagName(tag).toLowerCase()
+      return question.value.tags.some(selected => (
+        selected.id && tag?.id
+          ? String(selected.id) === String(tag.id)
+          : getTagName(selected).toLowerCase() === tagName
+      ))
+    }
+
+    const resolveTag = (tag) => {
+      if (!tag) return null
+      if (typeof tag === 'object' && tag.id) return tag
+
+      const name = getTagName(tag).trim()
+      if (!name) return null
+      return availableTags.value.find(item => item.name.toLowerCase() === name.toLowerCase()) || null
+    }
+
+    const loadAvailableTags = async () => {
+      try {
+        const response = await tagService.getAllTags()
+        availableTags.value = unwrapList(response)
+      } catch (error) {
+        console.error('加载标签失败:', error)
+        ElMessage.error(error.message || '加载标签失败')
+      }
+    }
     
     // 如果是编辑问题，加载已有问题数据
     onMounted(async () => {
+      await loadAvailableTags()
+
       if (isEditing.value) {
         try {
           const response = await questionService.getQuestionById(props.questionId)
           const questionData = response.data || response
+          const selectedTags = Array.isArray(questionData.tags)
+            ? questionData.tags.map(resolveTag).filter(Boolean)
+            : []
+
           question.value = {
             title: questionData.title || '',
             content: questionData.content || '',
-            tags: Array.isArray(questionData.tags)
-              ? questionData.tags.map(tag => typeof tag === 'string' ? tag : tag.name).filter(Boolean)
-              : []
+            tags: selectedTags
           }
         } catch (error) {
           console.error('加载问题数据失败:', error)
@@ -182,25 +320,30 @@ export default defineComponent({
       }
     })
     
-    const addTag = () => {
-      const tag = tagInput.value.trim()
-      if (!tag) return
+    const addTag = (tagOption = null) => {
+      const explicitTag = tagOption && (tagOption.id || tagOption.name) ? tagOption : null
+      const tag = explicitTag || resolveTag(tagInput.value)
+      if (!tag) {
+        if (tagInput.value.trim()) {
+          ElMessage.error('请选择已有标签')
+        }
+        return
+      }
       
       // 检查是否已存在该标签
-      if (question.value.tags.includes(tag)) {
+      if (isTagSelected(tag)) {
         tagInput.value = ''
         return
       }
       
       // 检查标签数量限制
       if (question.value.tags.length >= 5) {
-        alert('最多添加5个标签')
+        ElMessage.warning('最多选择5个标签')
         return
       }
-      
-      // 检查标签长度
-      if (tag.length > 20) {
-        alert('标签长度不能超过20个字符')
+
+      if (!tag.id) {
+        ElMessage.error('请选择已有标签')
         return
       }
       
@@ -248,11 +391,15 @@ export default defineComponent({
       isSubmitting.value = true
 
       try {
-        console.log('提交问题数据:', question.value)
+        const payload = {
+          title: question.value.title.trim(),
+          content: question.value.content.trim(),
+          tagIds: question.value.tags.map(tag => Number(tag.id)).filter(Boolean)
+        }
 
         if (isEditing.value) {
           // 编辑问题
-          const response = await questionService.updateQuestion(props.questionId, question.value)
+          const response = await questionService.updateQuestion(props.questionId, payload)
           if (response.success) {
             ElMessage.success('问题修改成功！')
             router.push(`/question/${props.questionId}`)
@@ -261,8 +408,7 @@ export default defineComponent({
           }
         } else {
           // 创建新问题
-          const response = await questionService.createQuestion(question.value)
-          console.log('问题创建响应:', response)
+          const response = await questionService.createQuestion(payload)
 
           if (response.success) {
             ElMessage.success('问题发布成功！')
@@ -286,12 +432,22 @@ export default defineComponent({
       isAuthenticated,
       currentUser,
       question,
+      availableTags,
       tagInput,
       showPreview,
+      getTagName,
+      isTagSelected,
       addTag,
       removeTag,
       togglePreview,
-      submitQuestion
+      submitQuestion,
+      contentRef,
+      imageInput,
+      isUploadingImage,
+      wrapSelection,
+      insertLinePrefix,
+      triggerImagePicker,
+      handleImageSelect
     }
   }
 })
@@ -395,6 +551,15 @@ export default defineComponent({
   color: var(--primary-color);
 }
 
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
 .form-group textarea {
   width: 100%;
   padding: 12px;
@@ -471,6 +636,31 @@ export default defineComponent({
   outline: none;
   padding: 4px 0;
   font-size: 14px;
+}
+
+.tag-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tag-option {
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-light);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-option:hover,
+.tag-option.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .tags-hint {

@@ -92,7 +92,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findTop5ByIsDeletedFalseOrderByCreatedAtDesc();
 
     @Query(value = "SELECT c FROM Comment c LEFT JOIN FETCH c.user u " +
-            "WHERE c.isDeleted = false " +
+            "WHERE (:deleted IS NULL OR c.isDeleted = :deleted) " +
             "AND (:targetType IS NULL OR c.targetType = :targetType) " +
             "AND (:targetId IS NULL OR c.targetId = :targetId) " +
             "AND (:startTime IS NULL OR c.createdAt >= :startTime) " +
@@ -103,7 +103,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             "LOWER(COALESCE(u.nickname, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "ORDER BY c.createdAt DESC",
             countQuery = "SELECT COUNT(c) FROM Comment c LEFT JOIN c.user u " +
-                    "WHERE c.isDeleted = false " +
+                    "WHERE (:deleted IS NULL OR c.isDeleted = :deleted) " +
                     "AND (:targetType IS NULL OR c.targetType = :targetType) " +
                     "AND (:targetId IS NULL OR c.targetId = :targetId) " +
                     "AND (:startTime IS NULL OR c.createdAt >= :startTime) " +
@@ -117,5 +117,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                  @Param("keyword") String keyword,
                                  @Param("startTime") LocalDateTime startTime,
                                  @Param("endTime") LocalDateTime endTime,
+                                 @Param("deleted") Boolean deleted,
                                  Pageable pageable);
 }

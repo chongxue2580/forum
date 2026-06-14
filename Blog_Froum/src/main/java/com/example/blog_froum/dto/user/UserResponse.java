@@ -24,6 +24,7 @@ public class UserResponse {
     private UserStatus status;
     private LocalDateTime lastLoginTime;
     private Integer loginCount;
+    private Boolean twoFactorEnabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -44,6 +45,7 @@ public class UserResponse {
         this.status = source.getStatus();
         this.lastLoginTime = source.getLastLoginTime();
         this.loginCount = source.getLoginCount();
+        this.twoFactorEnabled = Boolean.TRUE.equals(source.getTwoFactorEnabled());
         this.createdAt = source.getCreatedAt();
         this.updatedAt = source.getUpdatedAt();
     }

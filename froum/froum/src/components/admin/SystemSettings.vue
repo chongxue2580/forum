@@ -428,7 +428,7 @@ onMounted(loadSettings)
 
 <style scoped>
 .system-settings {
-  background: #f8fafc;
+  color: var(--ad-text, #1d1d1f);
 }
 
 .header-actions {
@@ -438,12 +438,12 @@ onMounted(loadSettings)
 }
 
 .settings-form {
-  padding: 20px;
+  padding: 24px;
 }
 
 .settings-section {
   padding: 18px 0 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--ad-hairline, rgba(64, 87, 140, 0.1));
 }
 
 .settings-section:last-child {
@@ -452,9 +452,9 @@ onMounted(loadSettings)
 
 .settings-section h2 {
   margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ad-text, #1d1d1f);
 }
 
 .asset-field {
@@ -491,8 +491,30 @@ onMounted(loadSettings)
 }
 
 :deep(.el-form-item__label) {
-  color: #374151;
-  font-weight: 500;
+  color: var(--ad-text-muted, #515154);
+  font-weight: 600;
+}
+
+/* 表单组件玻璃化（与全站设计令牌一致） */
+:deep(.el-input__wrapper),
+:deep(.el-textarea__inner),
+:deep(.el-select__wrapper),
+:deep(.el-input-number) {
+  border-radius: 12px;
+  background: var(--ad-surface-muted, rgba(255, 255, 255, 0.62));
+  box-shadow: inset 0 0 0 1px var(--ad-hairline-strong, rgba(64, 87, 140, 0.16));
+}
+
+:deep(.el-input__wrapper.is-focus),
+:deep(.el-textarea__inner:focus),
+:deep(.el-select__wrapper.is-focused) {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.45), 0 0 0 4px rgba(0, 122, 255, 0.12);
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background-color: var(--ad-accent, #007aff);
+  border-color: var(--ad-accent, #007aff);
 }
 
 @media (max-width: 768px) {

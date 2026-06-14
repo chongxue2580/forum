@@ -1,5 +1,4 @@
 import './assets/main.css'
-import './assets/fontawesome.css'
 
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -20,64 +19,7 @@ import QuestionItem from './components/QuestionItem.vue'
 import ArticleCard from './components/ArticleCard.vue'
 import ArticleList from './components/ArticleList.vue'
 
-// FontAwesome setup
-import { library } from '@fortawesome/fontawesome-svg-core'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import {
-  faSearch, faHome, faThLarge, faTags, faQuestionCircle,
-  faSignInAlt, faEdit, faUser, faCog, faSignOutAlt,
-  faExclamationTriangle, faTimes, faFolder, faTag, faCalendar,
-  faEye, faThumbsUp, faComment, faShieldAlt, faIdBadge,
-  faEnvelope, faMapMarkerAlt, faLink, faSpinner, faLock,
-  faEyeSlash, faUpload, faBell, faUserPlus, faChevronDown,
-  faChevronUp, faHeart, faFileAlt, faArrowRight, faPhone,
-  faCalendarAlt, faFlag, faShare, faPlus, faCheckCircle, faClock,
-  faUserMinus, faReply, faTrashAlt, faEllipsisH, faSyncAlt,
-  faCommentDots, faCommentAlt, faSync, faList, faUserCheck,
-  faPaperPlane, faCommentSlash, faExclamationCircle, faUserSlash,
-  faUsers, faBars, faInfoCircle, faChartLine, faTachometerAlt,
-  faTrash, faSave, faUndo, faRedo, faImage, faCode, faBold,
-  faItalic, faHeading, faQuoteRight, faListUl, faListOl,
-  faTasks, faChevronLeft, faChevronRight, faCheck, faUserShield,
-  faUserFriends, faDownload, faFilter, faTable, faThumbtack, faStar,
-  faTimesCircle, faChartBar, faClipboardList
-} from '@fortawesome/free-solid-svg-icons'
-
-import {
-  faGithub, faTwitter, faWeixin, faFacebook, faLinkedin, faWeibo, faGoogle
-} from '@fortawesome/free-brands-svg-icons'
-
-import {
-  faHeart as farHeart,
-  faComment as farComment,
-  faUser as farUser,
-  faBell as farBell,
-  faEye as farEye
-} from '@fortawesome/free-regular-svg-icons'
-
-// Register Font Awesome icons
-library.add(
-  faSearch, faHome, faThLarge, faTags, faQuestionCircle,
-  faSignInAlt, faEdit, faUser, faCog, faSignOutAlt,
-  faExclamationTriangle, faTimes, faFolder, faTag, faCalendar,
-  faEye, faThumbsUp, faComment, faShieldAlt, faIdBadge,
-  faEnvelope, faMapMarkerAlt, faLink, faSpinner, faLock,
-  faEyeSlash, faUpload, faBell, faGithub, faUserPlus,
-  faChevronDown, faChevronUp, faHeart, faFileAlt, faArrowRight,
-  faTwitter, faWeixin, faPhone, faCalendarAlt, faFlag, faShare,
-  faPlus, faCheckCircle, faClock, faUserMinus, faReply,
-  faTrashAlt, faEllipsisH, faSyncAlt, faCommentDots, faCommentAlt,
-  faSync, faList, faUserCheck, faPaperPlane, faCommentSlash,
-  faExclamationCircle, faUserSlash, faUsers, faBars, faInfoCircle,
-  faChartLine, faTachometerAlt, faTrash, faSave, faUndo, faRedo,
-  faImage, faCode, faBold, faItalic, faHeading, faQuoteRight,
-  faListUl, faListOl, faTasks, faChevronLeft, faChevronRight,
-  faCheck, faUserShield, faUserFriends, faFacebook, faLinkedin, faWeibo, faGoogle,
-  faDownload, faFilter, faTable, faThumbtack, faStar, faTimesCircle,
-  faChartBar, faClipboardList,
-  // Regular icons
-  farHeart, farComment, farUser, farBell, farEye
-)
+import { FontAwesomeIcon } from './plugins/fontawesome'
 
 // 配置 marked
 marked.setOptions({

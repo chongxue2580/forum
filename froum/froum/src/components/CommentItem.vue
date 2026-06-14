@@ -138,6 +138,7 @@
 import { defineComponent, ref, computed } from 'vue';
 import { useStore } from 'vuex';
 import { marked } from 'marked';
+import { formatDateTime, formatFriendlyTime } from '../utils/dateUtils';
 
 export default defineComponent({
   name: 'CommentItem',
@@ -242,66 +243,12 @@ export default defineComponent({
     
     // 格式化时间为相对时间（如"3小时前"）
     const formatTime = (time) => {
-      if (!time) return '未知时间';
-      
-      const date = new Date(time);
-      
-      // 如果日期无效，返回原始值
-      if (isNaN(date.getTime())) {
-        return time;
-      }
-      
-      // 当前日期
-      const now = new Date();
-      
-      // 计算时间差（毫秒）
-      const diff = now - date;
-      
-      // 计算天数差
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      
-      // 今天发布的
-      if (days === 0) {
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        
-        if (hours === 0) {
-          const minutes = Math.floor(diff / (1000 * 60));
-          if (minutes === 0) {
-            return '刚刚';
-          }
-          return `${minutes}分钟前`;
-        }
-        
-        return `${hours}小时前`;
-      }
-      
-      // 昨天发布的
-      if (days === 1) {
-        return '昨天';
-      }
-      
-      // 一周内发布的
-      if (days < 7) {
-        return `${days}天前`;
-      }
-      
-      // 超过一周，显示具体日期
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      return formatFriendlyTime(time);
     };
     
     // 格式化为完整日期时间
     const formatFullDate = (time) => {
-      if (!time) return '未知时间';
-      
-      const date = new Date(time);
-      
-      // 如果日期无效，返回原始值
-      if (isNaN(date.getTime())) {
-        return time;
-      }
-      
-      // 格式化为：YYYY-MM-DD HH:MM:SS
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+      return formatDateTime(time);
     };
     
     // 切换菜单显示状态

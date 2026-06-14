@@ -46,7 +46,7 @@ export default createStore({
   
   getters: {
     // 用户相关
-    isAdmin: state => state.user?.role === 'admin',
+    isAdmin: state => ['admin', 'ADMIN', 'SUPER_ADMIN'].includes(state.user?.role),
     
     // 分类相关
     categoryById: state => id => state.categories.find(c => c.id === id),
@@ -108,16 +108,10 @@ export default createStore({
     
     // 文章相关
     SET_ARTICLES(state, { data, total }) {
-      console.log('SET_ARTICLES mutation called with:', { 
-        dataLength: data?.length || 0, 
-        total 
-      });
-      
       // 确保 data 是数组
       if (Array.isArray(data)) {
         state.articles = data;
       } else {
-        console.warn('SET_ARTICLES received non-array data:', data);
         state.articles = [];
       }
       
@@ -127,15 +121,9 @@ export default createStore({
       } else if (state.articles && Array.isArray(state.articles)) {
         // 如果 total 不是数字，使用文章数组长度作为总数
         state.articleCount = state.articles.length;
-        console.warn('SET_ARTICLES using articles length as count:', state.articleCount);
       } else {
         state.articleCount = 0;
       }
-      
-      console.log('SET_ARTICLES mutation completed:', { 
-        articlesInStore: state.articles.length, 
-        articleCount: state.articleCount 
-      });
     },
     SET_CURRENT_ARTICLE(state, article) {
       state.currentArticle = article
@@ -238,14 +226,11 @@ export default createStore({
     // 分类相关
     async fetchCategories({ commit }) {
       try {
-        console.log('Fetching categories...')
         commit('SET_LOADING', true)
         const response = await categoryApi.getCategories()
-        console.log('Categories response:', response)
 
         // 处理后端返回的数据格式
         const categories = response.success ? response.data : response
-        console.log('Categories processed:', categories)
         commit('SET_CATEGORIES', categories)
         return categories
       } catch (error) {
@@ -273,14 +258,11 @@ export default createStore({
     // 标签相关
     async fetchPopularTags({ commit }) {
       try {
-        console.log('Fetching popular tags...')
         commit('SET_LOADING', true)
         const response = await tagApi.getPopularTags()
-        console.log('Popular tags response:', response)
 
         // 处理后端返回的数据格式
         const tags = response.success ? response.data : response
-        console.log('Popular tags processed:', tags)
         commit('SET_POPULAR_TAGS', tags)
         return tags
       } catch (error) {
@@ -294,12 +276,10 @@ export default createStore({
     // 文章相关
     async fetchArticles({ commit }, params) {
       try {
-        console.log('Fetching articles with params:', params)
         commit('SET_LOADING', true)
 
         // 调用API获取文章数据
         const response = await articleApi.getArticles(params)
-        console.log('Articles response:', response)
 
         // 处理后端返回的数据格式
         let articlesData = []
@@ -312,11 +292,6 @@ export default createStore({
           articlesData = response.data
           totalCount = response.total || 0
         }
-
-        console.log('Articles processed:', {
-          count: articlesData.length,
-          total: totalCount
-        })
 
         // 更新状态
         commit('SET_ARTICLES', {
@@ -359,9 +334,7 @@ export default createStore({
     async createArticle({ commit }, article) {
       try {
         commit('SET_LOADING', true)
-        console.log('Vuex: 创建文章', article)
         const newArticle = await articleApi.createArticle(article)
-        console.log('Vuex: 文章创建成功', newArticle)
         commit('ADD_ARTICLE', newArticle)
         return newArticle
       } catch (error) {
@@ -376,9 +349,7 @@ export default createStore({
     async updateArticle({ commit }, { id, article }) {
       try {
         commit('SET_LOADING', true)
-        console.log('Vuex: 更新文章', { id, article })
         const updatedArticle = await articleApi.updateArticle(id, article)
-        console.log('Vuex: 文章更新成功', updatedArticle)
         commit('UPDATE_ARTICLE', updatedArticle)
         return updatedArticle
       } catch (error) {
@@ -395,7 +366,6 @@ export default createStore({
       try {
         commit('SET_LOADING', true);
         const response = await articleApi.getHotArticles(params);
-        console.log('Hot articles response:', response);
 
         // 处理后端返回的数据格式
         const articlesData = response.success ? response.data : response.data || []
@@ -418,7 +388,6 @@ export default createStore({
       try {
         commit('SET_LOADING', true);
         const response = await articleApi.getRecommendedArticles(params);
-        console.log('Recommended articles response:', response);
 
         // 处理后端返回的数据格式
         const articlesData = response.success ? response.data : response.data || []
@@ -442,24 +411,26 @@ export default createStore({
     },
     
     // 管理员登录
-    async adminLogin({ commit }, { username, password }) {
+    async adminLogin({ commit }, { username, password, twoFactorCode, twoFactorToken }) {
       try {
         commit('SET_LOADING', true)
         commit('SET_ERROR', null)
 
-        console.log('管理员登录尝试:', { username })
-
         // 调用真实的后端API
         const { adminLogin } = await import('../api/admin.js')
-        const response = await adminLogin({ username, password })
-
-        console.log('管理员登录响应:', response)
+        const response = await adminLogin({ username, password, twoFactorCode, twoFactorToken })
 
         // 检查响应格式
         if (response && (response.code === 200 || response.code === 1) && response.data) {
-          const { token, user } = response.data
+          const { token, user, requiresTwoFactor, requiresTwoFactorSetup } = response.data
 
-          console.log('管理员登录成功:', user)
+          if (requiresTwoFactor || requiresTwoFactorSetup) {
+            return response.data
+          }
+
+          if (!token || !user) {
+            throw new Error(response?.message || response?.msg || '管理员登录失败')
+          }
 
           // 保存token和用户信息
           localStorage.setItem('token', token)
@@ -469,7 +440,7 @@ export default createStore({
 
           commit('SET_USER', user)
           commit('SET_AUTHENTICATED', true)
-          return { success: true }
+          return { success: true, user }
         } else {
           // 登录失败
           const errorMessage = response?.message || response?.msg || '管理员登录失败'
@@ -485,23 +456,68 @@ export default createStore({
         commit('SET_LOADING', false)
       }
     },
-    
-    async login({ commit }, { username, password }) {
+
+    async confirmAdminTwoFactorSetup({ commit }, { setupToken, code }) {
       try {
         commit('SET_LOADING', true)
         commit('SET_ERROR', null)
 
-        console.log('尝试登录:', { username })
+        const { confirmAdminTwoFactorSetup } = await import('../api/admin.js')
+        const response = await confirmAdminTwoFactorSetup({ setupToken, code })
+
+        if (response && (response.code === 200 || response.code === 1) && response.data) {
+          const { token, user } = response.data
+          if (!token || !user) {
+            throw new Error(response?.message || response?.msg || '管理员两步验证绑定失败')
+          }
+
+          localStorage.setItem('token', token)
+          localStorage.setItem('adminToken', token)
+          localStorage.setItem('userInfo', JSON.stringify(user))
+          localStorage.setItem('adminUser', JSON.stringify(user))
+
+          commit('SET_USER', user)
+          commit('SET_AUTHENTICATED', true)
+          return { success: true, user }
+        }
+
+        throw new Error(response?.message || response?.msg || '管理员两步验证绑定失败')
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message || '管理员两步验证绑定失败'
+        commit('SET_ERROR', errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        commit('SET_LOADING', false)
+      }
+    },
+    
+    async login({ commit }, { username, password, remember, captchaId, captchaPercentage, twoFactorCode, twoFactorToken }) {
+      try {
+        commit('SET_LOADING', true)
+        commit('SET_ERROR', null)
 
         // 使用真实API登录
-        const response = await userApi.login({ username, password })
-        console.log('登录响应:', response)
+        const response = await userApi.login({
+          username,
+          password,
+          remember,
+          captchaId,
+          captchaPercentage,
+          twoFactorCode,
+          twoFactorToken
+        })
 
         // 检查响应格式 - 后端返回的格式是 { success: true, message: "登录成功", data: { token, user } }
         if (response && response.success === true && response.data) {
-          const { token, user } = response.data
+          const { token, user, requiresTwoFactor } = response.data
 
-          console.log('普通用户登录成功:', user)
+          if (requiresTwoFactor) {
+            return response.data
+          }
+
+          if (!token || !user) {
+            throw new Error(response?.message || response?.msg || '登录失败')
+          }
 
           // 保存真实的JWT token和用户信息
           localStorage.setItem('token', token)
@@ -509,7 +525,7 @@ export default createStore({
 
           commit('SET_USER', user)
           commit('SET_AUTHENTICATED', true)
-          return user
+          return { success: true, user }
         } else {
           // 登录失败
           const errorMessage = response?.message || response?.msg || '登录失败'
@@ -526,24 +542,22 @@ export default createStore({
       }
     },
 
-    async register({ commit }, { username, email, password }) {
+    async register({ commit }, { username, email, password, captchaId, captchaPercentage }) {
       try {
         commit('SET_LOADING', true)
         commit('SET_ERROR', null)
-
-        console.log('尝试注册:', { username, email })
 
         // 调用注册API
         const response = await userApi.register({
           username,
           email,
-          password
+          password,
+          captchaId,
+          captchaPercentage
         })
-        console.log('注册响应:', response)
 
         if (response.success && response.data) {
           const user = response.data
-          console.log('注册成功:', user)
           return user
         } else {
           throw new Error(response.message || '注册失败')
@@ -561,7 +575,11 @@ export default createStore({
     logout({ commit }) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
+      localStorage.removeItem('user')
+      localStorage.removeItem('adminToken')
+      localStorage.removeItem('adminUser')
       commit('SET_USER', null)
+      commit('SET_AUTHENTICATED', false)
     },
     
     checkAuth({ commit }) {

@@ -4,6 +4,8 @@ import { parseComments } from '../utils/commentHelper'
 const normalizeArticle = (article) => {
   const author = article.author || {}
   const category = article.category || null
+  const categoryId = article.categoryId || category?.id || null
+  const categoryName = article.categoryName || (typeof category === 'string' ? category : category?.name) || ''
 
   return {
     ...article,
@@ -13,7 +15,9 @@ const normalizeArticle = (article) => {
       name: author.nickname || author.username || author.name || '匿名用户',
       avatar: author.avatarUrl || author.avatar || null
     },
-    category: typeof category === 'string' ? category : category?.name || '',
+    categoryId,
+    category: categoryName,
+    categoryName,
     categoryInfo: category,
     tags: Array.isArray(article.tags) ? article.tags : [],
     likes: article.likeCount ?? article.likes ?? 0,
@@ -45,7 +49,7 @@ const toArticlePayload = (article) => ({
   title: article.title?.trim(),
   content: article.content?.trim(),
   summary: article.summary?.trim() || article.title?.trim(),
-  categoryId: Number(article.categoryId) || 1,
+  categoryId: article.categoryId ? Number(article.categoryId) : null,
   tags: Array.isArray(article.tags) ? article.tags.map(tag => tag.trim()).filter(Boolean) : [],
   isDraft: Boolean(article.isDraft),
   coverImage: article.coverImage || null
@@ -132,6 +136,19 @@ export const articleService = {
 
   async likeComment(articleId, commentId) {
     return request.post(`/likes/COMMENT/${commentId}`)
+  },
+
+  async unlikeComment(articleId, commentId) {
+    return request.delete(`/likes/COMMENT/${commentId}`)
+  },
+
+  async getCommentLikeInfo(commentId) {
+    const response = await request.get(`/likes/COMMENT/${commentId}/info`)
+    const info = response?.data || { count: 0, isLiked: false }
+    return {
+      ...info,
+      isLiked: Boolean(info.isLiked ?? info.liked)
+    }
   },
 
   async getArticlesByCategory(categoryId, params) {

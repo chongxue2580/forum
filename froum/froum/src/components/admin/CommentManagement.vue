@@ -6,13 +6,16 @@ import {
   batchDeleteComments,
   deleteComment,
   getAllComments,
-  getCommentStatistics
+  getCommentStatistics,
+  restoreComment
 } from '@/api/admin'
 
 const loading = ref(false)
 const statsLoading = ref(false)
 const comments = ref([])
 const selectedRows = ref([])
+const viewMode = ref(localStorage.getItem('adminView_comments') || 'grid')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_comments', v) }
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -20,6 +23,7 @@ const searchQuery = ref('')
 const filters = reactive({
   targetType: '',
   targetId: '',
+  status: 'active',
   dateRange: []
 })
 const statistics = reactive({
@@ -33,7 +37,20 @@ const targetTypeOptions = [
   { label: '问答回答', value: 'QUESTION' }
 ]
 
+const statusOptions = [
+  { label: '正常', value: 'active' },
+  { label: '已删除', value: 'deleted' },
+  { label: '全部', value: 'all' }
+]
+
 const selectedIds = computed(() => selectedRows.value.map(row => row.id))
+
+const isSelected = (row) => selectedRows.value.some(r => r.id === row.id)
+const toggleSelect = (row) => {
+  selectedRows.value = isSelected(row)
+    ? selectedRows.value.filter(r => r.id !== row.id)
+    : [...selectedRows.value, row]
+}
 
 const unwrapPage = (response) => {
   const page = response?.data || response || {}
@@ -71,6 +88,7 @@ const normalizeComment = (comment) => ({
   parentId: comment.parentId,
   likeCount: comment.likeCount || 0,
   isBestAnswer: Boolean(comment.isBestAnswer),
+  isDeleted: Boolean(comment.isDeleted),
   createdAt: formatDateTime(comment.createdAt),
   updatedAt: formatDateTime(comment.updatedAt)
 })
@@ -104,6 +122,7 @@ const loadComments = async () => {
     }
     if (searchQuery.value.trim()) params.keyword = searchQuery.value.trim()
     if (filters.targetType) params.targetType = filters.targetType
+    if (filters.status) params.status = filters.status
     if (filters.targetId) params.targetId = Number(filters.targetId)
     if (filters.dateRange?.length === 2) {
       params.startDate = filters.dateRange[0]
@@ -136,6 +155,7 @@ const resetFilters = () => {
   searchQuery.value = ''
   filters.targetType = ''
   filters.targetId = ''
+  filters.status = 'active'
   filters.dateRange = []
   currentPage.value = 1
   loadComments()
@@ -173,8 +193,24 @@ const handleDelete = async (row) => {
   }
 }
 
-const handleBatchDelete = async () => {
-  if (!selectedIds.value.length) {
+const handleRestore = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定要恢复评论 #${row.id} 吗？`, '恢复评论', {
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    await restoreComment(row.id)
+    ElMessage.success('评论已恢复')
+    refreshAll()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '恢复评论失败')
+    }
+  }
+}
+
+const handleBatchDelete = async () => {  if (!selectedIds.value.length) {
     ElMessage.warning('请先选择要删除的评论')
     return
   }
@@ -248,6 +284,10 @@ onMounted(refreshAll)
         <el-option v-for="option in targetTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
 
+      <el-select v-model="filters.status" placeholder="状态" class="filter-select" @change="handleSearch">
+        <el-option v-for="option in statusOptions" :key="option.value" :label="option.label" :value="option.value" />
+      </el-select>
+
       <el-input
         v-model="filters.targetId"
         placeholder="目标ID"
@@ -276,51 +316,63 @@ onMounted(refreshAll)
       </el-button>
     </div>
 
-    <div class="admin-table-container">
-      <el-table
-        :data="comments"
-        v-loading="loading"
-        style="width: 100%"
-        border
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="48" />
-        <el-table-column label="评论内容" min-width="320">
-          <template #default="{ row }">
-            <div class="comment-cell">
-              <div class="comment-content">{{ row.content }}</div>
-              <div class="comment-meta">
-                <span>作者：{{ row.author }}</span>
-                <span v-if="row.parentId">回复 #{{ row.parentId }}</span>
-                <el-tag v-if="row.isBestAnswer" type="success" size="small">最佳答案</el-tag>
+    <div class="ad-list-head" style="margin-bottom:14px;">
+      <div class="admin-section-title" style="margin:0;">
+        <font-awesome-icon icon="comment" /> 评论列表
+      </div>
+      <span class="ad-view-toggle">
+        <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+        <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+      </span>
+    </div>
+
+    <div v-loading="loading">
+      <div v-if="comments.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+        <div
+          v-for="row in comments"
+          :key="row.id"
+          class="ad-card"
+          :class="{ 'is-selected': isSelected(row) }"
+        >
+          <el-checkbox class="ad-checkbox" :model-value="isSelected(row)" @change="toggleSelect(row)" />
+
+          <div class="ad-card__head">
+            <span class="ad-card__id">#{{ row.id }}</span>
+            <div style="min-width:0;flex:1;">
+              <div class="comment-text">{{ row.content }}</div>
+              <div class="ad-card__sub">
+                <span><font-awesome-icon icon="user" /> {{ row.author }}</span>
+                <span v-if="row.parentId"><font-awesome-icon icon="reply" /> 回复 #{{ row.parentId }}</span>
               </div>
             </div>
-          </template>
-        </el-table-column>
+          </div>
 
-        <el-table-column label="目标" min-width="150">
-          <template #default="{ row }">
-            <el-tag size="small">{{ getTargetTypeText(row.targetType) }}</el-tag>
-            <span class="target-id">#{{ row.targetId || '-' }}</span>
-          </template>
-        </el-table-column>
+          <div class="ad-card__pills">
+            <span class="ad-pill is-muted">{{ getTargetTypeText(row.targetType) }} #{{ row.targetId || '-' }}</span>
+            <span class="ad-pill is-accent"><font-awesome-icon icon="thumbs-up" /> {{ row.likeCount }}</span>
+            <span v-if="row.isBestAnswer" class="ad-pill is-success">最佳答案</span>
+            <span v-if="row.isDeleted" class="ad-pill is-danger">已删除</span>
+          </div>
 
-        <el-table-column label="点赞" width="90" align="center">
-          <template #default="{ row }">{{ row.likeCount }}</template>
-        </el-table-column>
+          <div class="ad-card__sub" style="margin-top:auto;">
+            <span><font-awesome-icon icon="clock" /> {{ row.createdAt }}</span>
+          </div>
 
-        <el-table-column label="创建时间" min-width="170">
-          <template #default="{ row }">{{ row.createdAt }}</template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="danger" size="small" plain @click="handleDelete(row)">
+          <div class="ad-card__actions">
+            <button v-if="row.isDeleted" class="ad-btn is-primary" @click="handleRestore(row)">
+              <font-awesome-icon icon="undo" /> 恢复
+            </button>
+            <button v-else class="ad-btn is-danger" @click="handleDelete(row)">
               <font-awesome-icon icon="trash-alt" /> 删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="!loading" class="ad-empty">
+        <div class="ad-empty__icon"><font-awesome-icon icon="comment" /></div>
+        <div class="ad-empty__text">没有符合条件的评论</div>
+      </div>
     </div>
 
     <div class="pagination-container">
@@ -340,7 +392,7 @@ onMounted(refreshAll)
 
 <style scoped>
 .comment-management {
-  background: #f8fafc;
+  color: #1f2937;
 }
 
 .header-actions,
@@ -354,28 +406,43 @@ onMounted(refreshAll)
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 16px;
 }
 
+.comment-text {
+  color: var(--ad-text, #1d1d1f);
+  line-height: 1.5;
+  font-size: 0.92rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
 .stat-item {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 22px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.62) 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
 }
 
 .stat-label {
-  color: #64748b;
+  color: #77869a;
   font-size: 13px;
+  font-weight: 700;
 }
 
 .stat-item strong {
-  color: #111827;
-  font-size: 24px;
+  color: #172033;
+  font-size: 26px;
+  font-weight: 820;
 }
 
 .filter-panel {
@@ -384,19 +451,27 @@ onMounted(refreshAll)
 }
 
 .search-input {
-  width: 280px;
+  flex: 2 1 220px;
+  min-width: 180px;
+  max-width: 320px;
 }
 
 .filter-select {
-  width: 140px;
+  flex: 1 1 130px;
+  min-width: 120px;
+  max-width: 160px;
 }
 
 .id-input {
-  width: 120px;
+  flex: 1 1 110px;
+  min-width: 96px;
+  max-width: 140px;
 }
 
 .date-picker {
-  width: 300px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  max-width: 280px;
 }
 
 .comment-cell {
@@ -441,6 +516,32 @@ onMounted(refreshAll)
   .id-input,
   .date-picker {
     width: 100%;
+    max-width: none;
   }
 }
+
+/* Apple 浅色玻璃：输入/按钮打磨 */
+.filter-panel :deep(.el-input__wrapper),
+.filter-panel :deep(.el-select__wrapper) {
+  border-radius: 14px;
+  background: rgba(247, 250, 253, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(127, 149, 176, 0.18);
+}
+
+.filter-panel :deep(.el-input__wrapper.is-focus),
+.filter-panel :deep(.el-select__wrapper.is-focused) {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(65, 105, 216, 0.45), 0 0 0 4px rgba(65, 105, 216, 0.12);
+}
+
+.comment-management :deep(.el-button) {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.comment-management :deep(.el-button--primary) {
+  background: linear-gradient(135deg, #5b86e8 0%, #4169d8 100%);
+  border-color: transparent;
+}
+
 </style>

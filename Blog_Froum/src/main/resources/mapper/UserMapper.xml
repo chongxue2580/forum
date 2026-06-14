@@ -15,6 +15,8 @@
         <result column="status" property="status" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
         <result column="last_login_time" property="lastLoginTime"/>
         <result column="login_count" property="loginCount"/>
+        <result column="two_factor_enabled" property="twoFactorEnabled"/>
+        <result column="two_factor_secret" property="twoFactorSecret"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -22,7 +24,7 @@
     <!-- 基础查询字段 -->
     <sql id="Base_Column_List">
         id, username, email, password, nickname, bio, avatar_url, role, status,
-        last_login_time, login_count, created_at, updated_at
+        last_login_time, login_count, two_factor_enabled, two_factor_secret, created_at, updated_at
     </sql>
 
     <!-- 根据ID查询用户 -->
@@ -56,9 +58,9 @@
     <!-- 插入用户 -->
     <insert id="insert" parameterType="com.example.blog_froum.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (username, email, password, nickname, bio, avatar_url, role, status, 
-                          last_login_time, login_count, created_at, updated_at)
+                          last_login_time, login_count, two_factor_enabled, two_factor_secret, created_at, updated_at)
         VALUES (#{username}, #{email}, #{password}, #{nickname}, #{bio}, #{avatarUrl}, 
-                #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{createdAt}, #{updatedAt})
+                #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{twoFactorEnabled}, #{twoFactorSecret}, #{createdAt}, #{updatedAt})
     </insert>
 
     <!-- 更新用户信息 -->
@@ -102,6 +104,15 @@
     <update id="updatePassword">
         UPDATE users
         SET password = #{password},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户两步验证设置 -->
+    <update id="updateTwoFactor">
+        UPDATE users
+        SET two_factor_enabled = #{enabled},
+            two_factor_secret = #{secret},
             updated_at = NOW()
         WHERE id = #{id}
     </update>

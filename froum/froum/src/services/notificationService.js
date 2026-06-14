@@ -62,6 +62,13 @@ export const notificationService = {
     return response?.data || []
   },
 
+  async sendDirectMessage(toUserId, content) {
+    return request.post('/notifications/messages', {
+      toUserId,
+      content
+    })
+  },
+
   async markNotificationAsRead(id) {
     return request.post(`/notifications/${id}/read`)
   },

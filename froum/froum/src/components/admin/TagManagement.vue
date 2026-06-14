@@ -12,6 +12,9 @@ import {
 
 const loading = ref(false)
 const tags = ref([])
+// 视图模式：标签默认列表（横排）
+const viewMode = ref(localStorage.getItem('adminView_tags') || 'list')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_tags', v) }
 const tagForm = ref({
   name: '',
   description: '',
@@ -266,90 +269,60 @@ onMounted(loadTags)
     </div>
 
     <div class="table-container">
-      <el-table v-loading="loading" :data="filteredTags" style="width: 100%" border>
-        <el-table-column label="标签信息" min-width="300">
-          <template #default="{ row }">
-            <div class="tag-info">
-              <div class="tag-header">
-                <el-tag size="medium" class="tag-name">{{ row.name }}</el-tag>
-                <p v-if="row.description" class="tag-description">{{ row.description }}</p>
-              </div>
-              <div class="tag-meta">
-                <div class="meta-left">
-                  <div class="creator-info">
-                    <font-awesome-icon icon="user" />
-                    <span>{{ row.createdBy?.name || '系统' }}</span>
-                  </div>
-                  <div class="time-info">
-                    <font-awesome-icon icon="clock" />
-                    <span>{{ row.createTime }}</span>
-                  </div>
+      <div class="ad-list-head" style="margin-bottom:14px;">
+        <div class="admin-section-title" style="margin:0;">
+          <font-awesome-icon icon="tags" /> 标签列表
+        </div>
+        <span class="ad-view-toggle">
+          <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+          <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+        </span>
+      </div>
+      <div v-loading="loading">
+        <div v-if="filteredTags.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+          <div v-for="row in filteredTags" :key="row.id" class="ad-card">
+            <div class="ad-card__head">
+              <span class="ad-card__avatar" style="background: linear-gradient(135deg,#5b7cfa,#8aa3ff);"><font-awesome-icon icon="hashtag" /></span>
+              <div style="min-width:0;flex:1;">
+                <div class="ad-card__title">{{ row.name }}</div>
+                <div class="ad-card__sub">
+                  <span><font-awesome-icon icon="user" /> {{ row.createdBy?.name || '系统' }}</span>
+                  <span><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
                 </div>
               </div>
             </div>
-          </template>
-        </el-table-column>
 
-        <el-table-column label="使用统计" width="180">
-          <template #default="{ row }">
-            <div class="stats">
-              <div class="stat-item">
-                <font-awesome-icon icon="hashtag" />
-                <span>{{ row.count }}</span>
-              </div>
+            <p v-if="row.description" class="tag-desc">{{ row.description }}</p>
+
+            <div class="ad-card__pills">
+              <span class="ad-pill" :class="getStatusMeta(row.status).type === 'success' ? 'is-success' : getStatusMeta(row.status).type === 'danger' ? 'is-danger' : 'is-warning'">
+                {{ getStatusMeta(row.status).text }}
+              </span>
+              <span class="ad-pill is-accent"><font-awesome-icon icon="hashtag" /> {{ row.count }} 次使用</span>
             </div>
-          </template>
-        </el-table-column>
 
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusMeta(row.status).type">
-              {{ getStatusMeta(row.status).text }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="280">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <div class="button-row" v-if="row.status === 'pending'">
-                <el-button
-                  type="success"
-                  size="small"
-                  @click="updateTagStatus(row, 'approved')"
-                >
-                  <font-awesome-icon icon="check" /> 通过
-                </el-button>
-                <el-button
-                  type="danger"
-                  size="small"
-                  @click="updateTagStatus(row, 'rejected')"
-                >
-                  <font-awesome-icon icon="times" /> 拒绝
-                </el-button>
-              </div>
-
-              <div class="button-row">
-                <el-button
-                  type="primary"
-                  size="small"
-                  @click="editTag(row)"
-                >
-                  <font-awesome-icon icon="edit" /> 编辑
-                </el-button>
-                <el-button
-                  v-if="row.count === 0"
-                  type="danger"
-                  size="small"
-                  @click="deleteTag(row)"
-                >
-                  <font-awesome-icon icon="trash-alt" /> 删除
-                </el-button>
-              </div>
+            <div class="ad-card__actions">
+              <button v-if="row.status === 'pending'" class="ad-btn is-success" @click="updateTagStatus(row, 'approved')">
+                <font-awesome-icon icon="check" /> 通过
+              </button>
+              <button v-if="row.status === 'pending'" class="ad-btn is-danger" @click="updateTagStatus(row, 'rejected')">
+                <font-awesome-icon icon="times" /> 拒绝
+              </button>
+              <button class="ad-btn is-primary" @click="editTag(row)">
+                <font-awesome-icon icon="edit" /> 编辑
+              </button>
+              <button v-if="row.count === 0" class="ad-btn is-danger" @click="deleteTag(row)">
+                <font-awesome-icon icon="trash-alt" /> 删除
+              </button>
             </div>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </div>
+
+        <div v-else-if="!loading" class="ad-empty">
+          <div class="ad-empty__icon"><font-awesome-icon icon="tags" /></div>
+          <div class="ad-empty__text">没有符合条件的标签</div>
+        </div>
+      </div>
 
       <div class="pagination-container">
         <el-pagination
@@ -398,6 +371,17 @@ onMounted(loadTags)
 </template>
 
 <style scoped>
+.tag-desc {
+  margin: 0;
+  color: var(--ad-text-muted, #5b6478);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .tag-management {
   padding: 24px;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
@@ -430,11 +414,15 @@ onMounted(loadTags)
 }
 
 .search-filter .el-input {
-  width: 300px;
+  flex: 2 1 220px;
+  min-width: 180px;
+  max-width: 340px;
 }
 
 .search-filter .el-select {
-  width: 140px;
+  flex: 1 1 130px;
+  min-width: 120px;
+  max-width: 160px;
 }
 
 .tag-info {

@@ -187,4 +187,31 @@ public class NotificationServiceImpl implements NotificationService {
                 commentContent.length() > 50 ? commentContent.substring(0, 50) + "..." : commentContent);
         createNotification(commentAuthorId, likerUserId, "COMMENT_LIKE", title, content, commentId);
     }
+
+    @Override
+    public void createArticleRejectedNotification(Long articleAuthorId, Long articleId, String articleTitle, String reason) {
+        String title = "您的文章审核未通过";
+        String content = String.format("文章「%s」审核未通过。原因：%s", articleTitle, normalizeRejectReason(reason));
+        createNotification(articleAuthorId, null, "ARTICLE_REJECTED", title, content, articleId);
+    }
+
+    @Override
+    public void createQuestionRejectedNotification(Long questionAuthorId, Long questionId, String questionTitle, String reason) {
+        String title = "您的问题审核未通过";
+        String content = String.format("问题「%s」审核未通过。原因：%s", questionTitle, normalizeRejectReason(reason));
+        createNotification(questionAuthorId, null, "QUESTION_REJECTED", title, content, questionId);
+    }
+
+    @Override
+    public void createDirectMessageNotification(Long receiverUserId, Long senderUserId, String content) {
+        String title = "您收到一条站内私信";
+        createNotification(receiverUserId, senderUserId, "DIRECT_MESSAGE", title, content.trim(), senderUserId);
+    }
+
+    private String normalizeRejectReason(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            return "未填写具体原因";
+        }
+        return reason.trim();
+    }
 }

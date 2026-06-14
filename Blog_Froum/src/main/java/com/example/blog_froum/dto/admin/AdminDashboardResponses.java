@@ -104,6 +104,7 @@ public final class AdminDashboardResponses {
     public static class ApplicationInfo {
         private String status;
         private String uptime;
+        private String startTime;
         private String version;
         private String environment;
     }

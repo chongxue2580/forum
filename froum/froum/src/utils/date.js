@@ -2,6 +2,8 @@
  * 日期格式化工具函数
  */
 
+import { toDate } from './dateUtils'
+
 /**
  * 格式化日期
  * @param {string|Date} date - 日期字符串或Date对象
@@ -11,8 +13,8 @@
 export function formatDate(date, format = 'YYYY-MM-DD HH:mm:ss') {
   if (!date) return '-'
   
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '-'
+  const d = toDate(date)
+  if (!d) return '-'
   
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -38,8 +40,8 @@ export function formatDate(date, format = 'YYYY-MM-DD HH:mm:ss') {
 export function formatRelativeTime(date) {
   if (!date) return '-'
   
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '-'
+  const d = toDate(date)
+  if (!d) return '-'
   
   const now = new Date()
   const diff = now.getTime() - d.getTime()
@@ -76,8 +78,8 @@ export function formatRelativeTime(date) {
 export function formatChineseDate(date) {
   if (!date) return '-'
   
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '-'
+  const d = toDate(date)
+  if (!d) return '-'
   
   return d.toLocaleDateString('zh-CN', {
     year: 'numeric',
@@ -96,8 +98,8 @@ export function formatChineseDate(date) {
 export function isToday(date) {
   if (!date) return false
   
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return false
+  const d = toDate(date)
+  if (!d) return false
   
   const today = new Date()
   return d.toDateString() === today.toDateString()
@@ -111,8 +113,8 @@ export function isToday(date) {
 export function isYesterday(date) {
   if (!date) return false
   
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return false
+  const d = toDate(date)
+  if (!d) return false
   
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)

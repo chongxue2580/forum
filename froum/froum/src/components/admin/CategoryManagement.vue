@@ -12,6 +12,8 @@ import {
 
 const loading = ref(false)
 const categories = ref([])
+const viewMode = ref(localStorage.getItem('adminView_categories') || 'grid')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_categories', v) }
 const categoryForm = ref({
   name: '',
   icon: '',
@@ -248,10 +250,6 @@ onMounted(loadCategories)
           <font-awesome-icon icon="plus" />
           新增分类
         </button>
-        <button class="admin-action-btn success">
-          <font-awesome-icon icon="download" />
-          导出数据
-        </button>
       </div>
     </div>
 
@@ -266,7 +264,7 @@ onMounted(loadCategories)
           placeholder="搜索分类名称或描述..."
           clearable
           size="large"
-          style="min-width: 300px; flex: 1;"
+          style="flex: 1 1 240px; min-width: 200px; max-width: 360px;"
         >
           <template #prefix>
             <font-awesome-icon icon="search" />
@@ -293,91 +291,57 @@ onMounted(loadCategories)
     </div>
 
     <div class="admin-content-card">
-      <div class="admin-section-title">
-        <font-awesome-icon icon="table" />
-        分类列表
+      <div class="admin-section-title ad-list-head">
+        <span><font-awesome-icon icon="table" /> 分类列表</span>
+        <span class="ad-view-toggle">
+          <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+          <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+        </span>
       </div>
-      <div class="admin-table-container admin-responsive-table">
-        <el-table v-loading="loading" :data="filteredCategories" style="width: 100%" stripe>
-        <el-table-column label="分类信息" min-width="300">
-          <template #default="{ row }">
-            <div class="category-info">
-              <div class="category-header">
-                <span class="category-icon">{{ row.icon }}</span>
-                <h3 class="category-title">{{ row.name }}</h3>
-              </div>
-              <p class="category-description">{{ row.description }}</p>
-              <div class="category-meta">
-                <div class="meta-left">
-                  <div class="creator-info">
-                    <font-awesome-icon icon="user" />
-                    <span>{{ row.createdBy?.name || '系统' }}</span>
-                  </div>
-                  <div class="time-info">
-                    <font-awesome-icon icon="clock" />
-                    <span>{{ row.createTime }}</span>
-                  </div>
+      <div v-loading="loading">
+        <div v-if="filteredCategories.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+          <div v-for="row in filteredCategories" :key="row.id" class="ad-card">
+            <div class="ad-card__head">
+              <span class="ad-card__avatar" style="background: linear-gradient(135deg,#5b7cfa,#8aa3ff); font-size:1.3rem;">{{ row.icon }}</span>
+              <div style="min-width:0;flex:1;">
+                <div class="ad-card__title">{{ row.name }}</div>
+                <div class="ad-card__sub">
+                  <span><font-awesome-icon icon="user" /> {{ row.createdBy?.name || '系统' }}</span>
+                  <span><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
                 </div>
               </div>
             </div>
-          </template>
-        </el-table-column>
 
-        <el-table-column label="文章数量" width="180">
-          <template #default="{ row }">
-            <div class="stats">
-              <div class="stat-item">
-                <font-awesome-icon icon="file-alt" />
-                <span>{{ row.articleCount }}</span>
-              </div>
+            <p class="category-desc">{{ row.description || '暂无描述' }}</p>
+
+            <div class="ad-card__pills">
+              <span class="ad-pill" :class="getStatusMeta(row.status).type === 'success' ? 'is-success' : getStatusMeta(row.status).type === 'danger' ? 'is-danger' : 'is-warning'">
+                {{ getStatusMeta(row.status).text }}
+              </span>
+              <span class="ad-pill is-accent"><font-awesome-icon icon="file-alt" /> {{ row.articleCount }} 篇</span>
             </div>
-          </template>
-        </el-table-column>
 
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <div :class="['admin-tag', getStatusMeta(row.status).type]">
-              {{ getStatusMeta(row.status).text }}
+            <div class="ad-card__actions">
+              <button v-if="row.status === 'pending'" class="ad-btn is-success" @click="updateCategoryStatus(row, 'approved')">
+                <font-awesome-icon icon="check" /> 通过
+              </button>
+              <button v-if="row.status === 'pending'" class="ad-btn is-danger" @click="updateCategoryStatus(row, 'rejected')">
+                <font-awesome-icon icon="times" /> 拒绝
+              </button>
+              <button class="ad-btn is-primary" @click="editCategory(row)">
+                <font-awesome-icon icon="edit" /> 编辑
+              </button>
+              <button class="ad-btn is-danger" @click="deleteCategory(row)">
+                <font-awesome-icon icon="trash-alt" /> 删除
+              </button>
             </div>
-          </template>
-        </el-table-column>
+          </div>
+        </div>
 
-        <el-table-column label="操作" width="280">
-          <template #default="{ row }">
-            <div class="action-buttons admin-mobile-stack">
-              <div class="button-row" v-if="row.status === 'pending'">
-                <button
-                  class="admin-action-btn success"
-                  @click="updateCategoryStatus(row, 'approved')"
-                >
-                  <font-awesome-icon icon="check" /> 通过
-                </button>
-                <button
-                  class="admin-action-btn danger"
-                  @click="updateCategoryStatus(row, 'rejected')"
-                >
-                  <font-awesome-icon icon="times" /> 拒绝
-                </button>
-              </div>
-
-              <div class="button-row">
-                <button
-                  class="admin-action-btn primary"
-                  @click="editCategory(row)"
-                >
-                  <font-awesome-icon icon="edit" /> 编辑
-                </button>
-                <button
-                  class="admin-action-btn danger"
-                  @click="deleteCategory(row)"
-                >
-                  <font-awesome-icon icon="trash-alt" /> 删除
-                </button>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+        <div v-else-if="!loading" class="ad-empty">
+          <div class="ad-empty__icon"><font-awesome-icon icon="folder" /></div>
+          <div class="ad-empty__text">没有符合条件的分类</div>
+        </div>
       </div>
     </div>
 
@@ -447,6 +411,17 @@ onMounted(loadCategories)
   gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.category-desc {
+  margin: 0;
+  color: var(--ad-text-muted, #5b6478);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .category-info {

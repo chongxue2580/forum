@@ -281,22 +281,25 @@ export default defineComponent({
       return false
     }
 
-    const emitAnswersUpdated = () => {
+    const unwrapResponseData = (response) => response?.data ?? response ?? null
+
+    const emitAnswersUpdated = (extra = {}) => {
       emit('answers-updated', {
         answers: answers.value,
         bestAnswerId: bestAnswerId.value,
-        answerCount: answers.value.length
+        answerCount: answers.value.length,
+        ...extra
       })
     }
 
-    const syncAnswerState = (answerList, shouldEmit = true, initialBestAnswerId = null) => {
+    const syncAnswerState = (answerList, shouldEmit = true, initialBestAnswerId = null, latestQuestion = null) => {
       answers.value = normalizeAnswers(answerList)
       bestAnswerId.value = answers.value.find(answer => answer.isBestAnswer)?.id || initialBestAnswerId
       answers.value.forEach(answer => {
         commentInputs.value[answer.id] = commentInputs.value[answer.id] || ''
       })
       if (shouldEmit) {
-        emitAnswersUpdated()
+        emitAnswersUpdated(latestQuestion ? { question: latestQuestion } : {})
       }
     }
 
@@ -316,7 +319,7 @@ export default defineComponent({
           return answer
         }
 
-        const info = result.value?.data || {}
+        const info = unwrapResponseData(result.value) || {}
         return {
           ...answer,
           voteCount: info.count ?? answer.voteCount ?? 0,
@@ -325,13 +328,13 @@ export default defineComponent({
       })
     }
 
-    const loadAnswers = async () => {
+    const loadAnswers = async (latestQuestion = null) => {
       const response = await questionService.getQuestionComments(props.questionId, {
         page: 1,
         pageSize: 100
       })
       const latestAnswers = await enrichAnswerLikeStates(response.data || [])
-      syncAnswerState(latestAnswers)
+      syncAnswerState(latestAnswers, true, null, latestQuestion)
     }
     
     // 监听props变化
@@ -458,8 +461,8 @@ export default defineComponent({
     // 设置最佳答案
     const setBestAnswer = async (answerId) => {
       try {
-        await questionService.setBestAnswer(props.questionId, answerId)
-        await loadAnswers()
+        const response = await questionService.setBestAnswer(props.questionId, answerId)
+        await loadAnswers(unwrapResponseData(response))
         
         // 显示成功消息
         store.dispatch('setMessage', {
@@ -478,8 +481,8 @@ export default defineComponent({
     // 取消最佳答案
     const unsetBestAnswer = async () => {
       try {
-        await questionService.unsetBestAnswer(props.questionId)
-        await loadAnswers()
+        const response = await questionService.unsetBestAnswer(props.questionId)
+        await loadAnswers(unwrapResponseData(response))
         
         // 显示成功消息
         store.dispatch('setMessage', {

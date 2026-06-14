@@ -95,7 +95,11 @@ export const followApi = {
   async getFollowInfo(targetType, targetId) {
     try {
       const response = await request.get(`/follows/${targetType}/${targetId}/info`)
-      return response.data || { count: 0, isFollowed: false }
+      const info = response.data || { count: 0, isFollowed: false }
+      return {
+        ...info,
+        isFollowed: Boolean(info.isFollowed ?? info.followed)
+      }
     } catch (error) {
       console.error('获取关注信息失败:', error)
       throw error

@@ -57,6 +57,13 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- Tianai Captcha (TAC) -->
+        <dependency>
+            <groupId>cloud.tianai.captcha</groupId>
+            <artifactId>tianai-captcha-springboot-starter</artifactId>
+            <version>1.5.2</version>
+        </dependency>
+
         <!-- MySQL Driver -->
         <dependency>
             <groupId>com.mysql</groupId>

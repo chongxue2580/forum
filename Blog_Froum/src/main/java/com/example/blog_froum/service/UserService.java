@@ -4,6 +4,8 @@ import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.RegisterRequest;
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
+import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
+import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
 import com.example.blog_froum.dto.user.UserResponse;
 import com.example.blog_froum.entity.User;
 import com.example.blog_froum.enums.UserRole;
@@ -104,6 +106,51 @@ public interface UserService {
     Optional<User> validateUser(String username, String password);
 
     /**
+     * 验证用户凭据并检查账号状态
+     */
+    User authenticateUser(String username, String password);
+
+    /**
+     * 完成登录并签发JWT
+     */
+    LoginResponse completeLogin(User user);
+
+    /**
+     * 使用临时令牌完成两步验证登录
+     */
+    LoginResponse completeTwoFactorLogin(String twoFactorToken, String code, boolean requireAdmin);
+
+    /**
+     * 管理员首次登录发起两步验证绑定
+     */
+    LoginResponse beginAdminTwoFactorSetup(User user);
+
+    /**
+     * 管理员首次登录确认两步验证绑定
+     */
+    LoginResponse confirmAdminTwoFactorSetup(String setupToken, String code);
+
+    /**
+     * 获取当前用户两步验证状态
+     */
+    TwoFactorStatusResponse getTwoFactorStatus(Long userId);
+
+    /**
+     * 当前用户发起两步验证绑定
+     */
+    TwoFactorSetupResponse beginTwoFactorSetup(Long userId);
+
+    /**
+     * 当前用户确认启用两步验证
+     */
+    TwoFactorStatusResponse enableTwoFactor(Long userId, String code);
+
+    /**
+     * 当前用户关闭两步验证
+     */
+    TwoFactorStatusResponse disableTwoFactor(Long userId, String code);
+
+    /**
      * 更新用户密码
      */
     boolean updatePassword(Long userId, String currentPassword, String newPassword);
@@ -144,6 +191,21 @@ public interface UserService {
      * 管理员删除用户
      */
     void adminDeleteUser(Long userId);
+
+    /**
+     * 批量禁用用户
+     */
+    com.example.blog_froum.dto.admin.BatchOperationResult batchDisableUsers(java.util.List<Long> userIds, String reason);
+
+    /**
+     * 批量启用用户
+     */
+    com.example.blog_froum.dto.admin.BatchOperationResult batchEnableUsers(java.util.List<Long> userIds);
+
+    /**
+     * 批量删除用户
+     */
+    com.example.blog_froum.dto.admin.BatchOperationResult batchDeleteUsers(java.util.List<Long> userIds);
 
     /**
      * 获取用户统计信息

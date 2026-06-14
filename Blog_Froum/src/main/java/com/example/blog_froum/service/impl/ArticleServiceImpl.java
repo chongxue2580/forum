@@ -63,9 +63,14 @@ public class ArticleServiceImpl implements ArticleService {
         article.setCategoryId(request.getCategoryId());
         article.setCoverImage(request.getCoverImage());
         article.setAuthorId(authorId);
-        article.setStatus(Boolean.TRUE.equals(request.getIsDraft())
-                ? ArticleStatus.DRAFT.name()
-                : ArticleStatus.PENDING.name());
+        // 草稿保持 DRAFT；管理员/超管发布免审核直接 APPROVED；普通用户进入 PENDING 待审核
+        if (Boolean.TRUE.equals(request.getIsDraft())) {
+            article.setStatus(ArticleStatus.DRAFT.name());
+        } else if (author.isAdmin()) {
+            article.setStatus(ArticleStatus.APPROVED.name());
+        } else {
+            article.setStatus(ArticleStatus.PENDING.name());
+        }
         article.setViewCount(0);
         article.setLikeCount(0);
         article.setCommentCount(0);
@@ -86,7 +91,7 @@ public class ArticleServiceImpl implements ArticleService {
         log.info("文章创建成功，ID: {}", savedArticle.getId());
 
         // 重新查询文章以加载关联对象
-        Article articleWithAssociations = articleRepository.findById(savedArticle.getId())
+        Article articleWithAssociations = articleRepository.findByIdWithAuthorAndCategory(savedArticle.getId())
                 .orElseThrow(() -> new RuntimeException("创建的文章未找到"));
 
         return ArticleResponse.fromEntity(articleWithAssociations);
@@ -129,7 +134,10 @@ public class ArticleServiceImpl implements ArticleService {
         Article updatedArticle = articleRepository.save(article);
         log.info("文章更新成功，ID: {}", updatedArticle.getId());
 
-        return ArticleResponse.fromEntity(updatedArticle);
+        Article articleWithAssociations = articleRepository.findByIdWithAuthorAndCategory(updatedArticle.getId())
+                .orElseThrow(() -> new RuntimeException("更新的文章未找到"));
+
+        return ArticleResponse.fromEntity(articleWithAssociations);
     }
 
     @Override
@@ -245,7 +253,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Page<ArticleResponse> getAllArticles(Pageable pageable) {
-        Page<Article> articlePage = articleRepository.findAll(pageable);
+        Page<Article> articlePage = articleRepository.findAllWithAuthorAndCategoryOrderByCreatedAtDesc(pageable);
         return articlePage.map(ArticleResponse::fromEntity);
     }
 
@@ -275,6 +283,11 @@ public class ArticleServiceImpl implements ArticleService {
 
         article.setStatus("REJECTED");
         articleRepository.save(article);
+        notificationService.createArticleRejectedNotification(
+                article.getAuthorId(),
+                article.getId(),
+                article.getTitle(),
+                reason);
         log.info("文章审核拒绝成功，ID: {}", articleId);
     }
 

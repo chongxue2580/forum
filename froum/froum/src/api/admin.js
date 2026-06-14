@@ -9,6 +9,14 @@ export function adminLogin(data) {
   })
 }
 
+export function confirmAdminTwoFactorSetup(data) {
+  return request({
+    url: '/admin/2fa/setup/confirm',
+    method: 'post',
+    data
+  })
+}
+
 export function adminLogout() {
   return request({
     url: '/admin/logout',
@@ -102,6 +110,30 @@ export function deleteUser(id) {
   return request({
     url: `/admin/users/${id}`,
     method: 'delete'
+  })
+}
+
+export function batchDisableUsers(ids, reason) {
+  return request({
+    url: '/admin/users/batch-disable',
+    method: 'post',
+    data: { ids, reason }
+  })
+}
+
+export function batchEnableUsers(ids) {
+  return request({
+    url: '/admin/users/batch-enable',
+    method: 'post',
+    data: { ids }
+  })
+}
+
+export function batchDeleteUsers(ids) {
+  return request({
+    url: '/admin/users/batch-delete',
+    method: 'post',
+    data: { ids }
   })
 }
 
@@ -379,6 +411,13 @@ export function deleteComment(id) {
   return request({
     url: `/admin/comments/${id}`,
     method: 'delete'
+  })
+}
+
+export function restoreComment(id) {
+  return request({
+    url: `/admin/comments/${id}/restore`,
+    method: 'put'
   })
 }
 

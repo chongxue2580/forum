@@ -139,9 +139,6 @@ const toggleFollow = async () => {
           ? (question.value.followCount || 0) + 1
           : Math.max(0, (question.value.followCount || 0) - 1)
       }
-
-      // 可以显示成功消息
-      console.log(result.message)
     } else {
       console.error('关注操作失败:', result.message)
     }

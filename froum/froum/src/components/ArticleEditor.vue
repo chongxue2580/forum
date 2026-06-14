@@ -6,6 +6,8 @@ import hljs from 'highlight.js'
 import { Editor } from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
 import { articleService } from '../services/articleService'
+import { categoryService } from '../services/categoryService'
+import { tagService } from '../services/tagService'
 import { useStore } from 'vuex'
 
 // 配置 marked
@@ -38,6 +40,7 @@ const article = ref({
   id: null,
   title: '',
   content: '',
+  categoryId: '',
   category: '',
   subcategory: '',
   tags: [],
@@ -54,39 +57,8 @@ const editorConfig = ref({
 })
 
 // 分类和标签数据
-const categories = ref([
-  {
-    id: 1,
-    name: '前端开发',
-    subcategories: [
-      { id: 11, name: 'Vue.js' },
-      { id: 12, name: 'React' },
-      { id: 13, name: 'Angular' },
-      { id: 14, name: '原生JavaScript' }
-    ]
-  },
-  {
-    id: 2,
-    name: '后端开发',
-    subcategories: [
-      { id: 21, name: 'Node.js' },
-      { id: 22, name: 'Python' },
-      { id: 23, name: 'Java' },
-      { id: 24, name: 'Go' }
-    ]
-  }
-])
-
-const popularTags = ref([
-  { id: 1, name: 'JavaScript' },
-  { id: 2, name: 'Vue3' },
-  { id: 3, name: 'React' },
-  { id: 4, name: 'TypeScript' },
-  { id: 5, name: 'Node.js' },
-  { id: 6, name: 'Python' },
-  { id: 7, name: 'Java' },
-  { id: 8, name: 'Go' }
-])
+const categories = ref([])
+const popularTags = ref([])
 
 // 计算属性
 const renderedContent = computed(() => {
@@ -94,7 +66,7 @@ const renderedContent = computed(() => {
 })
 
 const selectedCategory = computed(() => {
-  return categories.value.find(c => c.id === parseInt(article.value.category))
+  return categories.value.find(c => c.id === parseInt(article.value.categoryId || article.value.category))
 })
 
 const subcategories = computed(() => {
@@ -120,7 +92,7 @@ const validateForm = () => {
     return false;
   }
   
-  if (!article.value.category) {
+  if (!article.value.categoryId && !article.value.category) {
     saveError.value = '请选择文章分类';
     return false;
   }
@@ -160,12 +132,55 @@ const removeTag = (tag) => {
   }
 }
 
+const unwrapList = (response) => {
+  const data = response?.data ?? response
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  return []
+}
+
+const normalizeTagNames = (tags) => {
+  if (!Array.isArray(tags)) return []
+  return tags
+    .map(tag => typeof tag === 'string' ? tag : tag?.name)
+    .map(tag => tag?.trim())
+    .filter(Boolean)
+}
+
+const buildArticleSummary = () => {
+  const explicitSummary = article.value.summary?.trim()
+  if (explicitSummary) return explicitSummary
+
+  const plainContent = (article.value.content || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/[#>*_`~\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return (plainContent || article.value.title?.trim() || '').slice(0, 200)
+}
+
+const loadEditorOptions = async () => {
+  try {
+    const [categoryResponse, tagResponse] = await Promise.all([
+      categoryService.getAllCategories(),
+      tagService.getPopularTags(20)
+    ])
+
+    categories.value = unwrapList(categoryResponse)
+    popularTags.value = unwrapList(tagResponse)
+  } catch (error) {
+    console.error('加载文章编辑选项失败:', error)
+    saveError.value = error.message || '加载分类或标签失败'
+  }
+}
+
 const uploadCover = async (event) => {
   const file = event.target.files[0]
   if (file) {
     try {
-      console.log('开始上传封面图片:', file)
-
       // 验证文件类型
       if (!file.type.startsWith('image/')) {
         saveError.value = '请选择图片文件'
@@ -180,7 +195,6 @@ const uploadCover = async (event) => {
 
       const url = await articleService.uploadImage(file)
       article.value.coverImage = url
-      console.log('封面图片上传成功:', url)
 
       // 显示成功消息
       showSuccessMessage('封面图片上传成功！')
@@ -194,6 +208,7 @@ const uploadCover = async (event) => {
 // 初始化编辑器
 onMounted(async () => {
   await nextTick()
+  await loadEditorOptions()
   
   editor.value = new Editor({
     el: editorEl.value,
@@ -244,12 +259,22 @@ onMounted(async () => {
 // 加载文章数据
 const loadArticle = async (id) => {
   try {
-    const data = await articleService.getArticle(id)
-    article.value = data
-    editor.value.setMarkdown(data.content)
+    const response = await articleService.getArticleById(id)
+    const data = response.data || response
+    article.value = {
+      ...article.value,
+      ...data,
+      categoryId: data.categoryId || data.categoryInfo?.id || '',
+      category: data.categoryId || data.categoryInfo?.id || '',
+      tags: normalizeTagNames(data.tags),
+      coverImage: data.coverImage || '',
+      summary: data.summary || '',
+      isDraft: data.isDraft ?? data.status === 'DRAFT'
+    }
+    editor.value.setMarkdown(data.content || '')
   } catch (error) {
     console.error('加载文章失败:', error)
-    alert('加载文章失败')
+    saveError.value = error.message || '加载文章失败'
   }
 }
 
@@ -268,8 +293,8 @@ const saveArticle = async () => {
     const articleData = {
       title: article.value.title?.trim() || '',
       content: article.value.content?.trim() || '',
-      summary: article.value.summary?.trim() || article.value.title?.trim() || '', // 如果没有摘要，使用标题
-      categoryId: article.value.category ? parseInt(article.value.category) : 1, // 确保是数字
+      summary: buildArticleSummary(),
+      categoryId: article.value.categoryId || article.value.category ? Number(article.value.categoryId || article.value.category) : null,
       tags: Array.isArray(article.value.tags) ? article.value.tags.filter(tag => tag.trim()) : [],
       coverImage: article.value.coverImage || null,
       isDraft: Boolean(article.value.isDraft) // 确保是布尔值
@@ -297,11 +322,9 @@ const saveArticle = async () => {
         id: articleId.value, 
         article: articleData 
       });
-      console.log('Article updated successfully:', savedArticle);
     } else {
       // 创建新文章
       savedArticle = await store.dispatch('createArticle', articleData);
-      console.log('New article created successfully:', savedArticle);
     }
     
     // 显示成功消息
@@ -347,7 +370,7 @@ const publish = async () => {
       return
     }
 
-    if (!article.value.category) {
+    if (!article.value.categoryId && !article.value.category) {
       saveError.value = '请选择文章分类'
       return
     }
@@ -478,7 +501,7 @@ onUnmounted(() => {
         <!-- 分类选择 -->
         <div class="category-select">
           <h3>文章分类</h3>
-          <select v-model="article.category" required>
+          <select v-model="article.categoryId" required>
             <option value="">选择分类</option>
             <option 
               v-for="category in categories"

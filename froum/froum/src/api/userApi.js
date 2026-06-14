@@ -67,6 +67,42 @@ export const userApi = {
     }
   },
 
+  async getTwoFactorStatus() {
+    try {
+      return await request.get('/user/profile/me/2fa/status')
+    } catch (error) {
+      console.error('获取两步验证状态失败:', error)
+      throw error
+    }
+  },
+
+  async setupTwoFactor() {
+    try {
+      return await request.post('/user/profile/me/2fa/setup')
+    } catch (error) {
+      console.error('生成两步验证绑定信息失败:', error)
+      throw error
+    }
+  },
+
+  async enableTwoFactor(code) {
+    try {
+      return await request.post('/user/profile/me/2fa/enable', { code })
+    } catch (error) {
+      console.error('启用两步验证失败:', error)
+      throw error
+    }
+  },
+
+  async disableTwoFactor(code) {
+    try {
+      return await request.post('/user/profile/me/2fa/disable', { code })
+    } catch (error) {
+      console.error('关闭两步验证失败:', error)
+      throw error
+    }
+  },
+
   async getRecentUsers(limit = 4) {
     try {
       return await request.get('/user/recent-users', {

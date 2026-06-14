@@ -41,7 +41,7 @@ public class JwtUtil {
      */
     private String createToken(Claims claims, String subject) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
+        Date expiryDate = new Date(now.getTime() + getExpirationMillis());
 
         SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
 
@@ -52,6 +52,15 @@ public class JwtUtil {
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
+    }
+
+    private long getExpirationMillis() {
+        long configuredExpiration = expiration == null ? 86400L : expiration;
+        long thirtyDaysInSeconds = 60L * 60 * 24 * 30;
+        if (configuredExpiration <= thirtyDaysInSeconds) {
+            return configuredExpiration * 1000L;
+        }
+        return configuredExpiration;
     }
 
     /**

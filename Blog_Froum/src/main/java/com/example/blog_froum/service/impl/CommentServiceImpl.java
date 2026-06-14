@@ -273,6 +273,23 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    public void adminRestoreComment(Long commentId) {
+        log.info("管理员恢复评论，ID: {}", commentId);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+
+        if (!Boolean.TRUE.equals(comment.getIsDeleted())) {
+            return;
+        }
+
+        comment.setIsDeleted(false);
+        comment.setUpdatedAt(LocalDateTime.now());
+        commentRepository.save(comment);
+        incrementTargetCommentCount(comment);
+        log.info("管理员恢复评论成功，ID: {}", commentId);
+    }
+
+    @Override
     public void batchDeleteComments(java.util.List<Long> commentIds) {
         log.info("管理员批量删除评论，数量: {}", commentIds.size());
 
@@ -320,11 +337,12 @@ public class CommentServiceImpl implements CommentService {
                                                         String keyword,
                                                         LocalDateTime startTime,
                                                         LocalDateTime endTime,
+                                                        Boolean deleted,
                                                         Pageable pageable) {
         String normalizedType = StringUtils.hasText(targetType) ? targetType.trim().toUpperCase() : null;
         String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         return commentRepository
-                .searchForAdmin(normalizedType, targetId, normalizedKeyword, startTime, endTime, pageable)
+                .searchForAdmin(normalizedType, targetId, normalizedKeyword, startTime, endTime, deleted, pageable)
                 .map(CommentResponse::fromEntity);
     }
 
@@ -375,20 +393,35 @@ public class CommentServiceImpl implements CommentService {
         return commentPage.map(CommentResponse::fromEntity);
     }
 
-    private void decrementTargetCommentCount(Comment comment) {
+    private void incrementTargetCommentCount(Comment comment) {
         if ("ARTICLE".equals(comment.getTargetType())) {
-            Article article = articleRepository.findById(comment.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("文章不存在"));
-            article.decrementCommentCount();
-            articleRepository.save(article);
+            articleRepository.findById(comment.getTargetId()).ifPresent(article -> {
+                article.incrementCommentCount();
+                articleRepository.save(article);
+            });
         } else if ("QUESTION".equals(comment.getTargetType())) {
-            Question question = questionRepository.findById(comment.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("问答不存在"));
-            question.decrementCommentCount();
-            if (Boolean.TRUE.equals(comment.getIsBestAnswer())) {
-                question.setIsSolved(false);
-            }
-            questionRepository.save(question);
+            questionRepository.findById(comment.getTargetId()).ifPresent(question -> {
+                question.incrementCommentCount();
+                questionRepository.save(question);
+            });
+        }
+    }
+
+    private void decrementTargetCommentCount(Comment comment) {
+        // 目标文章/问答可能已被删除（如作者内容清理），此处容错处理，不影响评论删除本身
+        if ("ARTICLE".equals(comment.getTargetType())) {
+            articleRepository.findById(comment.getTargetId()).ifPresent(article -> {
+                article.decrementCommentCount();
+                articleRepository.save(article);
+            });
+        } else if ("QUESTION".equals(comment.getTargetType())) {
+            questionRepository.findById(comment.getTargetId()).ifPresent(question -> {
+                question.decrementCommentCount();
+                if (Boolean.TRUE.equals(comment.getIsBestAnswer())) {
+                    question.setIsSolved(false);
+                }
+                questionRepository.save(question);
+            });
         }
     }
 }

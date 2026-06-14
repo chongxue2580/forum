@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { notificationService } from '../services/notificationService'
+import { formatFriendlyTime } from '../utils/dateUtils'
 
 const router = useRouter()
 
@@ -165,8 +166,7 @@ const changePage = (page) => {
 }
 
 const formatTime = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleString('zh-CN')
+  return dateString ? formatFriendlyTime(dateString) : ''
 }
 
 const getNotificationIcon = (type) => {

@@ -1,7 +1,8 @@
 <script>
 import ArticleCard from './ArticleCard.vue';
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { formatFriendlyTime } from '../utils/dateUtils';
 
 export default {
   name: 'ArticleList',
@@ -116,40 +117,6 @@ export default {
       return pages;
     });
     
-    // 监听文章数据变化
-    watch(() => props.articles, (newArticles) => {
-      console.log('ArticleList: articles changed', {
-        length: newArticles?.length || 0,
-        data: newArticles
-      });
-    }, { immediate: true, deep: true });
-    
-    // 组件挂载时记录日志
-    onMounted(() => {
-      console.log('ArticleList mounted', { 
-        articlesLength: props.articles?.length || 0,
-        title: props.title,
-        showTitle: props.showTitle,
-        loading: props.loading,
-        pagination: {
-          currentPage: props.currentPage,
-          totalPages: props.totalPages,
-          totalItems: props.totalItems,
-          pageSize: props.pageSize
-        },
-        sampleArticle: props.articles && props.articles.length > 0 
-          ? {
-              id: props.articles[0].id,
-              title: props.articles[0].title,
-              category: props.articles[0].category,
-              commentsType: Array.isArray(props.articles[0].comments) 
-                ? 'array' 
-                : typeof props.articles[0].comments
-            }
-          : 'No articles'
-      });
-    });
-    
     return {
       activeFilter,
       setFilter,
@@ -159,13 +126,7 @@ export default {
   },
   methods: {
     formatDate(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      return dateString ? formatFriendlyTime(dateString) : '';
     },
     getAuthorInfo(author) {
       return author || { name: '未知作者', avatar: '' };
@@ -184,9 +145,6 @@ export default {
       if (text.length <= maxLength) return text;
       return text.substring(0, maxLength) + '...';
     }
-  },
-  mounted() {
-    console.log('ArticleList mounted, articles:', this.articles?.length || 0);
   }
 }
 </script>

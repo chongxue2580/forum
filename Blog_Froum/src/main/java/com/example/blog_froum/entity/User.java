@@ -49,6 +49,12 @@ public class User {
     
     @Column(name = "login_count")
     private Integer loginCount;
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    private Boolean twoFactorEnabled;
+
+    @Column(name = "two_factor_secret", length = 64)
+    private String twoFactorSecret;
     
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -60,6 +66,7 @@ public class User {
         this.role = UserRole.USER;
         this.status = UserStatus.ACTIVE;
         this.loginCount = 0;
+        this.twoFactorEnabled = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -91,6 +98,13 @@ public class User {
      */
     public boolean isActive() {
         return status == UserStatus.ACTIVE;
+    }
+
+    /**
+     * 是否已启用两步验证
+     */
+    public boolean isTwoFactorActive() {
+        return Boolean.TRUE.equals(twoFactorEnabled) && twoFactorSecret != null && !twoFactorSecret.trim().isEmpty();
     }
 
     /**

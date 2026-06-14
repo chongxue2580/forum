@@ -81,6 +81,11 @@ public interface CommentService {
     void adminDeleteComment(Long commentId);
 
     /**
+     * 管理员恢复（撤销软删除）评论
+     */
+    void adminRestoreComment(Long commentId);
+
+    /**
      * 批量删除评论
      */
     void batchDeleteComments(java.util.List<Long> commentIds);
@@ -97,11 +102,13 @@ public interface CommentService {
 
     /**
      * 管理员筛选评论。
+     * @param deleted 删除状态过滤：null=全部，false=未删除，true=已删除
      */
     Page<CommentResponse> searchCommentsForAdmin(String targetType,
                                                  Long targetId,
                                                  String keyword,
                                                  LocalDateTime startTime,
                                                  LocalDateTime endTime,
+                                                 Boolean deleted,
                                                  Pageable pageable);
 }

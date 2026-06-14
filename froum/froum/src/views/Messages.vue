@@ -2,6 +2,10 @@
   <div class="messages-page">
     <div class="page-header">
       <h1>消息中心</h1>
+      <button class="compose-btn" @click="openComposeDialog()">
+        <font-awesome-icon :icon="['fas', 'paper-plane']" />
+        <span>写私信</span>
+      </button>
     </div>
 
     <div class="messages-container">
@@ -184,6 +188,57 @@
         </div>
       </div>
     </div>
+
+    <!-- 私信发送对话框 -->
+    <div class="reply-dialog" v-if="showCompose">
+      <div class="reply-dialog-content">
+        <div class="reply-dialog-header">
+          <h3>发送站内私信</h3>
+          <button class="close-btn" @click="closeComposeDialog">
+            <font-awesome-icon :icon="['fas', 'times']" />
+          </button>
+        </div>
+        
+        <div class="reply-dialog-body">
+          <div class="reply-input">
+            <div v-if="composeUserName" class="recipient-chip">
+              <font-awesome-icon :icon="['fas', 'user']" />
+              <span>发送给 <strong>{{ composeUserName }}</strong></span>
+            </div>
+            <input
+              v-else
+              v-model="composeUserId"
+              class="recipient-input"
+              type="number"
+              min="1"
+              placeholder="接收用户ID"
+            />
+            <textarea
+              v-model="composeContent"
+              placeholder="请输入私信内容..."
+              rows="4"
+              @keydown.ctrl.enter="submitCompose"
+            ></textarea>
+          </div>
+        </div>
+        
+        <div class="reply-dialog-footer">
+          <div class="reply-tips">
+            提示: 按 Ctrl+Enter 快速发送
+          </div>
+          <div class="reply-actions">
+            <button class="cancel-btn" @click="closeComposeDialog">取消</button>
+            <button 
+              class="submit-btn" 
+              :disabled="!composeUserId || !composeContent.trim()" 
+              @click="submitCompose"
+            >
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- 回复对话框 -->
     <div class="reply-dialog" v-if="showReply">
@@ -241,11 +296,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { notificationService } from '../services/notificationService';
 
 // 添加路由器
+const route = useRoute();
 const router = useRouter();
 const pageSize = 10;
 
@@ -269,6 +325,10 @@ const unreadCounts = ref({
 const showReply = ref(false);
 const currentMessage = ref(null);
 const replyContent = ref('');
+const showCompose = ref(false);
+const composeUserId = ref('');
+const composeUserName = ref('');
+const composeContent = ref('');
 
 // 成功提示状态
 const showSuccessNotification = ref(false);
@@ -349,10 +409,20 @@ const syncUnreadCounts = () => {
     follow: 0,
     system: 0
   });
+  // 通知全局（顶栏未读红点）刷新
+  window.dispatchEvent(new Event('notifications-updated'));
 };
 
-const normalizeNotification = (notification) => {
-  const fromUser = notification.fromUser || {};
+// 兼容后端 LocalDateTime（数组 [年,月,日,时,分,秒]）/字符串/时间戳
+const toDate = (value) => {
+  if (!value) return null;
+  const date = Array.isArray(value)
+    ? new Date(value[0], (value[1] || 1) - 1, value[2] || 1, value[3] || 0, value[4] || 0, value[5] || 0)
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeNotification = (notification) => {  const fromUser = notification.fromUser || {};
   const type = notification.type || 'SYSTEM';
   const category = resolveMessageCategory(type);
   const targetType = resolveTargetType(type);
@@ -369,9 +439,9 @@ const normalizeNotification = (notification) => {
     },
     title: notification.title,
     content: notification.content || notification.title || '',
-    createdAt: notification.createdAt ? new Date(notification.createdAt) : null,
+    createdAt: toDate(notification.createdAt),
     read: notification.isRead ?? notification.read ?? false,
-    actionType: targetType ? 'view' : null,
+    actionType: type === 'DIRECT_MESSAGE' ? 'reply' : (targetType ? 'view' : null),
     targetId: type === 'USER_FOLLOW' ? fromUser.id : notification.targetId,
     targetType
   };
@@ -385,6 +455,7 @@ const resolveMessageCategory = (type) => {
 };
 
 const resolveTargetType = (type) => {
+  if (type === 'DIRECT_MESSAGE') return 'user';
   if (type.startsWith('ARTICLE_')) return 'article';
   if (type.startsWith('QUESTION_')) return 'question';
   if (type === 'USER_FOLLOW') return 'user';
@@ -493,6 +564,33 @@ const closeReplyDialog = () => {
   replyContent.value = '';
 };
 
+const openComposeDialog = (userId = route.query.userId, userName = route.query.userName) => {
+  composeUserId.value = userId ? String(userId) : '';
+  composeUserName.value = userName ? String(userName) : '';
+  composeContent.value = '';
+  showCompose.value = true;
+};
+
+const closeComposeDialog = () => {
+  showCompose.value = false;
+  composeUserId.value = '';
+  composeUserName.value = '';
+  composeContent.value = '';
+};
+
+const submitCompose = async () => {
+  if (!composeUserId.value || !composeContent.value.trim()) return;
+
+  try {
+    await notificationService.sendDirectMessage(Number(composeUserId.value), composeContent.value.trim());
+    ElMessage.success('私信已发送');
+    closeComposeDialog();
+  } catch (error) {
+    console.error('发送私信失败:', error);
+    ElMessage.error(error.message || '发送私信失败');
+  }
+};
+
 const markAllAsRead = async () => {
   if (!allMessages.value.length) return;
 
@@ -515,15 +613,40 @@ const markAllAsRead = async () => {
 };
 
 // 提交回复
-const submitReply = () => {
+const submitReply = async () => {
   if (!replyContent.value.trim() || !currentMessage.value) return;
 
-  ElMessage.warning('当前后端暂未提供站内信回复接口');
+  const receiverId = currentMessage.value.sender?.id;
+  if (!receiverId) {
+    ElMessage.warning('系统通知不能回复');
+    return;
+  }
+
+  try {
+    await notificationService.sendDirectMessage(receiverId, replyContent.value.trim());
+    closeReplyDialog();
+    showSuccessNotification.value = true;
+    setTimeout(() => {
+      showSuccessNotification.value = false;
+    }, 2000);
+  } catch (error) {
+    console.error('回复私信失败:', error);
+    ElMessage.error(error.message || '回复失败');
+  }
 };
 
 // 组件挂载时加载消息
 onMounted(() => {
   fetchMessages();
+  if (route.query.userId) {
+    openComposeDialog(route.query.userId, route.query.userName);
+  }
+});
+
+watch(() => route.query.userId, (userId) => {
+  if (userId) {
+    openComposeDialog(userId, route.query.userName);
+  }
 });
 </script>
 
@@ -539,12 +662,33 @@ onMounted(() => {
   margin-bottom: 20px;
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .page-header h1 {
   font-size: 24px;
   font-weight: 600;
   color: #333;
+}
+
+.compose-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 4px;
+  background: #1890ff;
+  color: #fff;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.compose-btn:hover {
+  background: #40a9ff;
 }
 
 .messages-container {
@@ -920,17 +1064,42 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
+.recipient-input,
 .reply-input textarea {
   width: 100%;
   padding: 12px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
-  resize: vertical;
   font-family: inherit;
   font-size: 14px;
   transition: all 0.2s;
 }
 
+.recipient-input {
+  margin-bottom: 12px;
+}
+
+.recipient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--primary-light, #eef3ff);
+  color: var(--primary-color, #4169d8);
+  font-size: 0.9rem;
+}
+
+.recipient-chip strong {
+  font-weight: 700;
+}
+
+.reply-input textarea {
+  resize: vertical;
+}
+
+.recipient-input:focus,
 .reply-input textarea:focus {
   outline: none;
   border-color: #1890ff;

@@ -14,6 +14,7 @@ import com.example.blog_froum.repository.LikeRepository;
 import com.example.blog_froum.repository.QuestionRepository;
 import com.example.blog_froum.service.FollowService;
 import com.example.blog_froum.service.LikeService;
+import com.example.blog_froum.service.NotificationService;
 import com.example.blog_froum.service.QuestionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,9 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Autowired
     private FollowService followService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     public QuestionResponse createQuestion(Long authorId, QuestionCreateRequest request) {
@@ -390,6 +394,11 @@ public class QuestionServiceImpl implements QuestionService {
 
         question.setStatus("REJECTED");
         questionRepository.save(question);
+        notificationService.createQuestionRejectedNotification(
+                question.getAuthorId(),
+                question.getId(),
+                question.getTitle(),
+                reason);
         log.info("问答审核拒绝成功，ID: {}", questionId);
     }
 

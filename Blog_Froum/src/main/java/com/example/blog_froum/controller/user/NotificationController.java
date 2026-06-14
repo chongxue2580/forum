@@ -1,6 +1,8 @@
 package com.example.blog_froum.controller.user;
 
+import com.example.blog_froum.dto.notification.DirectMessageRequest;
 import com.example.blog_froum.dto.notification.NotificationResponse;
+import com.example.blog_froum.mapper.UserMapper;
 import com.example.blog_froum.service.NotificationService;
 import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.Result;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 
 /**
@@ -22,12 +25,15 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173", "http://localhost:8081"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5177", "http://localhost:5178", "http://localhost:5179", "http://localhost:5180", "http://localhost:5181", "http://localhost:5182", "http://localhost:5183", "http://localhost:5184", "http://localhost:5185", "http://localhost:5190", "http://localhost:8081"})
 @Api(tags = "通知管理")
 public class NotificationController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private UserMapper userMapper;
 
     /**
      * 获取用户通知列表
@@ -165,6 +171,38 @@ public class NotificationController {
         } catch (Exception e) {
             log.error("获取最近通知失败", e);
             return Result.error("获取最近通知失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 发送站内私信
+     */
+    @PostMapping("/messages")
+    @ApiOperation(value = "发送站内私信", notes = "向指定用户发送一条站内私信")
+    public Result<Void> sendDirectMessage(
+            @Valid @RequestBody DirectMessageRequest request) {
+        try {
+            Long userId = BaseContext.getCurrentId();
+            if (userId == null) {
+                return Result.error("用户未登录");
+            }
+
+            if (userId.equals(request.getToUserId())) {
+                return Result.error("不能给自己发送私信");
+            }
+
+            if (userMapper.findById(request.getToUserId()) == null) {
+                return Result.error("接收用户不存在");
+            }
+
+            notificationService.createDirectMessageNotification(
+                    request.getToUserId(),
+                    userId,
+                    request.getContent());
+            return Result.success("私信已发送");
+        } catch (Exception e) {
+            log.error("发送站内私信失败", e);
+            return Result.error("发送私信失败: " + e.getMessage());
         }
     }
 

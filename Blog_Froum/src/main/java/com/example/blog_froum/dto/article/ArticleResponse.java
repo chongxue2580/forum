@@ -26,6 +26,8 @@ public class ArticleResponse {
     private String content;
     private String coverImage;
     private UserResponse author;
+    private Long categoryId;
+    private String categoryName;
     private CategoryResponse category;
     private Integer viewCount;
     private Integer likeCount;
@@ -57,6 +59,8 @@ public class ArticleResponse {
                 .content(article.getContent())
                 .coverImage(article.getCoverImage())
                 .author(article.getAuthor() != null ? UserResponse.fromUser(article.getAuthor()) : null)
+                .categoryId(article.getCategoryId())
+                .categoryName(article.getCategory() != null ? article.getCategory().getName() : null)
                 .category(article.getCategory() != null ? CategoryResponse.fromEntity(article.getCategory()) : null)
                 .viewCount(article.getViewCount())
                 .likeCount(article.getLikeCount())

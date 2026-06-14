@@ -199,7 +199,7 @@
             class="author-item"
           >
             <div class="author-avatar">
-              <img v-if="author.avatarUrl" :src="author.avatarUrl" :alt="getAuthorName(author)" />
+              <img v-if="getAuthorAvatar(author)" :src="getAuthorAvatar(author)" :alt="getAuthorName(author)" />
               <span v-else>{{ getAuthorInitial(author) }}</span>
             </div>
             <div class="author-info">
@@ -225,6 +225,7 @@ import QuestionList from '../components/QuestionList.vue'
 import HotArticles from '../components/HotArticles.vue'
 import { questionService } from '../services/questionService'
 import { userApi } from '../api/userApi'
+import { resolveAvatarFrom } from '../utils/avatar'
 
 export default defineComponent({
   name: 'Home',
@@ -369,11 +370,12 @@ export default defineComponent({
 
     const getAuthorName = (author) => author.nickname || author.username || '用户';
 
+    const getAuthorAvatar = (author) => resolveAvatarFrom(author);
+
     const getAuthorInitial = (author) => getAuthorName(author).charAt(0).toUpperCase();
 
     // 生命周期钩子
     onMounted(async () => {
-      console.log('Home component mounted');
       await loadData();
       
       // 预加载热门文章和推荐文章
@@ -389,22 +391,13 @@ export default defineComponent({
     // 方法
     const loadData = async () => {
       isLoading.value = true;
-      console.log('Loading data for Home component');
       
       try {
         // 首先加载文章数据
-        console.log('Fetching articles...');
         const articlesResponse = await store.dispatch('fetchArticles', { 
           page: articlePage.value, 
           pageSize: articlesPerPage.value,
           keyword: searchKeyword.value || undefined
-        });
-        console.log('Articles response:', {
-          success: !!articlesResponse,
-          articlesLength: store.state.articles?.length || 0,
-          totalArticles: store.state.articleCount || 0,
-          currentPage: articlesResponse?.page || articlePage.value,
-          totalPages: articlesResponse?.totalPages || 1
         });
         
         // 更新文章分页信息
@@ -419,38 +412,10 @@ export default defineComponent({
           store.dispatch('fetchPopularTags')
         ];
         
-        const [categoriesResponse, tagsResponse] = await Promise.all(promises);
-        console.log('Categories and tags loaded:', {
-          categoriesLength: store.state.categories?.length || 0,
-          tagsLength: store.state.popularTags?.length || 0
-        });
+        await Promise.all(promises);
         
         // 加载问题数据
         await loadQuestions();
-        
-        // 强制检查文章数据状态
-        console.log('Data loading completed. Final state check:', {
-          articles: {
-            inStore: store.state.articles?.length || 0,
-            computed: articles.value?.length || 0,
-            sample: articles.value && articles.value.length > 0 
-              ? {
-                  id: articles.value[0].id,
-                  title: articles.value[0].title,
-                  hasComments: !!articles.value[0].comments
-                } 
-              : 'No articles'
-          },
-          categories: {
-            length: categories.value?.length || 0
-          },
-          tags: {
-            length: popularTags.value?.length || 0
-          },
-          questions: {
-            length: questions.value?.length || 0
-          }
-        });
       } catch (error) {
         console.error('Error loading data:', error);
         
@@ -461,28 +426,24 @@ export default defineComponent({
             pageSize: articlesPerPage.value,
             keyword: searchKeyword.value || undefined
           });
-          console.log('Articles loaded separately');
         } catch (articlesError) {
           console.error('Failed to load articles separately:', articlesError);
         }
         
         try {
           await store.dispatch('fetchCategories');
-          console.log('Categories loaded separately');
         } catch (categoriesError) {
           console.error('Failed to load categories separately:', categoriesError);
         }
         
         try {
           await store.dispatch('fetchPopularTags');
-          console.log('Tags loaded separately');
         } catch (tagsError) {
           console.error('Failed to load tags separately:', tagsError);
         }
         
         try {
           await loadQuestions();
-          console.log('Questions loaded separately');
         } catch (questionsError) {
           console.error('Failed to load questions separately:', questionsError);
         }
@@ -494,14 +455,11 @@ export default defineComponent({
     // 加载问题数据
     const loadQuestions = async () => {
       try {
-        console.log('Loading questions from real API...');
         const questionResponse = await questionService.getQuestions({
           page: questionPage.value,
           pageSize: questionsPerPage.value,
           keyword: searchKeyword.value || undefined
         });
-
-        console.log('Question API response:', questionResponse);
 
         if (questionResponse.success) {
           // 处理分页数据结构
@@ -516,24 +474,15 @@ export default defineComponent({
             questionTotalItems.value = questionResponse.totalElements || questionResponse.data.length;
             questionTotalPages.value = questionResponse.totalPages || 1;
           } else {
-            console.warn('Unexpected question response format:', questionResponse);
             questions.value = [];
             questionTotalItems.value = 0;
             questionTotalPages.value = 1;
           }
         } else {
-          console.warn('Question API returned unsuccessful response:', questionResponse);
           questions.value = [];
           questionTotalItems.value = 0;
           questionTotalPages.value = 1;
         }
-        
-        console.log('Questions loaded:', {
-          count: questions.value.length,
-          totalItems: questionTotalItems.value,
-          totalPages: questionTotalPages.value,
-          currentPage: questionPage.value
-        });
         
         return questionResponse;
       } catch (error) {
@@ -544,7 +493,6 @@ export default defineComponent({
     
     // 文章分页变化处理
     const handleArticlePageChange = async (page) => {
-      console.log('Changing article page to:', page);
       articlePage.value = page;
       isLoading.value = true;
       
@@ -559,12 +507,6 @@ export default defineComponent({
           articleTotalPages.value = articlesResponse.totalPages || 1;
           articleTotalItems.value = articlesResponse.total || 0;
         }
-        
-        console.log('Articles updated after page change:', {
-          count: articles.value.length,
-          page: articlePage.value,
-          totalPages: articleTotalPages.value
-        });
       } catch (error) {
         console.error('Error changing article page:', error);
       } finally {
@@ -574,7 +516,6 @@ export default defineComponent({
     
     // 问题分页变化处理
     const handleQuestionPageChange = async (page) => {
-      console.log('Changing question page to:', page);
       questionPage.value = page;
       isLoading.value = true;
       
@@ -622,6 +563,7 @@ export default defineComponent({
       loadRecommendedArticles,
       loadFeaturedAuthors,
       getAuthorName,
+      getAuthorAvatar,
       getAuthorInitial,
       switchTab
     };

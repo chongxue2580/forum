@@ -110,4 +110,19 @@ public interface NotificationService {
      * 创建评论点赞通知
      */
     void createCommentLikeNotification(Long commentAuthorId, Long likerUserId, Long commentId, String commentContent);
+
+    /**
+     * 创建文章审核拒绝通知
+     */
+    void createArticleRejectedNotification(Long articleAuthorId, Long articleId, String articleTitle, String reason);
+
+    /**
+     * 创建问答审核拒绝通知
+     */
+    void createQuestionRejectedNotification(Long questionAuthorId, Long questionId, String questionTitle, String reason);
+
+    /**
+     * 创建站内私信通知
+     */
+    void createDirectMessageNotification(Long receiverUserId, Long senderUserId, String content);
 }

@@ -1,5 +1,7 @@
 package com.example.blog_froum.controller.admin;
 
+import com.example.blog_froum.dto.admin.BatchOperationResult;
+import com.example.blog_froum.dto.admin.BatchUserRequest;
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
 import com.example.blog_froum.dto.user.UserResponse;
 import com.example.blog_froum.service.OperationLogService;
@@ -172,6 +174,63 @@ public class AdminUserController {
         } catch (Exception e) {
             log.error("删除用户失败", e);
             return Result.error("删除用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量禁用用户
+     */
+    @PostMapping("/batch-disable")
+    @ApiOperation(value = "批量禁用用户", notes = "管理员批量禁用用户")
+    public Result<BatchOperationResult> batchDisableUsers(@RequestBody BatchUserRequest batchRequest,
+                                                          HttpServletRequest request) {
+        try {
+            log.info("管理员批量禁用用户，IDs: {}", batchRequest.getIds());
+            BatchOperationResult result = userService.batchDisableUsers(batchRequest.getIds(), batchRequest.getReason());
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "batch_disable",
+                    "批量禁用用户：" + batchRequest.getIds(), "USER", null, null, request);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("批量禁用用户失败", e);
+            return Result.error("批量禁用用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量启用用户
+     */
+    @PostMapping("/batch-enable")
+    @ApiOperation(value = "批量启用用户", notes = "管理员批量启用用户")
+    public Result<BatchOperationResult> batchEnableUsers(@RequestBody BatchUserRequest batchRequest,
+                                                         HttpServletRequest request) {
+        try {
+            log.info("管理员批量启用用户，IDs: {}", batchRequest.getIds());
+            BatchOperationResult result = userService.batchEnableUsers(batchRequest.getIds());
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "batch_enable",
+                    "批量启用用户：" + batchRequest.getIds(), "USER", null, null, request);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("批量启用用户失败", e);
+            return Result.error("批量启用用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量删除用户
+     */
+    @PostMapping("/batch-delete")
+    @ApiOperation(value = "批量删除用户", notes = "管理员批量删除用户")
+    public Result<BatchOperationResult> batchDeleteUsers(@RequestBody BatchUserRequest batchRequest,
+                                                         HttpServletRequest request) {
+        try {
+            log.info("管理员批量删除用户，IDs: {}", batchRequest.getIds());
+            BatchOperationResult result = userService.batchDeleteUsers(batchRequest.getIds());
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "batch_delete",
+                    "批量删除用户：" + batchRequest.getIds(), "USER", null, null, request);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("批量删除用户失败", e);
+            return Result.error("批量删除用户失败: " + e.getMessage());
         }
     }
 

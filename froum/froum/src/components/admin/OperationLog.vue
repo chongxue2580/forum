@@ -6,6 +6,9 @@ import { getOperationLogs } from '@/api/admin'
 
 const loading = ref(false)
 const logs = ref([])
+// 视图模式：日志默认列表（横排）
+const viewMode = ref(localStorage.getItem('adminView_logs') || 'list')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_logs', v) }
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -251,46 +254,48 @@ onMounted(loadLogs)
       </el-button>
     </div>
 
-    <div class="admin-table-container">
-      <el-table :data="logs" v-loading="loading" style="width: 100%" border>
-        <el-table-column label="操作信息" min-width="340">
-          <template #default="{ row }">
-            <div class="log-info">
-              <div class="log-header">
-                <div class="operator-info">
-                  <el-avatar :size="28" :style="{ backgroundColor: getAvatarColor(row.operator.name), color: '#fff' }">
-                    {{ getAvatarText(row.operator.name) }}
-                  </el-avatar>
-                  <span class="operator-name">{{ row.operator.name }}</span>
-                </div>
-                <el-tag :type="getActionInfo(row.action).type" size="small">
-                  {{ getActionInfo(row.action).text }}
-                </el-tag>
+    <div class="ad-list-head" style="margin-bottom:14px;">
+      <div class="admin-section-title" style="margin:0;">
+        <font-awesome-icon icon="clipboard-list" /> 操作日志
+      </div>
+      <span class="ad-view-toggle">
+        <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+        <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+      </span>
+    </div>
+
+    <div v-loading="loading">
+      <div v-if="logs.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+        <div v-for="row in logs" :key="row.id" class="ad-card">
+          <div class="ad-card__head">
+            <span class="ad-card__avatar" :style="{ backgroundColor: getAvatarColor(row.operator.name) }">{{ getAvatarText(row.operator.name) }}</span>
+            <div style="min-width:0;flex:1;">
+              <div class="ad-card__title">{{ row.operator.name }}</div>
+              <div class="ad-card__sub">
+                <span><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
+                <span><font-awesome-icon icon="network-wired" /> {{ row.ip }}</span>
               </div>
-              <div class="operation-detail">
-                <span class="operation-type">
-                  <font-awesome-icon :icon="getTypeInfo(row.type).icon" />
-                  {{ getTypeInfo(row.type).text }}
-                </span>
-                <span class="target-info">{{ row.target.type }} #{{ row.target.id || '-' }} {{ row.target.name }}</span>
-              </div>
-              <p class="detail-text">{{ row.detail }}</p>
             </div>
-          </template>
-        </el-table-column>
+          </div>
 
-        <el-table-column label="IP地址" min-width="150">
-          <template #default="{ row }">
-            <span class="cell-icon"><font-awesome-icon icon="network-wired" /> {{ row.ip }}</span>
-          </template>
-        </el-table-column>
+          <div class="ad-card__pills">
+            <span class="ad-pill" :class="getActionInfo(row.action).type === 'success' ? 'is-success' : getActionInfo(row.action).type === 'danger' ? 'is-danger' : getActionInfo(row.action).type === 'warning' ? 'is-warning' : 'is-accent'">
+              {{ getActionInfo(row.action).text }}
+            </span>
+            <span class="ad-pill is-muted">
+              <font-awesome-icon :icon="getTypeInfo(row.type).icon" /> {{ getTypeInfo(row.type).text }}
+            </span>
+            <span class="ad-pill is-muted">{{ row.target.type }} #{{ row.target.id || '-' }}</span>
+          </div>
 
-        <el-table-column label="操作时间" min-width="180">
-          <template #default="{ row }">
-            <span class="cell-icon"><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
-          </template>
-        </el-table-column>
-      </el-table>
+          <p class="log-detail">{{ row.detail }}</p>
+        </div>
+      </div>
+
+      <div v-else-if="!loading" class="ad-empty">
+        <div class="ad-empty__icon"><font-awesome-icon icon="clipboard-list" /></div>
+        <div class="ad-empty__text">暂无操作日志</div>
+      </div>
     </div>
 
     <div class="pagination-container">
@@ -309,6 +314,14 @@ onMounted(loadLogs)
 </template>
 
 <style scoped>
+.log-detail {
+  margin: 0;
+  color: var(--ad-text-muted, #5b6478);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 .operation-log {
   background: #f8fafc;
 }
@@ -327,15 +340,21 @@ onMounted(loadLogs)
 }
 
 .search-input {
-  width: 280px;
+  flex: 2 1 220px;
+  min-width: 180px;
+  max-width: 320px;
 }
 
 .filter-select {
-  width: 150px;
+  flex: 1 1 130px;
+  min-width: 120px;
+  max-width: 160px;
 }
 
 .date-picker {
-  width: 300px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  max-width: 280px;
 }
 
 .log-info {

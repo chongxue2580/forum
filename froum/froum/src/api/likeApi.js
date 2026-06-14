@@ -95,7 +95,11 @@ export const likeApi = {
   async getLikeInfo(targetType, targetId) {
     try {
       const response = await request.get(`/likes/${targetType}/${targetId}/info`)
-      return response.data || { count: 0, isLiked: false }
+      const info = response.data || { count: 0, isLiked: false }
+      return {
+        ...info,
+        isLiked: Boolean(info.isLiked ?? info.liked)
+      }
     } catch (error) {
       console.error('获取点赞信息失败:', error)
       throw error

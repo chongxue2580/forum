@@ -179,7 +179,7 @@ router.beforeEach((to, from, next) => {
   if (isAuthenticated) {
     try {
       const userInfo = JSON.parse(userInfoJson)
-      isAdmin = userInfo.role === 'ADMIN' || userInfo.role === 'admin'
+      isAdmin = userInfo.role === 'ADMIN' || userInfo.role === 'SUPER_ADMIN' || userInfo.role === 'admin'
     } catch (error) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')

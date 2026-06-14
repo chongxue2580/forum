@@ -46,7 +46,8 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         if (needsAuthentication(request, requestURI, method)) {
             // 需要认证，继续执行JWT验证
         } else {
-            // 不需要认证，直接放行
+            // 不需要强制认证的接口，如果请求带了有效 token，也写入当前用户上下文，便于返回用户态信息。
+            resolveOptionalUserContext(request);
             return true;
         }
 
@@ -148,6 +149,14 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             return false;
         }
 
+        if ("GET".equals(method) && requestURI.matches("/api/follows/[^/]+/\\d+/(status|count|info)")) {
+            return false;
+        }
+
+        if ("GET".equals(method) && requestURI.matches("/api/likes/[^/]+/\\d+/(status|count|info)")) {
+            return false;
+        }
+
         // 关注相关接口都需要认证
         if (requestURI.startsWith("/api/follows")) {
             return true;
@@ -160,6 +169,34 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
         // 其他路径默认需要认证（如果被拦截器拦截到的话）
         return true;
+    }
+
+    private void resolveOptionalUserContext(HttpServletRequest request) {
+        String token = request.getHeader("Authorization");
+        if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        if (!StringUtils.hasText(token)) {
+            return;
+        }
+
+        try {
+            if (!jwtUtil.validateToken(token)) {
+                return;
+            }
+
+            Long userId = jwtUtil.getUserIdFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
+            String role = jwtUtil.getRoleFromToken(token);
+
+            request.setAttribute("userId", userId);
+            request.setAttribute("username", username);
+            request.setAttribute("role", role);
+            BaseContext.setCurrentId(userId);
+        } catch (Exception ex) {
+            log.debug("可选用户JWT解析失败，按未登录访问处理: {}", ex.getMessage());
+        }
     }
 
     /**

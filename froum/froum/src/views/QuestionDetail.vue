@@ -249,9 +249,30 @@ export default defineComponent({
       return false
     }
 
+    const unwrapResponseData = (response) => response?.data ?? response ?? {}
+
+    const applyQuestionState = (questionState = {}) => {
+      if (!question.value || !questionState) return
+
+      if (typeof questionState.commentCount === 'number' || typeof questionState.answerCount === 'number') {
+        question.value.answerCount = questionState.commentCount ?? questionState.answerCount
+      }
+      if (typeof questionState.likeCount === 'number' || typeof questionState.voteCount === 'number') {
+        question.value.voteCount = questionState.likeCount ?? questionState.voteCount
+      }
+      if (typeof questionState.followCount === 'number') {
+        question.value.followCount = questionState.followCount
+      }
+      if (typeof questionState.isSolved === 'boolean' || typeof questionState.solved === 'boolean') {
+        const solved = Boolean(questionState.isSolved ?? questionState.solved)
+        question.value.isSolved = solved
+        question.value.solved = solved
+      }
+    }
+
     const refreshQuestionLikeInfo = async () => {
       const response = await questionService.getQuestionLikeInfo(questionId.value)
-      const info = response.data || {}
+      const info = unwrapResponseData(response)
       userVote.value = getFlag(info, 'liked', 'isLiked') ? 'up' : null
       if (question.value) {
         question.value.voteCount = info.count ?? question.value.voteCount ?? 0
@@ -260,7 +281,7 @@ export default defineComponent({
 
     const refreshQuestionFollowInfo = async () => {
       const response = await questionService.getQuestionFollowInfo(questionId.value)
-      const info = response.data || {}
+      const info = unwrapResponseData(response)
       isFollowing.value = getFlag(info, 'followed', 'isFollowed')
       if (question.value) {
         question.value.followCount = info.count ?? question.value.followCount ?? 0
@@ -275,6 +296,7 @@ export default defineComponent({
         const response = await questionService.getQuestionById(questionId.value)
 
         if (response.success) {
+          const questionData = unwrapResponseData(response)
           const commentsResponse = await questionService.getQuestionComments(questionId.value, {
             page: 1,
             pageSize: 100
@@ -283,12 +305,12 @@ export default defineComponent({
           const bestAnswer = answers.find(answer => answer.isBestAnswer)
 
           question.value = {
-            ...response.data,
+            ...questionData,
             answers,
-            bestAnswerId: bestAnswer?.id || response.data.bestAnswerId || null,
+            bestAnswerId: bestAnswer?.id || questionData.bestAnswerId || null,
             answerCount: commentsResponse.total ?? answers.length,
-            isSolved: Boolean(response.data.isSolved || response.data.solved || bestAnswer),
-            solved: Boolean(response.data.solved || response.data.isSolved || bestAnswer)
+            isSolved: Boolean(questionData.isSolved || questionData.solved || bestAnswer),
+            solved: Boolean(questionData.solved || questionData.isSolved || bestAnswer)
           }
 
           if (store.state.isAuthenticated) {
@@ -408,7 +430,7 @@ export default defineComponent({
       }
     }
 
-    const handleAnswersUpdated = ({ answers, bestAnswerId, answerCount }) => {
+    const handleAnswersUpdated = ({ answers, bestAnswerId, answerCount, question: latestQuestion }) => {
       if (!question.value) return
 
       question.value.answers = answers || []
@@ -416,6 +438,7 @@ export default defineComponent({
       question.value.answerCount = answerCount ?? question.value.answers.length
       question.value.isSolved = Boolean(bestAnswerId)
       question.value.solved = Boolean(bestAnswerId)
+      applyQuestionState(latestQuestion)
     }
     
     // 生命周期钩子

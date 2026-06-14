@@ -19,7 +19,7 @@ onMounted(() => {
   
   // 检查是否有管理员权限
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-  const isAdmin = userInfo.role === 'admin' || userInfo.role === 'ADMIN'
+  const isAdmin = userInfo.role === 'admin' || userInfo.role === 'ADMIN' || userInfo.role === 'SUPER_ADMIN'
   
   if (!isAdmin) {
     // 如果不是管理员，重定向到 403 页面

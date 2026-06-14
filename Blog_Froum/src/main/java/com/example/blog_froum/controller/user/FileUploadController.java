@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -79,7 +78,7 @@ public class FileUploadController {
             String relativePath = "images/" + dateDir + "/" + fileName;
 
             // 创建完整路径 - 使用绝对路径
-            Path uploadDir = Paths.get(uploadPath).toAbsolutePath().resolve("images").resolve(dateDir);
+            Path uploadDir = getUploadBasePath().resolve("images").resolve(dateDir);
             Files.createDirectories(uploadDir);
 
             // 保存文件
@@ -140,11 +139,11 @@ public class FileUploadController {
             
             String fileName = "avatar_" + userId + "_" + System.currentTimeMillis() + extension;
             
-            // 创建目录结构：uploads/avatars/
-            String relativePath = "avatars/" + fileName;
+            // 创建目录结构：uploads/images/avatars/
+            String relativePath = "images/avatars/" + fileName;
             
-            // 创建完整路径
-            Path uploadDir = Paths.get(uploadPath, "avatars");
+            // 创建完整路径 - 与文章图片上传使用同一个上传根目录
+            Path uploadDir = getUploadBasePath().resolve("images").resolve("avatars");
             Files.createDirectories(uploadDir);
             
             // 保存文件
@@ -223,7 +222,7 @@ public class FileUploadController {
             String relativePath = "documents/" + dateDir + "/" + fileName;
             
             // 创建完整路径
-            Path uploadDir = Paths.get(uploadPath, "documents", dateDir);
+            Path uploadDir = getUploadBasePath().resolve("documents").resolve(dateDir);
             Files.createDirectories(uploadDir);
             
             // 保存文件
@@ -258,7 +257,7 @@ public class FileUploadController {
             }
 
             // 构建并校验文件路径，防止通过 ../ 删除上传根目录以外的文件。
-            Path basePath = Paths.get(uploadPath).toAbsolutePath().normalize();
+            Path basePath = getUploadBasePath();
             Path filePath = basePath.resolve(relativePath).normalize();
             if (!filePath.startsWith(basePath)) {
                 return Result.error("非法文件路径");
@@ -278,5 +277,9 @@ public class FileUploadController {
             log.error("删除文件失败", e);
             return Result.error("删除失败: " + e.getMessage());
         }
+    }
+
+    private Path getUploadBasePath() {
+        return Paths.get(uploadPath).toAbsolutePath().normalize();
     }
 }

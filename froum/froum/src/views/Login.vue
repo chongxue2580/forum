@@ -10,6 +10,11 @@
         <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="error-icon" />
         <span>{{ error }}</span>
       </div>
+
+      <div v-if="infoMessage" class="info-message">
+        <font-awesome-icon :icon="['fas', 'shield-alt']" class="info-icon" />
+        <span>{{ infoMessage }}</span>
+      </div>
       
       <form @submit.prevent="handleLogin">
         <div class="form-group">
@@ -59,10 +64,29 @@
             忘记密码?
           </router-link>
         </div>
+
+        <TacCaptcha v-if="!requiresTwoFactor" ref="captchaRef" v-model="captchaValue" />
+
+        <div v-if="requiresTwoFactor" class="form-group">
+          <label for="twoFactorCode">两步验证码</label>
+          <div class="input-wrapper">
+            <font-awesome-icon :icon="['fas', 'shield-alt']" class="input-icon" />
+            <input
+              type="text"
+              id="twoFactorCode"
+              v-model="twoFactorCode"
+              placeholder="请输入验证器中的6位数字"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              required
+            />
+          </div>
+        </div>
         
         <button type="submit" class="btn-login" :disabled="loading">
           <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="loading" />
-          <span>{{ loading ? '登录中...' : '登录' }}</span>
+          <span>{{ loading ? '登录中...' : loginButtonText }}</span>
         </button>
       </form>
       
@@ -96,12 +120,14 @@
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue'
+import { computed, defineComponent, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
+import TacCaptcha from '../components/TacCaptcha.vue'
 
 export default defineComponent({
   name: 'LoginView',
+  components: { TacCaptcha },
   setup() {
     const router = useRouter()
     const store = useStore()
@@ -113,10 +139,43 @@ export default defineComponent({
     const showPassword = ref(false)
     const loading = ref(false)
     const error = ref('')
+    const infoMessage = ref('')
+    const captchaValue = ref(null)
+    const captchaRef = ref(null)
+    const requiresTwoFactor = ref(false)
+    const twoFactorCode = ref('')
+    const twoFactorToken = ref('')
+
+    const loginButtonText = computed(() => requiresTwoFactor.value ? '验证并登录' : '登录')
+
+    onMounted(() => {
+      if (route.query.username) {
+        username.value = String(route.query.username)
+      }
+      const pendingPassword = sessionStorage.getItem('postRegisterPassword')
+      if (pendingPassword) {
+        password.value = pendingPassword
+        remember.value = true
+        sessionStorage.removeItem('postRegisterPassword')
+      }
+      if (route.query.registered === '1') {
+        infoMessage.value = '注册成功，账号密码已填入，完成验证码后即可登录'
+      }
+    })
     
     const handleLogin = async () => {
       if (!username.value || !password.value) {
         error.value = '请输入用户名和密码'
+        return
+      }
+
+      if (requiresTwoFactor.value && !twoFactorCode.value) {
+        error.value = '请输入两步验证码'
+        return
+      }
+
+      if (!requiresTwoFactor.value && !captchaValue.value?.captchaId) {
+        error.value = '请先完成验证码验证'
         return
       }
       
@@ -127,28 +186,32 @@ export default defineComponent({
         const result = await store.dispatch('login', {
           username: username.value,
           password: password.value,
-          remember: remember.value
+          remember: remember.value,
+          captchaId: captchaValue.value?.captchaId,
+          captchaPercentage: captchaValue.value?.captchaPercentage,
+          twoFactorCode: twoFactorCode.value,
+          twoFactorToken: twoFactorToken.value
         })
 
-        console.log('登录成功，结果:', result)
-        console.log('当前认证状态:', {
-          isAuthenticated: store.state.isAuthenticated,
-          user: store.state.user,
-          localStorage: {
-            token: localStorage.getItem('token'),
-            userInfo: localStorage.getItem('userInfo')
-          }
-        })
+        if (result?.requiresTwoFactor) {
+          requiresTwoFactor.value = true
+          twoFactorToken.value = result.twoFactorToken || ''
+          twoFactorCode.value = ''
+          error.value = ''
+          infoMessage.value = '账号已开启两步验证，请输入验证器中的6位数字'
+          return
+        }
 
         // 登录成功，重定向到原来的页面或首页
         const redirectPath = route.query.redirect || '/'
-        console.log('准备重定向到:', redirectPath)
-
         await router.push(redirectPath)
-        console.log('重定向完成')
       } catch (err) {
         console.error('登录失败:', err)
         error.value = err.message || '登录失败，请检查用户名和密码'
+        if (!requiresTwoFactor.value) {
+          captchaValue.value = null
+          captchaRef.value?.refresh()
+        }
       } finally {
         loading.value = false
       }
@@ -161,6 +224,12 @@ export default defineComponent({
       showPassword,
       loading,
       error,
+      infoMessage,
+      captchaValue,
+      captchaRef,
+      requiresTwoFactor,
+      twoFactorCode,
+      loginButtonText,
       handleLogin
     }
   }
@@ -221,6 +290,22 @@ export default defineComponent({
 }
 
 .error-icon {
+  font-size: 1rem;
+}
+
+.info-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(var(--primary-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius);
+  color: var(--primary-color);
+}
+
+.info-icon {
   font-size: 1rem;
 }
 

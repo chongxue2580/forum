@@ -110,6 +110,13 @@ public interface UserMapper {
      */
     int updatePassword(@Param("id") Long id, @Param("password") String password);
 
+    /**
+     * 更新用户两步验证设置
+     */
+    int updateTwoFactor(@Param("id") Long id,
+                        @Param("enabled") Boolean enabled,
+                        @Param("secret") String secret);
+
     // 管理员功能需要的方法
     /**
      * 根据角色和状态查询用户

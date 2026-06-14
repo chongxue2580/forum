@@ -3,6 +3,7 @@ package com.example.blog_froum.service.impl;
 import com.example.blog_froum.dto.category.CategoryRequest;
 import com.example.blog_froum.dto.category.CategoryResponse;
 import com.example.blog_froum.entity.Category;
+import com.example.blog_froum.repository.ArticleRepository;
 import com.example.blog_froum.repository.CategoryRepository;
 import com.example.blog_froum.service.CategoryService;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,17 @@ public class CategoryServiceImpl implements CategoryService {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private ArticleRepository articleRepository;
+
+    /** 用已通过文章的真实数量填充分类的 articleCount（DB 中的计数字段不维护，故实时统计） */
+    private CategoryResponse withArticleCount(CategoryResponse response) {
+        if (response != null && response.getId() != null) {
+            response.setArticleCount((int) articleRepository.countByCategoryIdAndStatus(response.getId(), DEFAULT_STATUS));
+        }
+        return response;
+    }
+
     @Override
     public Page<CategoryResponse> getCategories(String status, Pageable pageable) {
         Page<Category> categoryPage;
@@ -36,13 +48,14 @@ public class CategoryServiceImpl implements CategoryService {
             categoryPage = categoryRepository.findByStatusOrderByDisplayOrderAsc(normalizeStatus(status), pageable);
         }
 
-        return categoryPage.map(CategoryResponse::fromEntity);
+        return categoryPage.map(category -> withArticleCount(CategoryResponse.fromEntity(category)));
     }
 
     @Override
     public List<CategoryResponse> getApprovedCategories() {
         return categoryRepository.findByStatusOrderByDisplayOrder("APPROVED").stream()
                 .map(CategoryResponse::fromEntity)
+                .map(this::withArticleCount)
                 .collect(Collectors.toList());
     }
 
@@ -50,6 +63,7 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse getCategoryById(Long id) {
         return categoryRepository.findById(id)
                 .map(CategoryResponse::fromEntity)
+                .map(this::withArticleCount)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));
     }
 

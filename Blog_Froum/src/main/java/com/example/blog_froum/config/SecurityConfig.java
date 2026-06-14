@@ -48,11 +48,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // 允许Swagger相关资源
                 .antMatchers("/doc.html", "/webjars/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .antMatchers("/api/captcha/**").permitAll()
                 // 允许登录注册接口
                 .antMatchers("/api/user/login", "/api/user/register").permitAll()
                 .antMatchers("/api/user/profile/login", "/api/user/profile/register").permitAll()
                 .antMatchers("/api/user/check-username", "/api/user/check-email").permitAll()
                 .antMatchers("/api/admin/login").permitAll()
+                .antMatchers("/api/admin/2fa/setup/confirm").permitAll()
                 // 其他请求都允许通过，由JWT拦截器处理
                 .anyRequest().permitAll()
             );

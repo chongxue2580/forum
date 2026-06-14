@@ -194,7 +194,7 @@ export default defineComponent({
     const loadArticles = async () => {
       try {
         articlesLoading.value = true
-        
+
         // 调用获取文章的action，传入分类ID作为过滤条件
         const response = await store.dispatch('fetchArticles', {
           page: currentPage.value,
@@ -202,11 +202,14 @@ export default defineComponent({
           categoryId: props.categoryId,
           sort: sortBy.value
         })
-        
-        articles.value = response.data || []
-        totalItems.value = response.total || 0
+
+        // fetchArticles 出错时可能返回 undefined，做兜底避免详情页静默崩溃
+        articles.value = response?.data || []
+        totalItems.value = response?.total || 0
       } catch (error) {
         console.error('加载文章失败:', error)
+        articles.value = []
+        totalItems.value = 0
       } finally {
         articlesLoading.value = false
       }

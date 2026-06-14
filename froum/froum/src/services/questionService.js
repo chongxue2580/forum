@@ -42,6 +42,16 @@ const normalizeQuestion = (question) => {
   }
 }
 
+const toQuestionPayload = (question) => ({
+  title: question.title?.trim(),
+  content: question.content?.trim(),
+  tagIds: Array.isArray(question.tagIds)
+    ? question.tagIds.map(Number).filter(Boolean)
+    : Array.isArray(question.tags)
+      ? question.tags.map(tag => Number(tag?.id ?? tag)).filter(Boolean)
+      : []
+})
+
 export const questionService = {
   async getQuestions(params = {}) {
     const requestParams = {
@@ -102,19 +112,11 @@ export const questionService = {
   },
 
   async createQuestion(question) {
-    return request.post('/questions', {
-      title: question.title,
-      content: question.content,
-      tags: question.tags || []
-    })
+    return request.post('/questions', toQuestionPayload(question))
   },
 
   async updateQuestion(id, question) {
-    return request.put(`/questions/${id}`, {
-      title: question.title,
-      content: question.content,
-      tags: question.tags || []
-    })
+    return request.put(`/questions/${id}`, toQuestionPayload(question))
   },
 
   async deleteQuestion(id) {

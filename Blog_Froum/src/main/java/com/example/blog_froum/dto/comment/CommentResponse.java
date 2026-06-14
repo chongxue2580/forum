@@ -28,6 +28,7 @@ public class CommentResponse {
     private String content;
     private Integer likeCount;
     private Boolean isBestAnswer;
+    private Boolean isDeleted; // 是否已删除（管理端展示与恢复用）
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<CommentResponse> replies; // 子评论列表
@@ -45,6 +46,7 @@ public class CommentResponse {
                 .content(comment.getContent())
                 .likeCount(comment.getLikeCount())
                 .isBestAnswer(Boolean.TRUE.equals(comment.getIsBestAnswer()))
+                .isDeleted(Boolean.TRUE.equals(comment.getIsDeleted()))
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .build();

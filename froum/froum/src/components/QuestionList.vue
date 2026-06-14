@@ -73,7 +73,6 @@ const fetchQuestions = async () => {
         totalQuestions.value = response.totalElements || response.data.length
         emit('update:total', response.totalElements || response.data.length)
       } else {
-        console.warn('Unexpected response format:', response)
         questions.value = []
         totalQuestions.value = 0
       }

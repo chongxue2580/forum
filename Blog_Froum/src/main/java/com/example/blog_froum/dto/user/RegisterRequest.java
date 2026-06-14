@@ -28,4 +28,8 @@ public class RegisterRequest {
 
     @Size(max = 500, message = "个人简介长度不能超过500个字符")
     private String bio;
+
+    private String captchaId;
+
+    private Float captchaPercentage;
 }

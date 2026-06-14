@@ -176,6 +176,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '@/utils/dateUtils'
 import { 
   getAllArticles, 
   approveArticle, 
@@ -414,8 +415,7 @@ const getStatusText = (status) => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleString('zh-CN')
+  return dateString ? formatDateTime(dateString) : '-'
 }
 </script>
 

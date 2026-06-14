@@ -41,9 +41,9 @@
     
     <!-- 评论列表 -->
     <div class="comments-list">
-      <div 
-        v-for="comment in parsedComments" 
-        :key="comment.id" 
+      <div
+        v-for="comment in parsedComments"
+        :key="comment.id"
         class="comment-item"
       >
         <div class="comment-author">
@@ -58,20 +58,70 @@
             </div>
             <div class="comment-content">{{ comment.content }}</div>
             <div class="comment-actions">
-              <button 
-                class="comment-like" 
+              <button
+                class="comment-like"
+                :class="{ active: comment.userVote === 'up' || comment.isLiked }"
                 @click="likeComment(comment.id)"
               >
                 <font-awesome-icon :icon="['fas', 'thumbs-up']" />
-                <span>{{ comment.likes }}</span>
+                <span>{{ comment.likes ?? comment.likeCount ?? 0 }}</span>
               </button>
-              <button class="comment-reply">
+              <button class="comment-reply" :class="{ active: replyingTo === comment.id }" @click="toggleReply(comment)">
                 <font-awesome-icon :icon="['fas', 'comment']" />
                 <span>回复</span>
               </button>
             </div>
+
+            <!-- 子回复列表 -->
+            <div v-if="comment.children && comment.children.length" class="reply-list">
+              <div v-for="reply in comment.children" :key="reply.id" class="reply-item">
+                <div class="author-avatar small">
+                  <img v-if="reply.author.avatar" :src="getAvatarPath(reply.author.avatar)" :alt="reply.author.name" />
+                  <span v-else>{{ getInitials(reply.author.name) }}</span>
+                </div>
+                <div class="comment-info">
+                  <div class="comment-meta">
+                    <span class="comment-author-name">{{ reply.author.name }}</span>
+                    <span class="comment-time">{{ formatDate(reply.createTime) }}</span>
+                  </div>
+                  <div class="comment-content">{{ reply.content }}</div>
+                  <div class="comment-actions">
+                    <button
+                      class="comment-like"
+                      :class="{ active: reply.userVote === 'up' || reply.isLiked }"
+                      @click="likeComment(reply.id)"
+                    >
+                      <font-awesome-icon :icon="['fas', 'thumbs-up']" />
+                      <span>{{ reply.likes ?? reply.likeCount ?? 0 }}</span>
+                    </button>
+                    <button class="comment-reply" @click="toggleReply(comment, reply.author.name)">
+                      <font-awesome-icon :icon="['fas', 'comment']" />
+                      <span>回复</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 回复输入框 -->
+            <div v-if="replyingTo === comment.id" class="reply-form">
+              <textarea
+                v-model="replyContent"
+                :placeholder="`回复 ${comment.author.name}...`"
+                class="comment-textarea"
+                rows="2"
+              ></textarea>
+              <div class="reply-form-actions">
+                <button class="cancel-btn" @click="cancelReply">取消</button>
+                <button class="submit-btn" :disabled="!replyContent.trim()" @click="submitReply(comment)">回复</button>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div v-if="parsedComments.length === 0" class="comments-empty">
+        还没有评论，来抢沙发吧～
       </div>
     </div>
   </div>
@@ -107,7 +157,7 @@ const userInitial = computed(() => {
   return '用';
 });
 const userName = computed(() => store.state.user?.username || '');
-const userAvatar = computed(() => store.state.user?.avatar || '');
+const userAvatar = computed(() => store.state.user?.avatarUrl || store.state.user?.avatar || '');
 
 // 解析评论数据
 const parsedComments = computed(() => {
@@ -115,6 +165,8 @@ const parsedComments = computed(() => {
 });
 
 const newComment = ref('');
+const replyingTo = ref(null);
+const replyContent = ref('');
 
 // Methods
 const submitComment = () => {
@@ -137,6 +189,41 @@ const submitComment = () => {
 
 const goToLogin = () => {
   router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } });
+};
+
+// 展开/收起回复输入框（rootComment 为顶级评论，回复统一挂在顶级评论下）
+const toggleReply = (rootComment, mentionName = '') => {
+  if (!isLoggedIn.value) {
+    goToLogin();
+    return;
+  }
+  if (replyingTo.value === rootComment.id && !mentionName) {
+    cancelReply();
+    return;
+  }
+  replyingTo.value = rootComment.id;
+  replyContent.value = mentionName ? `@${mentionName} ` : '';
+};
+
+const cancelReply = () => {
+  replyingTo.value = null;
+  replyContent.value = '';
+};
+
+const submitReply = (rootComment) => {
+  if (!isLoggedIn.value) {
+    goToLogin();
+    return;
+  }
+  if (!replyContent.value.trim()) return;
+
+  emit('add-comment', {
+    articleId: props.articleId,
+    content: replyContent.value.trim(),
+    parentId: rootComment.id
+  });
+
+  cancelReply();
 };
 
 const likeComment = (commentId) => {
@@ -367,6 +454,11 @@ const emit = defineEmits(['add-comment', 'like-comment']);
   color: var(--text-color);
 }
 
+.comment-like.active {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
 .author-avatar {
   width: 40px;
   height: 40px;
@@ -379,5 +471,87 @@ const emit = defineEmits(['add-comment', 'like-comment']);
   font-weight: 600;
   font-size: 1.1rem;
   overflow: hidden;
+}
+
+.author-avatar.small {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9rem;
+}
+
+.comment-reply.active {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+/* 子回复列表 */
+.reply-list {
+  margin-top: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reply-item {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.reply-item .comment-info {
+  flex: 1;
+}
+
+/* 回复输入框 */
+.reply-form {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reply-form .comment-textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.reply-form .comment-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.reply-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cancel-btn {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-white);
+  color: var(--text-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: var(--transition);
+}
+
+.cancel-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.comments-empty {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--text-lighter);
 }
 </style> 

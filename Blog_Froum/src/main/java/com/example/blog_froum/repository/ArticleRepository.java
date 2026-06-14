@@ -68,6 +68,11 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     // 按状态查询所有文章
     Page<Article> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 
+    // 查询所有文章（急切加载作者和分类信息）
+    @Query(value = "SELECT a FROM Article a LEFT JOIN FETCH a.author LEFT JOIN FETCH a.category ORDER BY a.createdAt DESC",
+           countQuery = "SELECT COUNT(a) FROM Article a")
+    Page<Article> findAllWithAuthorAndCategoryOrderByCreatedAtDesc(Pageable pageable);
+
     // 按状态查询所有文章（急切加载作者和分类信息）
     @Query(value = "SELECT a FROM Article a LEFT JOIN FETCH a.author LEFT JOIN FETCH a.category WHERE a.status = :status ORDER BY a.createdAt DESC",
            countQuery = "SELECT COUNT(a) FROM Article a WHERE a.status = :status")
@@ -122,6 +127,11 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      * 根据状态统计文章数量
      */
     long countByStatus(String status);
+
+    /**
+     * 统计某分类下指定状态的文章数量
+     */
+    long countByCategoryIdAndStatus(Long categoryId, String status);
 
     /**
      * 统计置顶文章数量

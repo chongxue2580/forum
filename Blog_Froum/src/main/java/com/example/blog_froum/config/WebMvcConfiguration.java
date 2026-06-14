@@ -22,6 +22,7 @@ import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spi.service.contexts.SecurityContext;
 import springfox.documentation.spring.web.plugins.Docket;
 
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,7 +49,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 配置上传文件的静态资源映射
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath + "/");
+                .addResourceLocations(Paths.get(uploadPath).toAbsolutePath().normalize().toUri().toString());
 
         // 配置Swagger UI资源
         registry.addResourceHandler("swagger-ui.html")
@@ -71,7 +72,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         // 管理员拦截器
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/api/admin/**")
-                .excludePathPatterns("/api/admin/login");
+                .excludePathPatterns("/api/admin/login")
+                .excludePathPatterns("/api/admin/2fa/setup/confirm");
 
         // 用户拦截器 - 拦截需要认证的接口，内部根据HTTP方法判断
         registry.addInterceptor(jwtTokenUserInterceptor)
@@ -85,7 +87,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 .addPathPatterns("/api/questions/**")
                 // 拦截通知相关接口
                 .addPathPatterns("/api/notifications")
-                .addPathPatterns("/api/notifications/*")
+                .addPathPatterns("/api/notifications/**")
                 // 拦截文件上传接口
                 .addPathPatterns("/api/upload/*")
                 // 拦截关注相关接口
@@ -100,10 +102,6 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 .excludePathPatterns("/api/user/check-username")
                 .excludePathPatterns("/api/user/check-email");
 
-        // 配置管理员拦截器
-        registry.addInterceptor(jwtTokenAdminInterceptor)
-                .addPathPatterns("/api/admin/**")
-                .excludePathPatterns("/api/admin/login");
     }
 
     /**

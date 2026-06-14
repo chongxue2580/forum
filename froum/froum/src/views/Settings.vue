@@ -40,7 +40,7 @@
             
             <div class="avatar-section">
               <div class="current-avatar">
-                <img v-if="form.avatar" :src="form.avatar" alt="用户头像">
+                <img v-if="form.avatar" :src="resolveAvatarUrl(form.avatar)" alt="用户头像">
                 <div v-else class="avatar-placeholder">
                   {{ getInitials(form.name) }}
                 </div>
@@ -131,6 +131,80 @@
         <!-- 密码设置 -->
         <div v-else-if="activeMenu === 'password'" class="settings-section">
           <password-update />
+        </div>
+
+        <!-- 安全设置 -->
+        <div v-else-if="activeMenu === 'security'" class="settings-section">
+          <h2 class="section-title">安全设置</h2>
+
+          <div v-if="successMessage" class="success-message">
+            <font-awesome-icon :icon="['fas', 'check-circle']" />
+            {{ successMessage }}
+          </div>
+
+          <div v-if="errorMessage" class="error-message">
+            <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
+            {{ errorMessage }}
+          </div>
+
+          <div class="security-settings">
+            <div class="setting-item">
+              <div class="setting-info">
+                <h3>两步验证</h3>
+                <p>使用 Google Authenticator、Microsoft Authenticator 或其它 TOTP 验证器保护登录。</p>
+              </div>
+              <span class="status-badge" :class="{ enabled: twoFactorEnabled }">
+                {{ twoFactorEnabled ? '已开启' : '未开启' }}
+              </span>
+            </div>
+
+            <div v-if="!twoFactorEnabled" class="two-factor-panel">
+              <button class="save-btn" type="button" :disabled="isTwoFactorLoading" @click="startTwoFactorSetup">
+                <font-awesome-icon v-if="isTwoFactorLoading" :icon="['fas', 'spinner']" spin />
+                <span v-else>生成绑定密钥</span>
+              </button>
+
+              <div v-if="twoFactorSetup.secret" class="setup-details">
+                <p class="form-hint">在验证器中添加以下密钥，然后输入生成的6位验证码启用。</p>
+                <img v-if="twoFactorQrCode" class="qr-code" :src="twoFactorQrCode" alt="两步验证二维码">
+                <div class="secret-box">{{ twoFactorSetup.secret }}</div>
+                <a v-if="twoFactorSetup.otpAuthUrl" class="otp-link" :href="twoFactorSetup.otpAuthUrl">打开验证器添加账号</a>
+                <div class="form-group code-group">
+                  <label for="enableTwoFactorCode">验证码</label>
+                  <input
+                    id="enableTwoFactorCode"
+                    v-model="enableTwoFactorCode"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="6"
+                    placeholder="请输入6位数字"
+                  >
+                </div>
+                <button class="save-btn" type="button" :disabled="isTwoFactorLoading" @click="enableTwoFactor">
+                  启用两步验证
+                </button>
+              </div>
+            </div>
+
+            <div v-else class="two-factor-panel">
+              <div class="form-group code-group">
+                <label for="disableTwoFactorCode">关闭前请输入当前验证码</label>
+                <input
+                  id="disableTwoFactorCode"
+                  v-model="disableTwoFactorCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="请输入6位数字"
+                >
+              </div>
+              <button class="delete-btn inline-action" type="button" :disabled="isTwoFactorLoading" @click="disableTwoFactor">
+                关闭两步验证
+              </button>
+            </div>
+          </div>
         </div>
         
         <!-- 隐私设置 -->
@@ -223,6 +297,9 @@ import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import PasswordUpdate from '../components/PasswordUpdate.vue';
 import { userService } from '../services/userService';
+import { userApi } from '../api/userApi';
+import { resolveAvatarUrl } from '../utils/avatar';
+import QRCode from 'qrcode';
 
 const store = useStore();
 const router = useRouter();
@@ -231,6 +308,7 @@ const router = useRouter();
 const menuItems = [
   { key: 'profile', label: '个人资料', icon: ['fas', 'user'] },
   { key: 'password', label: '密码设置', icon: ['fas', 'lock'] },
+  { key: 'security', label: '安全设置', icon: ['fas', 'shield-alt'] },
   { key: 'privacy', label: '隐私设置', icon: ['fas', 'shield-alt'] },
   { key: 'logout', label: '退出登录', icon: ['fas', 'sign-out-alt'] }
 ];
@@ -241,6 +319,7 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 const isSavingPrivacy = ref(false);
 const isUploadingAvatar = ref(false);
+const isTwoFactorLoading = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
 const avatarInput = ref(null);
@@ -261,6 +340,15 @@ const privacySettings = ref({
   showFollowers: true,
   showActivity: true
 });
+
+const twoFactorEnabled = ref(false);
+const twoFactorSetup = ref({
+  secret: '',
+  otpAuthUrl: ''
+});
+const twoFactorQrCode = ref('');
+const enableTwoFactorCode = ref('');
+const disableTwoFactorCode = ref('');
 
 // 获取用户名首字母
 const getInitials = (name) => {
@@ -311,14 +399,22 @@ const loadUserData = async () => {
   }
 };
 
-// 加载隐私设置
+// 加载隐私设置（后端暂无隐私表，作为客户端展示偏好持久化在本地，按用户隔离）
+const privacyStorageKey = () => `privacySettings_${getCurrentUserId() || 'guest'}`;
+
 const loadPrivacySettings = async () => {
-  privacySettings.value = {
+  const defaults = {
     publicProfile: true,
     showFollowing: true,
     showFollowers: true,
     showActivity: true
   };
+  try {
+    const saved = JSON.parse(localStorage.getItem(privacyStorageKey()) || '{}');
+    privacySettings.value = { ...defaults, ...saved };
+  } catch (error) {
+    privacySettings.value = defaults;
+  }
 };
 
 // 保存个人资料
@@ -390,17 +486,126 @@ const removeAvatar = () => {
   form.value.avatar = '';
 };
 
-// 保存隐私设置
+// 保存隐私设置（本地持久化）
 const savePrivacySettings = async () => {
   try {
     isSavingPrivacy.value = true;
     errorMessage.value = '';
-    await store.dispatch('updatePrivacySettings', privacySettings.value);
+    successMessage.value = '';
+    localStorage.setItem(privacyStorageKey(), JSON.stringify(privacySettings.value));
+    successMessage.value = '隐私设置已保存';
+    setTimeout(() => { successMessage.value = ''; }, 3000);
   } catch (error) {
     console.error('Failed to save privacy settings:', error);
     errorMessage.value = error.message || '隐私设置保存失败';
   } finally {
     isSavingPrivacy.value = false;
+  }
+};
+
+const updateStoredTwoFactorState = (enabled) => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    if (userInfo?.id) {
+      const updated = { ...userInfo, twoFactorEnabled: enabled };
+      localStorage.setItem('userInfo', JSON.stringify(updated));
+      store.commit('SET_USER', updated);
+    }
+  } catch (error) {
+    console.warn('Failed to update local two-factor state:', error);
+  }
+};
+
+const loadTwoFactorStatus = async () => {
+  try {
+    const response = await userApi.getTwoFactorStatus();
+    twoFactorEnabled.value = !!response?.data?.enabled;
+    updateStoredTwoFactorState(twoFactorEnabled.value);
+  } catch (error) {
+    console.error('Failed to load two-factor status:', error);
+  }
+};
+
+const generateTwoFactorQrCode = async (otpAuthUrl) => {
+  if (!otpAuthUrl) {
+    twoFactorQrCode.value = '';
+    return;
+  }
+  twoFactorQrCode.value = await QRCode.toDataURL(otpAuthUrl, {
+    width: 180,
+    margin: 1,
+    errorCorrectionLevel: 'M'
+  });
+};
+
+const startTwoFactorSetup = async () => {
+  try {
+    isTwoFactorLoading.value = true;
+    successMessage.value = '';
+    errorMessage.value = '';
+    const response = await userApi.setupTwoFactor();
+    twoFactorSetup.value = {
+      secret: response?.data?.secret || '',
+      otpAuthUrl: response?.data?.otpAuthUrl || ''
+    };
+    await generateTwoFactorQrCode(twoFactorSetup.value.otpAuthUrl);
+    twoFactorEnabled.value = !!response?.data?.enabled;
+    if (twoFactorEnabled.value) {
+      successMessage.value = '两步验证已开启';
+    }
+  } catch (error) {
+    console.error('Failed to start two-factor setup:', error);
+    errorMessage.value = error.message || '生成两步验证密钥失败';
+  } finally {
+    isTwoFactorLoading.value = false;
+  }
+};
+
+const enableTwoFactor = async () => {
+  if (!enableTwoFactorCode.value) {
+    errorMessage.value = '请输入两步验证码';
+    return;
+  }
+
+  try {
+    isTwoFactorLoading.value = true;
+    successMessage.value = '';
+    errorMessage.value = '';
+    const response = await userApi.enableTwoFactor(enableTwoFactorCode.value);
+    twoFactorEnabled.value = !!response?.data?.enabled;
+    twoFactorSetup.value = { secret: '', otpAuthUrl: '' };
+    twoFactorQrCode.value = '';
+    enableTwoFactorCode.value = '';
+    updateStoredTwoFactorState(twoFactorEnabled.value);
+    successMessage.value = '两步验证已启用';
+  } catch (error) {
+    console.error('Failed to enable two-factor:', error);
+    errorMessage.value = error.message || '启用两步验证失败';
+  } finally {
+    isTwoFactorLoading.value = false;
+  }
+};
+
+const disableTwoFactor = async () => {
+  if (!disableTwoFactorCode.value) {
+    errorMessage.value = '请输入两步验证码';
+    return;
+  }
+
+  try {
+    isTwoFactorLoading.value = true;
+    successMessage.value = '';
+    errorMessage.value = '';
+    const response = await userApi.disableTwoFactor(disableTwoFactorCode.value);
+    twoFactorEnabled.value = !!response?.data?.enabled;
+    disableTwoFactorCode.value = '';
+    updateStoredTwoFactorState(twoFactorEnabled.value);
+    successMessage.value = '两步验证已关闭';
+  } catch (error) {
+    console.error('Failed to disable two-factor:', error);
+    errorMessage.value = error.message || '关闭两步验证失败';
+  } finally {
+    isTwoFactorLoading.value = false;
   }
 };
 
@@ -418,6 +623,7 @@ const handleLogout = async () => {
 onMounted(() => {
   loadUserData();
   loadPrivacySettings();
+  loadTwoFactorStatus();
 });
 </script>
 
@@ -714,6 +920,85 @@ onMounted(() => {
 .save-btn:disabled {
   background-color: var(--text-lighter);
   cursor: not-allowed;
+}
+
+/* 安全设置样式 */
+.security-settings {
+  max-width: 720px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background-color: rgba(var(--error-rgb), 0.1);
+  color: var(--error-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-badge.enabled {
+  background-color: rgba(var(--success-rgb), 0.1);
+  color: var(--success-color);
+}
+
+.two-factor-panel {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: var(--bg-light);
+}
+
+.setup-details {
+  margin-top: 1rem;
+}
+
+.secret-box {
+  word-break: break-all;
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  font-family: monospace;
+  letter-spacing: 0;
+  color: var(--text-color);
+}
+
+.qr-code {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 0.75rem 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: #fff;
+  padding: 0.5rem;
+}
+
+.otp-link {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.otp-link:hover {
+  text-decoration: underline;
+}
+
+.code-group {
+  max-width: 260px;
+  margin-top: 1rem;
+}
+
+.inline-action {
+  display: inline-flex;
+  width: auto;
 }
 
 /* 隐私设置样式 */

@@ -16,4 +16,12 @@ public class LoginRequest {
     private String password;
 
     private Boolean remember = false;
+
+    private String captchaId;
+
+    private Float captchaPercentage;
+
+    private String twoFactorCode;
+
+    private String twoFactorToken;
 }

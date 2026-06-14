@@ -70,6 +70,7 @@ import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
+import { formatFriendlyTime } from '../utils/dateUtils'
 
 // Configure marked with syntax highlighting
 marked.setOptions({
@@ -104,21 +105,7 @@ export default defineComponent({
     
     // 格式化日期
     const formatDate = (dateString) => {
-      if (!dateString) return ''
-      
-      try {
-        const date = new Date(dateString)
-        return new Intl.DateTimeFormat('zh-CN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).format(date)
-      } catch (err) {
-        console.error('Error formatting date:', err)
-        return dateString
-      }
+      return dateString ? formatFriendlyTime(dateString) : ''
     }
     
     // 获取作者首字母

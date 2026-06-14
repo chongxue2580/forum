@@ -4,8 +4,19 @@
  * @param {Array|String|Number} comments - 评论数据
  * @returns {Array} 解析后的评论数组
  */
+import { resolveAvatarUrl } from './avatar'
+import { formatFriendlyTime } from './dateUtils'
+
 export function parseComments(comments) {
-  if (!comments || !comments.length) return [];
+  if (typeof comments === 'string') {
+    try {
+      comments = JSON.parse(comments);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(comments) || !comments.length) return [];
 
   const normalizeComment = (comment) => {
     const user = comment.user || comment.author || {};
@@ -16,6 +27,7 @@ export function parseComments(comments) {
         : Array.isArray(comment.comments)
           ? comment.comments
           : [];
+    const normalizedChildren = parseComments(nestedComments);
 
     return {
       ...comment,
@@ -29,9 +41,11 @@ export function parseComments(comments) {
       likes: comment.likes ?? comment.likeCount ?? 0,
       voteCount: comment.voteCount ?? comment.likeCount ?? comment.likes ?? 0,
       userVote: comment.userVote || (comment.liked || comment.isLiked ? 'up' : null),
+      isLiked: Boolean(comment.isLiked ?? comment.liked),
       isBestAnswer: Boolean(comment.isBestAnswer ?? comment.bestAnswer),
-      children: parseComments(nestedComments),
-      comments: parseComments(nestedComments)
+      children: normalizedChildren,
+      comments: normalizedChildren,
+      replies: normalizedChildren
     };
   };
 
@@ -42,6 +56,7 @@ export function parseComments(comments) {
   comments.forEach(comment => {
     comment.children = comment.children || [];
     comment.comments = comment.comments || comment.children;
+    comment.replies = comment.replies || comment.children;
     commentMap[comment.id] = comment;
   });
 
@@ -59,6 +74,7 @@ export function parseComments(comments) {
       if (parentComment) {
         parentComment.children.push(comment);
         parentComment.comments = parentComment.children;
+        parentComment.replies = parentComment.children;
       } else {
         // 如果找不到父评论，则作为根评论处理
         rootComments.push(comment);
@@ -109,17 +125,7 @@ export function getCommentsCount(comments) {
  * @returns {String} 格式化后的日期
  */
 export function formatDate(dateString) {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  } catch (e) {
-    return dateString;
-  }
+  return formatFriendlyTime(dateString);
 }
 
 /**
@@ -150,12 +156,7 @@ export function truncateText(text, maxLength = 100) {
  * @returns {String} 处理后的头像路径
  */
 export function getAvatarPath(avatar) {
-  if (!avatar) return '';
-  if (avatar.startsWith('/images/')) return avatar;
-  if (avatar.startsWith('/avatar')) {
-    return `/images/avatars${avatar}`;
-  }
-  return avatar;
+  return resolveAvatarUrl(avatar);
 }
 
 /**
@@ -167,16 +168,22 @@ export function flattenComments(comments) {
   if (!comments || !comments.length) return [];
 
   const result = [];
+  const visited = new Set();
   const flatten = (commentList, level = 0) => {
     commentList.forEach(comment => {
-      // 添加层级信息
+      if (!comment || visited.has(comment.id)) return;
+      visited.add(comment.id);
       comment.level = level;
       result.push(comment);
 
-      // 递归处理子评论
-      if (comment.children && comment.children.length) {
-        flatten(comment.children, level + 1);
-      }
+      const nested = Array.isArray(comment.children) && comment.children.length
+        ? comment.children
+        : Array.isArray(comment.replies) && comment.replies.length
+          ? comment.replies
+          : Array.isArray(comment.comments) && comment.comments.length
+            ? comment.comments
+            : [];
+      if (nested.length) flatten(nested, level + 1);
     });
   };
 
@@ -192,14 +199,7 @@ export function flattenComments(comments) {
 export function getTotalCommentCount(comments) {
   if (!comments || !comments.length) return 0;
 
-  let count = comments.length;
-  comments.forEach(comment => {
-    if (comment.children && comment.children.length) {
-      count += comment.children.length;
-    }
-  });
-
-  return count;
+  return flattenComments(comments).length;
 }
 
 /**
@@ -213,5 +213,5 @@ export function findCommentById(comments, commentId) {
 
   // 展平评论列表以便于查找
   const flatComments = flattenComments(comments);
-  return flatComments.find(comment => comment.id === commentId) || null;
+  return flatComments.find(comment => Number(comment.id) === Number(commentId)) || null;
 } 

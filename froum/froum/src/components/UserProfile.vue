@@ -56,6 +56,28 @@ const userQuestions = ref([])
 const userAnswers = ref([])
 const contentLoading = ref(false)
 
+const createContentErrorState = () => ({
+  articles: '',
+  questions: '',
+  answers: ''
+})
+
+const createContentLoadedState = () => ({
+  articles: false,
+  questions: false,
+  answers: false
+})
+
+const contentErrors = ref(createContentErrorState())
+const contentLoaded = ref(createContentLoadedState())
+
+const contentTabKeys = ['articles', 'questions', 'answers']
+const contentLabels = {
+  articles: '文章',
+  questions: '问答',
+  answers: '回答'
+}
+
 const createEmptyStats = () => ({
   articles: 0,
   questions: 0,
@@ -100,6 +122,37 @@ const normalizeFollowStatus = (value) => {
   return Boolean(data?.isFollowing ?? data?.isFollowed)
 }
 
+const normalizePageContent = (response) => {
+  const data = response?.data || response || {}
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.content)) return data.content
+  return []
+}
+
+const setContentItems = (tab, items) => {
+  if (tab === 'articles') {
+    userArticles.value = items
+  } else if (tab === 'questions') {
+    userQuestions.value = items
+  } else if (tab === 'answers') {
+    userAnswers.value = items
+  }
+}
+
+// 文章审核状态标签（仅对非"已通过"显示）
+const ARTICLE_STATUS_LABELS = {
+  PENDING: '待审核',
+  REJECTED: '已拒绝',
+  DRAFT: '草稿'
+}
+const articleStatusLabel = (status) => ARTICLE_STATUS_LABELS[String(status || '').toUpperCase()] || ''
+
+const contentLoaders = {
+  articles: () => store.dispatch('getUserArticles', { userId: userId.value, page: 0, size: 10 }),
+  questions: () => store.dispatch('getUserQuestions', { userId: userId.value, page: 0, size: 10 }),
+  answers: () => store.dispatch('getUserAnswers', { userId: userId.value, page: 0, size: 10 })
+}
+
 // 组件挂载时获取用户数据
 onMounted(() => {
   getUserData();
@@ -114,13 +167,8 @@ watch(() => route.params.id, (newId, oldId) => {
 
 // 监听标签切换，按需加载内容
 watch(activeTab, (newTab) => {
-  // 如果切换到内容标签页且还没有加载过内容，则加载
-  if (['articles', 'questions', 'answers'].includes(newTab) && !contentLoading.value) {
-    if ((newTab === 'articles' && userArticles.value.length === 0) ||
-        (newTab === 'questions' && userQuestions.value.length === 0) ||
-        (newTab === 'answers' && userAnswers.value.length === 0)) {
-      getUserContent();
-    }
+  if (contentTabKeys.includes(newTab) && !contentLoading.value && !contentLoaded.value[newTab]) {
+    getUserContent(newTab);
   }
 });
 
@@ -133,6 +181,8 @@ const getUserData = async () => {
     userArticles.value = [];
     userQuestions.value = [];
     userAnswers.value = [];
+    contentErrors.value = createContentErrorState();
+    contentLoaded.value = createContentLoadedState();
 
     if (!userId.value) {
       throw new Error('缺少用户ID参数');
@@ -185,51 +235,37 @@ const getUserData = async () => {
 }
 
 // 获取用户内容数据
-const getUserContent = async () => {
+const getUserContent = async (tabsToLoad = contentTabKeys) => {
   if (!userId.value) return;
+
+  const requestedTabs = Array.isArray(tabsToLoad) ? tabsToLoad : [tabsToLoad];
+  const targetTabs = requestedTabs.filter(tab => contentTabKeys.includes(tab));
+  if (!targetTabs.length) return;
 
   try {
     contentLoading.value = true;
 
-    // 并行获取用户的文章、问答和回答
-    const [articles, questions, answers] = await Promise.all([
-      store.dispatch('getUserArticles', { userId: userId.value, page: 0, size: 10 }),
-      store.dispatch('getUserQuestions', { userId: userId.value, page: 0, size: 10 }),
-      store.dispatch('getUserAnswers', { userId: userId.value, page: 0, size: 10 })
-    ]);
+    await Promise.all(targetTabs.map(async (tab) => {
+      contentErrors.value[tab] = '';
 
-    // 处理文章数据
-    if (articles && articles.content) {
-      userArticles.value = articles.content;
-    } else if (Array.isArray(articles)) {
-      userArticles.value = articles;
-    } else {
-      userArticles.value = [];
-    }
-
-    // 处理问答数据
-    if (questions && questions.content) {
-      userQuestions.value = questions.content;
-    } else if (Array.isArray(questions)) {
-      userQuestions.value = questions;
-    } else {
-      userQuestions.value = [];
-    }
-
-    // 处理回答数据
-    if (answers && answers.content) {
-      userAnswers.value = answers.content;
-    } else if (Array.isArray(answers)) {
-      userAnswers.value = answers;
-    } else {
-      userAnswers.value = [];
-    }
-
-  } catch (error) {
-    console.error('Failed to fetch user content:', error);
+      try {
+        const response = await contentLoaders[tab]();
+        setContentItems(tab, normalizePageContent(response));
+        contentLoaded.value[tab] = true;
+      } catch (error) {
+        console.error(`Failed to fetch user ${tab}:`, error);
+        setContentItems(tab, []);
+        contentErrors.value[tab] = error.message || `${contentLabels[tab]}加载失败`;
+        contentLoaded.value[tab] = true;
+      }
+    }));
   } finally {
     contentLoading.value = false;
   }
+}
+
+const retryContent = (tab) => {
+  getUserContent(tab);
 }
 
 const startEdit = () => {
@@ -374,7 +410,15 @@ const formatDate = (dateValue) => {
 }
 
 const sendMessage = () => {
-  router.push('/messages');
+  const targetId = user.value?.id || userId.value
+  if (!targetId) {
+    router.push('/messages')
+    return
+  }
+  router.push({
+    path: '/messages',
+    query: { userId: String(targetId), userName: user.value?.name || '' }
+  })
 }
 
 // 获取作者首字母
@@ -440,7 +484,7 @@ const formatWebsite = (url) => {
                   </button>
                   <button class="action-btn" @click="sendMessage">
                     <font-awesome-icon :icon="['fas', 'envelope']" />
-                    <span>消息中心</span>
+                    <span>私信</span>
                   </button>
                 </template>
               </div>
@@ -531,32 +575,43 @@ const formatWebsite = (url) => {
               <font-awesome-icon :icon="['fas', 'spinner']" spin />
               <span>加载中...</span>
             </div>
+            <div v-else-if="contentErrors.articles" class="empty-state content-error-state">
+              <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
+              <h3>文章加载失败</h3>
+              <p>{{ contentErrors.articles }}</p>
+              <button class="retry-btn" @click="retryContent('articles')">重新加载</button>
+            </div>
             <div v-else-if="userArticles && userArticles.length" class="article-list">
               <div v-for="article in userArticles" :key="article.id" class="article-item">
                 <div class="article-header">
                   <router-link :to="`/article/${article.id}`" class="article-title">{{ article.title }}</router-link>
-                  <span class="article-time">{{ formatDate(article.createTime) }}</span>
+                  <span
+                    v-if="articleStatusLabel(article.status)"
+                    class="article-status"
+                    :class="'status-' + String(article.status || '').toLowerCase()"
+                  >{{ articleStatusLabel(article.status) }}</span>
+                  <span class="article-time">{{ formatDate(article.createTime || article.publishedAt || article.createdAt) }}</span>
                 </div>
                 <p class="article-content">{{ article.summary }}</p>
                 <div class="article-footer">
                   <div class="article-tags" v-if="article.tags && article.tags.length">
-                    <span v-for="tag in article.tags" :key="tag" class="tag">
+                    <span v-for="tag in article.tags" :key="tag.id || tag" class="tag">
                       <font-awesome-icon :icon="['fas', 'tag']" />
-                      {{ tag }}
+                      {{ tag.name || tag }}
                     </span>
                   </div>
                   <div class="article-stats">
                     <span class="stat-item">
                       <font-awesome-icon :icon="['fas', 'eye']" />
-                      {{ article.views || 0 }} 浏览
+                      {{ article.views ?? article.viewCount ?? 0 }} 浏览
                     </span>
                     <span class="stat-item">
                       <font-awesome-icon :icon="['fas', 'thumbs-up']" />
-                      {{ article.likes || 0 }} 点赞
+                      {{ article.likes ?? article.likeCount ?? 0 }} 点赞
                     </span>
                     <span class="stat-item">
                       <font-awesome-icon :icon="['fas', 'comment']" />
-                      {{ article.comments || 0 }} 评论
+                      {{ article.comments ?? article.commentCount ?? 0 }} 评论
                     </span>
                   </div>
                 </div>
@@ -564,7 +619,8 @@ const formatWebsite = (url) => {
             </div>
             <div v-else class="empty-state">
               <font-awesome-icon :icon="['fas', 'file-alt']" class="empty-icon" />
-              <p>暂无文章</p>
+              <h3>暂无文章</h3>
+              <p>{{ isCurrentUser ? '你还没有发布文章' : '该用户还没有发布文章' }}</p>
             </div>
           </div>
           
@@ -573,6 +629,12 @@ const formatWebsite = (url) => {
             <div v-if="contentLoading" class="loading-state">
               <font-awesome-icon :icon="['fas', 'spinner']" spin />
               <span>加载中...</span>
+            </div>
+            <div v-else-if="contentErrors.questions" class="empty-state content-error-state">
+              <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
+              <h3>问答加载失败</h3>
+              <p>{{ contentErrors.questions }}</p>
+              <button class="retry-btn" @click="retryContent('questions')">重新加载</button>
             </div>
             <div v-else-if="userQuestions && userQuestions.length" class="question-list">
               <div v-for="question in userQuestions" :key="question.id" class="question-item">
@@ -601,7 +663,8 @@ const formatWebsite = (url) => {
             </div>
             <div v-else class="empty-state">
               <font-awesome-icon :icon="['fas', 'question-circle']" class="empty-icon" />
-              <p>暂无问答</p>
+              <h3>暂无问答</h3>
+              <p>{{ isCurrentUser ? '你还没有发布问题' : '该用户还没有发布问题' }}</p>
             </div>
           </div>
 
@@ -610,6 +673,12 @@ const formatWebsite = (url) => {
             <div v-if="contentLoading" class="loading-state">
               <font-awesome-icon :icon="['fas', 'spinner']" spin />
               <span>加载中...</span>
+            </div>
+            <div v-else-if="contentErrors.answers" class="empty-state content-error-state">
+              <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
+              <h3>回答加载失败</h3>
+              <p>{{ contentErrors.answers }}</p>
+              <button class="retry-btn" @click="retryContent('answers')">重新加载</button>
             </div>
             <div v-else-if="userAnswers && userAnswers.length" class="answer-list">
               <div v-for="answer in userAnswers" :key="answer.id" class="answer-item">
@@ -630,7 +699,8 @@ const formatWebsite = (url) => {
             </div>
             <div v-else class="empty-state">
               <font-awesome-icon :icon="['fas', 'comment']" class="empty-icon" />
-              <p>暂无回答</p>
+              <h3>暂无回答</h3>
+              <p>{{ isCurrentUser ? '你还没有回答问题' : '该用户还没有回答问题' }}</p>
             </div>
           </div>
           
@@ -792,13 +862,18 @@ const formatWebsite = (url) => {
 .action-btn, .follow-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
   border: none;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.follow-btn {
+  min-width: 104px;
 }
 
 .action-btn {
@@ -1036,6 +1111,28 @@ const formatWebsite = (url) => {
   opacity: 0.5;
 }
 
+.empty-state h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+.content-error-state .empty-icon {
+  color: #ff5252;
+  opacity: 1;
+}
+
+.content-error-state .retry-btn {
+  margin-top: 1rem;
+}
+
 .article-list {
   display: flex;
   flex-direction: column;
@@ -1082,6 +1179,32 @@ const formatWebsite = (url) => {
   font-size: 0.85rem;
   color: var(--text-light);
   white-space: nowrap;
+}
+
+.article-status {
+  flex-shrink: 0;
+  margin-right: 0.625rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.article-status.status-pending {
+  color: #9a5a12;
+  background: #fff1d7;
+}
+
+.article-status.status-rejected {
+  color: #c34d62;
+  background: #ffeaf0;
+}
+
+.article-status.status-draft {
+  color: #506176;
+  background: #eef2f7;
 }
 
 .article-content {

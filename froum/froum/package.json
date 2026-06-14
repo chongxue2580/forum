@@ -16,10 +16,12 @@
     "@fortawesome/free-regular-svg-icons": "^6.4.2",
     "@fortawesome/free-solid-svg-icons": "^6.4.2",
     "@fortawesome/vue-fontawesome": "^3.0.3",
+    "@toast-ui/editor": "^3.2.2",
     "axios": "^1.6.2",
     "element-plus": "^2.9.11",
     "highlight.js": "^11.9.0",
     "marked": "^11.0.0",
+    "qrcode": "^1.5.4",
     "vue": "^3.3.10",
     "vue-router": "^4.2.5",
     "vuex": "^4.1.0"

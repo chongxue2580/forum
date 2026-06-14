@@ -9,22 +9,54 @@ import {
   resetUserPassword,
   changeUserRole,
   deleteUser,
-  searchUsers
+  searchUsers,
+  batchDisableUsers,
+  batchEnableUsers,
+  batchDeleteUsers
 } from '@/api/admin'
 
 const router = useRouter()
 const users = ref([])
 const loading = ref(false)
+const viewMode = ref(localStorage.getItem('adminView_users') || 'grid')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_users', v) }
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const searchQuery = ref('')
+const userTableRef = ref(null)
+const selectedUsers = ref([])
+const batchLoading = ref(false)
 const filterOptions = ref({
   role: '',
   status: ''
 })
 
 const displayedUsers = computed(() => users.value)
+
+// KPI（总数取后端 total，其余按当前页统计）
+const kpis = computed(() => {
+  const list = users.value
+  const admins = list.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length
+  const active = list.filter(u => u.status === 'ACTIVE').length
+  const disabled = list.filter(u => u.status === 'DISABLED').length
+  return [
+    { key: 'total', label: '用户总数', value: total.value, icon: 'users', tone: '' },
+    { key: 'active', label: '正常（本页）', value: active, icon: 'circle-check', tone: 'is-success' },
+    { key: 'admin', label: '管理员（本页）', value: admins, icon: 'user-shield', tone: '' },
+    { key: 'disabled', label: '已禁用（本页）', value: disabled, icon: 'ban', tone: 'is-danger' }
+  ]
+})
+
+const isSelected = (user) => selectedUsers.value.some(u => u.id === user.id)
+
+const toggleSelect = (user) => {
+  if (isSelected(user)) {
+    selectedUsers.value = selectedUsers.value.filter(u => u.id !== user.id)
+  } else {
+    selectedUsers.value = [...selectedUsers.value, user]
+  }
+}
 
 const roleOptions = [
   { label: '普通用户', value: 'USER' },
@@ -79,9 +111,8 @@ const normalizeUser = (user) => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    '#2563eb', '#16a34a', '#d97706', '#7c3aed',
-    '#db2777', '#dc2626', '#ea580c', '#0891b2',
-    '#4f46e5', '#0f766e', '#65a30d', '#9333ea'
+    '#6c8ff5', '#68c3a3', '#f1a766', '#a991f7',
+    '#ee86b7', '#ef8c8c', '#7ac7d7', '#96b86d'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -242,6 +273,93 @@ const viewUserProfile = (user) => {
   router.push(`/user/${user.id}`)
 }
 
+const handleSelectionChange = (rows) => {
+  selectedUsers.value = rows
+}
+
+const clearSelection = () => {
+  selectedUsers.value = []
+}
+
+const reportBatchResult = (result, actionLabel) => {
+  const data = result?.data || result || {}
+  if (data.failed > 0) {
+    ElMessage.warning(`${actionLabel}完成：成功 ${data.succeeded} 个，失败 ${data.failed} 个（${data.errors?.[0] || ''}）`)
+  } else {
+    ElMessage.success(`已${actionLabel} ${data.succeeded} 个用户`)
+  }
+}
+
+const handleBatchDisable = async () => {
+  const ids = selectedUsers.value.map(user => user.id)
+  try {
+    const result = await ElMessageBox.prompt(`将批量禁用 ${ids.length} 个用户，请输入禁用原因`, '批量禁用', {
+      confirmButtonText: '禁用',
+      cancelButtonText: '取消',
+      inputType: 'textarea'
+    })
+    batchLoading.value = true
+    const response = await batchDisableUsers(ids, result.value)
+    reportBatchResult(response, '批量禁用')
+    clearSelection()
+    loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '批量禁用失败')
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+const handleBatchEnable = async () => {
+  const ids = selectedUsers.value.map(user => user.id)
+  try {
+    await ElMessageBox.confirm(`确定要批量启用 ${ids.length} 个用户吗？`, '批量启用', {
+      confirmButtonText: '启用',
+      cancelButtonText: '取消',
+      type: 'success'
+    })
+    batchLoading.value = true
+    const response = await batchEnableUsers(ids)
+    reportBatchResult(response, '批量启用')
+    clearSelection()
+    loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '批量启用失败')
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+const handleBatchDelete = async () => {
+  const ids = selectedUsers.value.map(user => user.id)
+  try {
+    await ElMessageBox.confirm(
+      `确定要批量删除 ${ids.length} 个用户吗？该操作不可恢复，用户的文章、评论等数据将一并删除。`,
+      '批量删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    batchLoading.value = true
+    const response = await batchDeleteUsers(ids)
+    reportBatchResult(response, '批量删除')
+    clearSelection()
+    loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '批量删除失败')
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
 const sendMessage = (user) => {
   router.push({
     path: '/messages',
@@ -268,6 +386,18 @@ onMounted(loadUsers)
           <font-awesome-icon icon="times" />
           重置筛选
         </el-button>
+      </div>
+    </div>
+
+    <div class="ad-kpi-row">
+      <div v-for="kpi in kpis" :key="kpi.key" class="ad-kpi">
+        <span class="ad-kpi__icon" :class="kpi.tone">
+          <font-awesome-icon :icon="kpi.icon" />
+        </span>
+        <div>
+          <div class="ad-kpi__num">{{ kpi.value }}</div>
+          <div class="ad-kpi__label">{{ kpi.label }}</div>
+        </div>
       </div>
     </div>
 
@@ -311,126 +441,120 @@ onMounted(loadUsers)
     </div>
 
     <div class="admin-content-card">
-      <div class="admin-section-title">
-        <font-awesome-icon icon="table" />
-        用户列表
+      <div class="admin-section-title ad-list-head">
+        <span><font-awesome-icon icon="table" /> 用户列表</span>
+        <span class="ad-view-toggle">
+          <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+          <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+        </span>
       </div>
-      <div class="admin-table-container admin-responsive-table">
-        <el-table v-loading="loading" :data="displayedUsers" style="width: 100%" stripe>
-          <el-table-column label="用户信息" min-width="320">
-            <template #default="{ row }">
-              <div class="user-info">
-                <el-avatar
-                  :size="48"
-                  :style="{
-                    backgroundColor: getAvatarColor(row.name),
-                    color: '#ffffff',
-                    fontWeight: '600',
-                    fontSize: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    border: '2px solid rgba(255, 255, 255, 0.8)'
-                  }"
-                  >
-                  {{ getAvatarText(row.name) }}
-                </el-avatar>
-                <div class="user-details">
-                  <div class="user-name">{{ row.name }}</div>
-                  <div class="user-meta">
-                    <div class="meta-item">
-                      <font-awesome-icon icon="envelope" />
-                      <span>{{ row.email }}</span>
-                    </div>
-                    <div class="meta-item">
-                      <font-awesome-icon icon="clock" />
-                      <span>{{ row.lastLoginText }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="user-tags">
-                  <div class="admin-tag" :class="row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'danger' : 'primary'">
-                    <font-awesome-icon :icon="row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'user-shield' : 'user'" />
-                    {{ row.roleLabel }}
-                  </div>
-                  <div class="admin-tag" :class="row.status === 'ACTIVE' ? 'success' : 'danger'">
-                    <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'check-circle' : 'ban'" />
-                    {{ row.statusLabel }}
-                  </div>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
 
-        <el-table-column label="账号数据" width="220">
-          <template #default="{ row }">
-            <div class="user-stats">
-              <div class="stat-item">
-                <font-awesome-icon icon="sign-in-alt" />
-                <span>{{ row.loginCount }}</span>
-                <span class="stat-label">登录</span>
-              </div>
-              <div class="stat-item">
-                <font-awesome-icon icon="clock" />
-                <span>{{ row.createdAtText }}</span>
+      <transition name="batch-bar">
+        <div v-if="selectedUsers.length > 0" class="batch-action-bar">
+          <span class="batch-count">已选 <strong>{{ selectedUsers.length }}</strong> 个用户</span>
+          <div class="batch-buttons">
+            <button class="ad-btn is-success" :disabled="batchLoading" @click="handleBatchEnable">
+              <font-awesome-icon icon="check-circle" /> 批量启用
+            </button>
+            <button class="ad-btn is-warning" :disabled="batchLoading" @click="handleBatchDisable">
+              <font-awesome-icon icon="ban" /> 批量禁用
+            </button>
+            <button class="ad-btn is-danger" :disabled="batchLoading" @click="handleBatchDelete">
+              <font-awesome-icon icon="trash" /> 批量删除
+            </button>
+            <button class="ad-btn" :disabled="batchLoading" @click="clearSelection">
+              <font-awesome-icon icon="times" /> 取消选择
+            </button>
+          </div>
+        </div>
+      </transition>
+
+      <div v-loading="loading || batchLoading">
+        <div v-if="displayedUsers.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+          <div
+            v-for="row in displayedUsers"
+            :key="row.id"
+            class="ad-card"
+            :class="{ 'is-selected': isSelected(row) }"
+          >
+            <el-checkbox class="ad-checkbox" :model-value="isSelected(row)" @change="toggleSelect(row)" />
+
+            <div class="ad-card__head">
+              <span class="ad-card__avatar" :style="{ backgroundColor: getAvatarColor(row.name) }">
+                {{ getAvatarText(row.name) }}
+              </span>
+              <div style="min-width:0;flex:1;">
+                <div class="ad-card__title">{{ row.name }}</div>
+                <div class="ad-card__sub">
+                  <span><font-awesome-icon icon="envelope" /> {{ row.email || '未设置邮箱' }}</span>
+                </div>
               </div>
             </div>
-          </template>
-        </el-table-column>
 
-          <el-table-column label="操作" width="300" fixed="right">
-            <template #default="{ row }">
-              <div class="action-buttons admin-mobile-stack">
-                <div class="button-group">
-                  <button
-                    :class="['admin-action-btn', row.status === 'ACTIVE' ? 'danger' : 'success']"
-                    @click="toggleUserStatus(row)"
-                  >
-                    <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'ban' : 'check-circle'" />
-                    {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
-                  </button>
-                  <button
-                    :class="['admin-action-btn', row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'warning' : 'primary']"
-                    @click="toggleUserRole(row)"
-                  >
-                    <font-awesome-icon :icon="row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'user-minus' : 'user-plus'" />
-                    {{ row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? '设为用户' : '设为管理员' }}
-                  </button>
-                </div>
+            <div class="ad-card__pills">
+              <span class="ad-pill" :class="row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'is-danger' : 'is-accent'">
+                <font-awesome-icon :icon="row.role === 'ADMIN' || row.role === 'SUPER_ADMIN' ? 'user-shield' : 'user'" />
+                {{ row.roleLabel }}
+              </span>
+              <span class="ad-pill" :class="row.status === 'ACTIVE' ? 'is-success' : 'is-danger'">
+                <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'circle-check' : 'ban'" />
+                {{ row.statusLabel }}
+              </span>
+            </div>
 
-                <div class="button-group">
-                  <button
-                    class="admin-action-btn primary"
-                    @click="viewUserProfile(row)"
-                  >
-                    <font-awesome-icon icon="user" /> 查看
-                  </button>
-                  <button
-                    class="admin-action-btn primary"
-                    @click="sendMessage(row)"
-                  >
-                    <font-awesome-icon icon="paper-plane" /> 发消息
-                  </button>
-                  <button
-                    class="admin-action-btn warning"
-                    @click="handleResetPassword(row)"
-                  >
-                    <font-awesome-icon icon="lock" /> 重置密码
-                  </button>
-                  <button
-                    class="admin-action-btn danger"
-                    @click="handleDeleteUser(row)"
-                  >
-                    <font-awesome-icon icon="trash" /> 删除
-                  </button>
-                </div>
+            <div class="ad-card__metrics">
+              <div class="ad-metric">
+                <span class="ad-metric__num">{{ row.loginCount }}</span>
+                <span class="ad-metric__label">登录次数</span>
               </div>
-            </template>
-          </el-table-column>
-        </el-table>
+              <div class="ad-metric">
+                <span class="ad-metric__num">{{ row.lastLoginText }}</span>
+                <span class="ad-metric__label">最近登录</span>
+              </div>
+            </div>
+
+            <div class="ad-card__actions">
+              <button
+                v-if="row.role !== 'SUPER_ADMIN'"
+                class="ad-btn"
+                :class="row.status === 'ACTIVE' ? 'is-danger' : 'is-success'"
+                @click="toggleUserStatus(row)"
+              >
+                <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'ban' : 'check-circle'" />
+                {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
+              </button>
+              <button
+                v-if="row.role !== 'SUPER_ADMIN'"
+                class="ad-btn"
+                :class="row.role === 'ADMIN' ? 'is-warning' : 'is-primary'"
+                @click="toggleUserRole(row)"
+              >
+                <font-awesome-icon :icon="row.role === 'ADMIN' ? 'user-minus' : 'user-plus'" />
+                {{ row.role === 'ADMIN' ? '设为用户' : '设为管理员' }}
+              </button>
+              <button class="ad-btn" @click="viewUserProfile(row)">
+                <font-awesome-icon icon="user" /> 查看
+              </button>
+              <button v-if="row.role !== 'SUPER_ADMIN'" class="ad-btn" @click="sendMessage(row)">
+                <font-awesome-icon icon="paper-plane" /> 私信
+              </button>
+              <button v-if="row.role !== 'SUPER_ADMIN'" class="ad-btn is-warning" @click="handleResetPassword(row)">
+                <font-awesome-icon icon="lock" /> 重置密码
+              </button>
+              <button v-if="row.role !== 'SUPER_ADMIN'" class="ad-btn is-danger" @click="handleDeleteUser(row)">
+                <font-awesome-icon icon="trash" /> 删除
+              </button>
+              <span v-if="row.role === 'SUPER_ADMIN'" class="ad-superadmin-note">
+                <font-awesome-icon icon="user-shield" /> 最高权限账号，受保护
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!loading" class="ad-empty">
+          <div class="ad-empty__icon"><font-awesome-icon icon="users" /></div>
+          <div class="ad-empty__text">没有符合条件的用户</div>
+        </div>
       </div>
     </div>
 
@@ -463,12 +587,27 @@ onMounted(loadUsers)
 }
 
 .search-input {
-  min-width: 300px;
-  flex: 1;
+  flex: 1 1 240px;
+  min-width: 200px;
+  max-width: 360px;
 }
 
 .filter-select {
-  min-width: 160px;
+  flex: 0 1 150px;
+  min-width: 130px;
+  max-width: 170px;
+}
+
+.ad-superadmin-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ad-accent, #007aff);
+  background: var(--ad-accent-weak, rgba(0, 122, 255, 0.1));
 }
 
 .user-info {
@@ -485,13 +624,9 @@ onMounted(loadUsers)
 
 .user-name {
   font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-color);
+  font-weight: 750;
+  color: #263246;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, var(--text-color) 0%, var(--primary-color) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .user-meta {
@@ -504,12 +639,8 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(37, 99, 235, 0.05);
-  border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  color: #8190a3;
+  font-size: 0.82rem;
 }
 
 .user-tags {
@@ -528,18 +659,12 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
-  font-size: 0.875rem;
+  color: #667085;
+  font-size: 0.82rem;
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, var(--bg-white) 0%, rgba(37, 99, 235, 0.05) 100%);
-  border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
-  transition: all 0.2s ease;
-}
-
-.stat-item:hover {
-  transform: scale(1.02);
-  box-shadow: var(--shadow-sm);
+  background: #f7fafd;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 149, 176, 0.16);
 }
 
 .stat-label {
@@ -558,6 +683,46 @@ onMounted(loadUsers)
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  background: #f2f6ff;
+  border: 1px solid rgba(65, 105, 216, 0.18);
+}
+
+.batch-count {
+  color: #4169d8;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.batch-count strong {
+  font-size: 1.05rem;
+}
+
+.batch-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.batch-bar-enter-active,
+.batch-bar-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.batch-bar-enter-from,
+.batch-bar-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 /* 响应式优化 */

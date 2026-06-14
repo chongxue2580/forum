@@ -16,7 +16,7 @@ const userInfo = computed(() => {
 // 判断是否为管理员
 const isAdmin = computed(() => {
   const role = userInfo.value.role
-  return role === 'admin' || role === 'ADMIN'
+  return role === 'admin' || role === 'ADMIN' || role === 'SUPER_ADMIN'
 })
 
 // 导航到管理页面

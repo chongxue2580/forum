@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { notificationService } from './services/notificationService'
+import { resolveAvatarFrom } from './utils/avatar'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,8 +21,11 @@ const error = computed(() => store.state.error)
 // 判断是否为管理员
 const isAdmin = computed(() => {
   const role = user.value?.role
-  return role === 'admin' || role === 'ADMIN'
+  return role === 'admin' || role === 'ADMIN' || role === 'SUPER_ADMIN'
 })
+
+// 顶栏头像（统一解析，兼容 avatarUrl/avatar 字段与 /uploads 路径）
+const userAvatarUrl = computed(() => resolveAvatarFrom(user.value))
 
 // 判断是否在管理端页面
 const isAdminPage = computed(() => route.path.startsWith('/admin'))
@@ -33,10 +37,13 @@ onMounted(async () => {
 
   // 监听点击事件，关闭用户菜单
   document.addEventListener('click', closeUserMenu)
+  // 消息中心读取消息后刷新顶栏未读红点
+  window.addEventListener('notifications-updated', loadUnreadNotificationCount)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeUserMenu)
+  window.removeEventListener('notifications-updated', loadUnreadNotificationCount)
 })
 
 watch(isAuthenticated, (authenticated) => {
@@ -211,7 +218,8 @@ const goToAdmin = () => {
               
               <div class="user-menu">
                 <div class="avatar" @click="navigateToUserProfile" :class="{ 'admin-avatar': isAdmin }">
-                  <span>{{ getUserInitials() }}</span>
+                  <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user?.username || '用户'" />
+                  <span v-else>{{ getUserInitials() }}</span>
                   <div v-if="isAdmin" class="admin-badge" title="管理员">
                     <font-awesome-icon :icon="['fas', 'shield-alt']" />
                   </div>
@@ -279,18 +287,12 @@ const goToAdmin = () => {
     <main class="main" :class="{ 'admin-main': isAdminPage }">
       <div class="container" v-if="!isAdminPage">
         <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <keep-alive>
-              <component :is="Component" :key="$route.fullPath" />
-            </keep-alive>
-          </transition>
+          <component :is="Component" :key="$route.fullPath" />
         </router-view>
       </div>
       <!-- 管理端页面不使用container限制 -->
       <router-view v-else v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" :key="$route.fullPath" />
-        </transition>
+        <component :is="Component" :key="$route.fullPath" />
       </router-view>
     </main>
 
@@ -649,6 +651,14 @@ a {
   color: var(--primary-color);
   position: relative;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .username {
@@ -942,13 +952,12 @@ a {
 /* 动画效果 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(10px);
 }
 
 /* 管理员相关样式 */

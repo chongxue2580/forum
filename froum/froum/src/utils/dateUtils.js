@@ -1,86 +1,51 @@
-/**
- * 日期格式化工具函数
- */
+const pad = (value) => String(value).padStart(2, '0')
 
-/**
- * 格式化日期时间
- * @param {string|Date|number} time - 时间值
- * @param {Object} options - 格式化选项
- * @returns {string} 格式化后的日期字符串
- */
-export function formatDateTime(time, options = {}) {
-  if (!time) return '未知时间'
+export function toDate(time) {
+  if (!time) return null
 
-  // console.log('formatDateTime called with:', time, typeof time)
-
-  try {
-    let date
-
-    // 处理不同的日期格式
-    if (Array.isArray(time)) {
-      // 处理Spring Boot LocalDateTime数组格式 [year, month, day, hour, minute, second, nanosecond]
-      // console.log('Processing array format date:', time)
-
-      if (time.length >= 3) {
-        const [year, month, day, hour = 0, minute = 0, second = 0] = time
-        // 注意：JavaScript的月份是从0开始的，所以需要减1
-        date = new Date(year, month - 1, day, hour, minute, second)
-        // console.log('Array date parsed to:', date)
-      } else {
-        console.warn('Invalid array date format:', time)
-        return '数组日期格式无效'
-      }
-    } else if (typeof time === 'string') {
-      // 清理字符串，移除多余的空格
-      const cleanTime = time.trim()
-
-      // 处理LocalDateTime格式 (YYYY-MM-DDTHH:mm:ss)
-      if (cleanTime.includes('T')) {
-        date = new Date(cleanTime)
-      } else if (cleanTime.includes('-') && cleanTime.includes(':')) {
-        // 处理 YYYY-MM-DD HH:mm:ss 格式
-        date = new Date(cleanTime.replace(' ', 'T'))
-      } else if (cleanTime.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        // 处理仅日期格式 YYYY-MM-DD
-        date = new Date(cleanTime + 'T00:00:00')
-      } else {
-        // 处理其他字符串格式
-        date = new Date(cleanTime)
-      }
-    } else if (time instanceof Date) {
-      date = time
-    } else if (typeof time === 'number') {
-      // 处理时间戳
-      date = new Date(time)
-    } else {
-      console.warn('Unsupported time format:', time, typeof time)
-      return '不支持的时间格式'
-    }
-
-    // 检查日期是否有效
-    if (!date || isNaN(date.getTime())) {
-      console.warn('Invalid date after parsing:', time, '→', date)
-      return '日期无效'
-    }
-
-    // 默认格式化选项
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }
-
-    const formatOptions = { ...defaultOptions, ...options }
-
-    const result = date.toLocaleDateString('zh-CN', formatOptions)
-    // console.log('formatDateTime result:', time, '→', result)
-    return result
-  } catch (error) {
-    console.error('Date formatting error:', error, 'for time:', time)
-    return '日期格式错误'
+  if (time instanceof Date) {
+    return Number.isNaN(time.getTime()) ? null : time
   }
+
+  if (Array.isArray(time)) {
+    if (time.length < 3) return null
+    const [year, month, day, hour = 0, minute = 0, second = 0] = time
+    const date = new Date(year, month - 1, day, hour, minute, second)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  if (typeof time === 'number') {
+    const date = new Date(time)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  if (typeof time === 'string') {
+    const cleanTime = time.trim()
+    if (!cleanTime) return null
+    const normalized = cleanTime.includes(' ') && !cleanTime.includes('T')
+      ? cleanTime.replace(' ', 'T')
+      : cleanTime
+    const date = new Date(normalized)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  return null
+}
+
+const formatParts = (date, withSeconds = false) => {
+  const value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return withSeconds ? `${value}:${pad(date.getSeconds())}` : value
+}
+
+export function formatDateTime(time, options = null) {
+  const date = toDate(time)
+  if (!date) return '未知时间'
+
+  if (options && Object.keys(options).length > 0) {
+    return date.toLocaleString('zh-CN', options)
+  }
+
+  return formatParts(date)
 }
 
 /**
@@ -89,11 +54,9 @@ export function formatDateTime(time, options = {}) {
  * @returns {string} 格式化后的日期字符串
  */
 export function formatDate(time) {
-  return formatDateTime(time, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+  const date = toDate(time)
+  if (!date) return '未知时间'
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 /**
@@ -102,64 +65,48 @@ export function formatDate(time) {
  * @returns {string} 相对时间字符串
  */
 export function formatRelativeTime(time) {
-  if (!time) return '未知时间'
-
-  try {
-    let date
-
-    // 处理不同的日期格式
-    if (Array.isArray(time)) {
-      // 处理Spring Boot LocalDateTime数组格式
-      if (time.length >= 3) {
-        const [year, month, day, hour = 0, minute = 0, second = 0] = time
-        date = new Date(year, month - 1, day, hour, minute, second)
-      } else {
-        return formatDateTime(time)
-      }
-    } else if (typeof time === 'string') {
-      if (time.includes('T')) {
-        date = new Date(time)
-      } else if (time.includes('-') && time.includes(':')) {
-        date = new Date(time.replace(' ', 'T'))
-      } else {
-        date = new Date(time)
-      }
-    } else if (time instanceof Date) {
-      date = time
-    } else {
-      date = new Date(time)
-    }
-
-    if (isNaN(date.getTime())) {
-      return formatDateTime(time)
-    }
+  const date = toDate(time)
+  if (!date) return '未知时间'
     
-    const now = new Date()
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  if (diffMs < 0) return formatDateTime(date)
+
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const diffMonths = Math.floor(diffDays / 30)
+  const diffYears = Math.floor(diffDays / 365)
+
+  if (diffSeconds < 60) return '刚刚'
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`
+  if (diffHours < 24) return `${diffHours}小时前`
+  if (diffDays < 30) return `${diffDays}天前`
+  if (diffMonths < 12) return `${diffMonths}个月前`
+  return `${diffYears}年前`
+}
+
+export function formatFriendlyTime(time) {
+  const date = toDate(time)
+  if (!date) return '未知时间'
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.floor((today - targetDay) / 86400000)
+  const timeText = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+
+  if (dayDiff === 0) {
     const diffMs = now.getTime() - date.getTime()
-    const diffSeconds = Math.floor(diffMs / 1000)
-    const diffMinutes = Math.floor(diffSeconds / 60)
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    const diffMonths = Math.floor(diffDays / 30)
-    const diffYears = Math.floor(diffDays / 365)
-    
-    if (diffSeconds < 60) {
-      return '刚刚'
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}分钟前`
-    } else if (diffHours < 24) {
-      return `${diffHours}小时前`
-    } else if (diffDays < 30) {
-      return `${diffDays}天前`
-    } else if (diffMonths < 12) {
-      return `${diffMonths}个月前`
-    } else {
-      return `${diffYears}年前`
-    }
-  } catch (error) {
-    console.error('Relative time formatting error:', error)
-    return formatDateTime(time)
+    if (diffMs >= 0 && diffMs < 3600000) return formatRelativeTime(date)
+    return `今天 ${timeText}`
   }
+  if (dayDiff === 1) return `昨天 ${timeText}`
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${timeText}`
+  }
+  return formatDateTime(date)
 }
 
 /**
@@ -170,12 +117,8 @@ export function formatRelativeTime(time) {
  */
 export function getTimeField(obj, type = 'created') {
   if (!obj) {
-    // console.log('getTimeField: obj is null or undefined')
     return null
   }
-
-  // console.log('getTimeField called with:', obj, 'type:', type)
-  // console.log('Available fields:', Object.keys(obj))
 
   let timeValue = null
 
@@ -185,6 +128,5 @@ export function getTimeField(obj, type = 'created') {
     timeValue = obj.updatedAt || obj.updateTime || obj.updated_at || obj.modifyTime || obj.modify_time
   }
 
-  // console.log('getTimeField result:', timeValue)
   return timeValue
 }

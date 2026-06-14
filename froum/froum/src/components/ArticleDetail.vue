@@ -7,6 +7,9 @@ import ArticleComments from './ArticleComments.vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { articleService } from '../services/articleService'
+import { flattenComments } from '../utils/commentHelper'
+import { resolveAvatarUrl } from '../utils/avatar'
+import { formatFriendlyTime } from '../utils/dateUtils'
 
 const store = useStore()
 const router = useRouter()
@@ -47,6 +50,10 @@ const commentCount = computed(() => {
 
 // 检查用户是否已登录
 const isLoggedIn = computed(() => store.state.isAuthenticated && store.state.user)
+const currentUserId = computed(() => store.state.user?.id)
+const isOwnAuthor = computed(() => {
+  return Boolean(article.value?.author?.id && currentUserId.value && article.value.author.id === currentUserId.value)
+})
 
 const fetchArticle = async () => {
   loading.value = true
@@ -56,6 +63,10 @@ const fetchArticle = async () => {
     const response = await articleService.getArticleById(props.id)
     article.value = response.data
     article.value.comments = await articleService.getArticleComments(props.id)
+    await Promise.all([
+      syncAuthorFollowState(),
+      syncCommentLikeStates()
+    ])
   } catch (err) {
     console.error('获取文章详情失败:', err)
     error.value = err.message || '获取文章详情失败'
@@ -67,6 +78,48 @@ const fetchArticle = async () => {
 const refreshComments = async () => {
   if (!article.value?.id) return
   article.value.comments = await articleService.getArticleComments(article.value.id)
+  await syncCommentLikeStates()
+}
+
+const syncAuthorFollowState = async () => {
+  if (!isLoggedIn.value || !article.value?.author?.id || isOwnAuthor.value) {
+    if (article.value?.author) {
+      article.value.author.isFollowing = false
+    }
+    return
+  }
+
+  try {
+    const info = await store.dispatch('getFollowInfo', {
+      targetType: 'USER',
+      targetId: article.value.author.id
+    })
+    article.value.author.isFollowing = Boolean(info?.isFollowed)
+  } catch (error) {
+    console.error('同步作者关注状态失败:', error)
+  }
+}
+
+const syncCommentLikeStates = async () => {
+  if (!isLoggedIn.value || !article.value?.comments?.length) return
+
+  const flatComments = flattenComments(article.value.comments)
+  const results = await Promise.allSettled(
+    flatComments.map(comment => articleService.getCommentLikeInfo(comment.id))
+  )
+
+  results.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return
+
+    const comment = flatComments[index]
+    const info = result.value || {}
+    const count = Number(info.count ?? comment.likes ?? 0)
+    comment.likes = count
+    comment.likeCount = count
+    comment.voteCount = count
+    comment.isLiked = Boolean(info.isLiked)
+    comment.userVote = info.isLiked ? 'up' : null
+  })
 }
 
 const likeArticle = async () => {
@@ -76,7 +129,6 @@ const likeArticle = async () => {
   }
 
   try {
-    console.log('Toggling like for article:', article.value.id)
     // 使用新的点赞API
     const result = await store.dispatch('toggleLike', {
       targetType: 'ARTICLE',
@@ -139,6 +191,10 @@ const followAuthor = async () => {
   try {
     // 获取作者ID
     const authorId = article.value.author.id
+    if (isOwnAuthor.value) {
+      showToast('不能关注自己', 'error')
+      return
+    }
 
     // 使用新的关注API
     const result = await store.dispatch('toggleFollowTarget', {
@@ -198,14 +254,8 @@ const submitReport = async () => {
   showToast('当前后端暂未提供举报接口', 'error')
 }
 
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+const formatDate = (value) => {
+  return formatFriendlyTime(value);
 }
 
 // Add a handler for the comment events
@@ -225,10 +275,25 @@ const handleAddComment = async ({ articleId, content, parentId = null }) => {
 const handleLikeComment = async ({ articleId, commentId }) => {
   if (article.value.id === articleId) {
     try {
-      await articleService.likeComment(articleId, commentId);
-      const comment = article.value.comments.find(c => c.id === commentId);
+      const comment = flattenComments(article.value.comments).find(c => Number(c.id) === Number(commentId));
+      const hasLiked = comment?.userVote === 'up' || comment?.isLiked === true;
+
+      if (hasLiked) {
+        await articleService.unlikeComment(articleId, commentId);
+      } else {
+        await articleService.likeComment(articleId, commentId);
+      }
+
+      const info = await articleService.getCommentLikeInfo(commentId);
       if (comment) {
-        comment.likes++;
+        const count = Number(info.count ?? comment.likes ?? 0);
+        comment.likes = count;
+        comment.likeCount = count;
+        comment.voteCount = count;
+        comment.isLiked = Boolean(info.isLiked);
+        comment.userVote = info.isLiked ? 'up' : null;
+      } else {
+        await refreshComments();
       }
     } catch (err) {
       console.error('点赞评论失败:', err);
@@ -244,18 +309,16 @@ const goToLogin = () => {
 // 导航到作者页面
 const goToAuthorProfile = () => {
   const author = article.value.author;
-  console.log('Attempting to navigate to author profile:', author);
-  
+
   if (!author || author.id === undefined || author.id === null) {
     console.error('Cannot navigate: Author data is invalid', author);
     showToast('无法找到作者信息', 'error');
     return;
   }
-  
+
   // 确保ID是字符串
   const userId = String(author.id);
-  console.log('Navigating to author profile with string ID:', userId);
-  
+
   // 使用命名路由
   router.push({
     name: 'UserProfile',
@@ -272,15 +335,8 @@ const getAuthorInitials = (name) => {
   return name.charAt(0).toUpperCase();
 };
 
-// 确保头像路径正确
-const getAvatarPath = (avatar) => {
-  if (!avatar) return '';
-  if (avatar.startsWith('/images/')) return avatar;
-  if (avatar.startsWith('/avatar')) {
-    return `/images/avatars${avatar}`;
-  }
-  return avatar;
-};
+// 确保头像路径正确（统一解析，兼容 /uploads 与字段差异）
+const getAvatarPath = (avatar) => resolveAvatarUrl(avatar);
 
 onMounted(() => {
   fetchArticle()
@@ -364,9 +420,14 @@ onMounted(() => {
           <h3 class="author-name" @click="goToAuthorProfile">{{ article.author.name }}</h3>
           <p class="author-bio">资深前端开发工程师</p>
         </div>
-        <button class="follow-btn" @click="followAuthor">
-          <font-awesome-icon :icon="['fas', 'heart']" />
-          <span>关注作者</span>
+        <button
+          class="follow-btn"
+          :class="{ following: article.author.isFollowing }"
+          :disabled="isOwnAuthor"
+          @click="followAuthor"
+        >
+          <font-awesome-icon :icon="['fas', isOwnAuthor ? 'user' : (article.author.isFollowing ? 'user-check' : 'user-plus')]" />
+          <span>{{ isOwnAuthor ? '作者本人' : (article.author.isFollowing ? '已关注' : '关注作者') }}</span>
         </button>
       </div>
     </div>
@@ -744,9 +805,11 @@ onMounted(() => {
   border: none;
   border-radius: var(--radius);
   padding: 0.6rem 1.25rem;
+  min-width: 116px;
+  justify-content: center;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.25s ease, color 0.25s ease;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -754,6 +817,15 @@ onMounted(() => {
 
 .follow-btn:hover {
   background-color: var(--primary-dark);
+}
+
+.follow-btn.following {
+  background-color: var(--success-color);
+}
+
+.follow-btn:disabled {
+  background-color: var(--text-lighter);
+  cursor: not-allowed;
 }
 
 .article-comments {

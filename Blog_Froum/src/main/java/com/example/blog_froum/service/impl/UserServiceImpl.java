@@ -1,18 +1,23 @@
 package com.example.blog_froum.service.impl;
 
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
+import com.example.blog_froum.dto.admin.BatchOperationResult;
 import com.example.blog_froum.dto.user.UserArticleSummaryResponse;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.ProfileUpdateRequest;
 import com.example.blog_froum.dto.user.RegisterRequest;
+import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
+import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
 import com.example.blog_froum.dto.user.UserResponse;
 import com.example.blog_froum.entity.User;
 import com.example.blog_froum.enums.UserRole;
 import com.example.blog_froum.enums.UserStatus;
 import com.example.blog_froum.mapper.UserMapper;
 import com.example.blog_froum.repository.ArticleRepository;
+import com.example.blog_froum.service.TwoFactorService;
 import com.example.blog_froum.service.UserService;
+import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.JwtUtil;
 import com.example.blog_froum.utils.PasswordUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +50,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private TwoFactorService twoFactorService;
+
     @Override
     public UserResponse register(RegisterRequest request) {
         log.info("开始用户注册，用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
@@ -71,6 +79,8 @@ public class UserServiceImpl implements UserService {
         user.setRole(UserRole.USER);
         user.setStatus(UserStatus.ACTIVE);
         user.setLoginCount(0);
+        user.setTwoFactorEnabled(false);
+        user.setTwoFactorSecret(null);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -89,10 +99,34 @@ public class UserServiceImpl implements UserService {
     public LoginResponse login(LoginRequest request) {
         log.info("用户登录尝试，用户名/邮箱: {}", request.getUsername());
 
+        if (StringUtils.hasText(request.getTwoFactorToken())) {
+            return completeTwoFactorLogin(request.getTwoFactorToken(), request.getTwoFactorCode(), false);
+        }
+
+        User user = authenticateUser(request.getUsername(), request.getPassword());
+
+        if (user.isTwoFactorActive()) {
+            if (StringUtils.hasText(request.getTwoFactorCode())) {
+                if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), request.getTwoFactorCode())) {
+                    log.warn("用户登录失败，两步验证码错误: {}", user.getUsername());
+                    throw new RuntimeException("两步验证码错误");
+                }
+                return completeLogin(user);
+            }
+
+            String token = twoFactorService.createLoginChallenge(user.getId());
+            return LoginResponse.requiresTwoFactor(token, UserResponse.fromUser(user));
+        }
+
+        return completeLogin(user);
+    }
+
+    @Override
+    public User authenticateUser(String username, String password) {
         // 查找用户（支持用户名或邮箱登录）
-        User user = userMapper.findByUsernameOrEmail(request.getUsername(), request.getUsername());
+        User user = userMapper.findByUsernameOrEmail(username, username);
         if (user == null) {
-            log.warn("用户登录失败，用户不存在: {}", request.getUsername());
+            log.warn("用户登录失败，用户不存在: {}", username);
             throw new RuntimeException("用户不存在");
         }
 
@@ -103,11 +137,16 @@ public class UserServiceImpl implements UserService {
         }
 
         // 验证密码
-        if (!PasswordUtil.matches(request.getPassword(), user.getPassword())) {
+        if (!PasswordUtil.matches(password, user.getPassword())) {
             log.warn("用户登录失败，密码错误: {}", user.getUsername());
             throw new RuntimeException("密码错误");
         }
 
+        return user;
+    }
+
+    @Override
+    public LoginResponse completeLogin(User user) {
         // 更新登录信息
         user.updateLoginInfo();
         userMapper.updateLoginInfo(user);
@@ -291,6 +330,138 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public LoginResponse completeTwoFactorLogin(String twoFactorToken, String code, boolean requireAdmin) {
+        TwoFactorService.PendingChallenge challenge = twoFactorService.getChallenge(
+                twoFactorToken,
+                TwoFactorService.ChallengeType.LOGIN);
+        if (challenge == null) {
+            throw new RuntimeException("两步验证已过期，请重新登录");
+        }
+
+        User user = userMapper.findById(challenge.getUserId());
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!user.isActive()) {
+            throw new RuntimeException("账户已被禁用或锁定");
+        }
+        if (requireAdmin && !user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+        if (!user.isTwoFactorActive()) {
+            throw new RuntimeException("该账号尚未启用两步验证");
+        }
+        if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), code)) {
+            throw new RuntimeException("两步验证码错误");
+        }
+
+        twoFactorService.consumeChallenge(twoFactorToken);
+        return completeLogin(user);
+    }
+
+    @Override
+    public LoginResponse beginAdminTwoFactorSetup(User user) {
+        String secret = twoFactorService.generateSecret();
+        String setupToken = twoFactorService.createAdminSetupChallenge(user.getId(), secret);
+        String otpAuthUrl = twoFactorService.buildOtpAuthUrl(user.getUsername(), secret);
+        return LoginResponse.requiresTwoFactorSetup(
+                setupToken,
+                secret,
+                otpAuthUrl,
+                UserResponse.fromUser(user));
+    }
+
+    @Override
+    public LoginResponse confirmAdminTwoFactorSetup(String setupToken, String code) {
+        TwoFactorService.PendingChallenge challenge = twoFactorService.getChallenge(
+                setupToken,
+                TwoFactorService.ChallengeType.ADMIN_SETUP);
+        if (challenge == null) {
+            throw new RuntimeException("两步验证绑定已过期，请重新登录");
+        }
+        if (!twoFactorService.verifyCode(challenge.getSecret(), code)) {
+            throw new RuntimeException("两步验证码错误");
+        }
+
+        User user = userMapper.findById(challenge.getUserId());
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!user.isActive()) {
+            throw new RuntimeException("账户已被禁用或锁定");
+        }
+        if (!user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+
+        int result = userMapper.updateTwoFactor(user.getId(), true, challenge.getSecret());
+        if (result <= 0) {
+            throw new RuntimeException("两步验证绑定失败");
+        }
+
+        twoFactorService.consumeChallenge(setupToken);
+        User updatedUser = userMapper.findById(user.getId());
+        return completeLogin(updatedUser);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TwoFactorStatusResponse getTwoFactorStatus(Long userId) {
+        User user = getExistingUser(userId);
+        return new TwoFactorStatusResponse(user.isTwoFactorActive());
+    }
+
+    @Override
+    public TwoFactorSetupResponse beginTwoFactorSetup(Long userId) {
+        User user = getExistingUser(userId);
+        if (user.isTwoFactorActive()) {
+            return new TwoFactorSetupResponse(true, null, null);
+        }
+
+        String secret = twoFactorService.generateSecret();
+        int result = userMapper.updateTwoFactor(userId, false, secret);
+        if (result <= 0) {
+            throw new RuntimeException("两步验证初始化失败");
+        }
+        String otpAuthUrl = twoFactorService.buildOtpAuthUrl(user.getUsername(), secret);
+        return new TwoFactorSetupResponse(false, secret, otpAuthUrl);
+    }
+
+    @Override
+    public TwoFactorStatusResponse enableTwoFactor(Long userId, String code) {
+        User user = getExistingUser(userId);
+        if (!StringUtils.hasText(user.getTwoFactorSecret())) {
+            throw new RuntimeException("请先生成两步验证密钥");
+        }
+        if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), code)) {
+            throw new RuntimeException("两步验证码错误");
+        }
+
+        int result = userMapper.updateTwoFactor(userId, true, user.getTwoFactorSecret());
+        if (result <= 0) {
+            throw new RuntimeException("启用两步验证失败");
+        }
+        return new TwoFactorStatusResponse(true);
+    }
+
+    @Override
+    public TwoFactorStatusResponse disableTwoFactor(Long userId, String code) {
+        User user = getExistingUser(userId);
+        if (!user.isTwoFactorActive()) {
+            return new TwoFactorStatusResponse(false);
+        }
+        if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), code)) {
+            throw new RuntimeException("两步验证码错误");
+        }
+
+        int result = userMapper.updateTwoFactor(userId, false, null);
+        if (result <= 0) {
+            throw new RuntimeException("关闭两步验证失败");
+        }
+        return new TwoFactorStatusResponse(false);
+    }
+
+    @Override
     public boolean updatePassword(Long userId, String currentPassword, String newPassword) {
         User user = userMapper.findById(userId);
         if (user == null) {
@@ -410,6 +581,10 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户不存在");
         }
 
+        if (userId.equals(BaseContext.getCurrentId())) {
+            throw new RuntimeException("不能禁用当前登录的账号");
+        }
+
         user.setStatus(UserStatus.DISABLED);
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -475,6 +650,11 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户不存在");
         }
 
+        if (userId.equals(BaseContext.getCurrentId()) && !UserRole.valueOf(role).equals(UserRole.ADMIN)
+                && !UserRole.valueOf(role).equals(UserRole.SUPER_ADMIN)) {
+            throw new RuntimeException("不能取消自己的管理员权限");
+        }
+
         user.setRole(UserRole.valueOf(role));
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -495,12 +675,54 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户不存在");
         }
 
+        if (userId.equals(BaseContext.getCurrentId())) {
+            throw new RuntimeException("不能删除当前登录的账号");
+        }
+
+        if (user.isAdmin()) {
+            throw new RuntimeException("不能直接删除管理员账号，请先将其降级为普通用户");
+        }
+
         int result = userMapper.deleteById(userId);
         if (result <= 0) {
             throw new RuntimeException("删除用户失败");
         }
 
         log.info("用户删除成功，用户ID: {}", userId);
+    }
+
+    @Override
+    public BatchOperationResult batchDisableUsers(List<Long> userIds, String reason) {
+        return executeBatch(userIds, userId -> disableUser(userId, reason));
+    }
+
+    @Override
+    public BatchOperationResult batchEnableUsers(List<Long> userIds) {
+        return executeBatch(userIds, this::enableUser);
+    }
+
+    @Override
+    public BatchOperationResult batchDeleteUsers(List<Long> userIds) {
+        return executeBatch(userIds, this::adminDeleteUser);
+    }
+
+    private BatchOperationResult executeBatch(List<Long> userIds, java.util.function.Consumer<Long> action) {
+        if (userIds == null || userIds.isEmpty()) {
+            throw new RuntimeException("请选择要操作的用户");
+        }
+
+        BatchOperationResult result = new BatchOperationResult();
+        result.setTotal(userIds.size());
+
+        for (Long userId : userIds) {
+            try {
+                action.accept(userId);
+                result.addSuccess();
+            } catch (Exception e) {
+                result.addFailure("用户 " + userId + "：" + e.getMessage());
+            }
+        }
+        return result;
     }
 
     @Override
@@ -570,5 +792,13 @@ public class UserServiceImpl implements UserService {
         }
 
         return password.toString();
+    }
+
+    private User getExistingUser(Long userId) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        return user;
     }
 }

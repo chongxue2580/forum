@@ -22,10 +22,16 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.management.ManagementFactory;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -66,6 +72,12 @@ public class AdminDashboardController {
     @Autowired
     private CommentRepository commentRepository;
 
+    @Autowired
+    private Environment environment;
+
+    @Value("${app.version:}")
+    private String configuredVersion;
+
     /**
      * 获取仪表板概览数据
      */
@@ -84,8 +96,8 @@ public class AdminDashboardController {
             AdminDashboardResponses.OverviewSystemInfo systemInfo =
                     new AdminDashboardResponses.OverviewSystemInfo(
                             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                            "1.0.0",
-                            "development");
+                            resolveApplicationVersion(),
+                            resolveEnvironmentName());
             AdminDashboardResponses.Overview overview =
                     new AdminDashboardResponses.Overview(userStats, articleStats, questionStats, commentStats, systemInfo);
 
@@ -214,7 +226,12 @@ public class AdminDashboardController {
                             runtime.availableProcessors());
 
             AdminDashboardResponses.ApplicationInfo appInfo =
-                    new AdminDashboardResponses.ApplicationInfo("running", "2 days 5 hours", "1.0.0", "development");
+                    new AdminDashboardResponses.ApplicationInfo(
+                            "running",
+                            formatUptime(),
+                            getApplicationStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                            resolveApplicationVersion(),
+                            resolveEnvironmentName());
 
             AdminDashboardResponses.SystemStatus systemStatus =
                     new AdminDashboardResponses.SystemStatus(memoryInfo, systemInfo, appInfo);
@@ -297,5 +314,49 @@ public class AdminDashboardController {
 
     private LocalDateTime parseActivityTime(String value) {
         return LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
+    private LocalDateTime getApplicationStartTime() {
+        Instant startInstant = Instant.ofEpochMilli(ManagementFactory.getRuntimeMXBean().getStartTime());
+        return LocalDateTime.ofInstant(startInstant, ZoneId.systemDefault());
+    }
+
+    private String formatUptime() {
+        Duration duration = Duration.ofMillis(ManagementFactory.getRuntimeMXBean().getUptime());
+        long days = duration.toDays();
+        long hours = duration.minusDays(days).toHours();
+        long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
+
+        if (days > 0) {
+            return String.format("%d天 %d小时 %d分钟", days, hours, minutes);
+        }
+        if (hours > 0) {
+            return String.format("%d小时 %d分钟", hours, minutes);
+        }
+        return String.format("%d分钟", Math.max(minutes, 0));
+    }
+
+    private String resolveEnvironmentName() {
+        String[] activeProfiles = environment.getActiveProfiles();
+        if (activeProfiles.length > 0) {
+            return String.join(",", activeProfiles);
+        }
+
+        String[] defaultProfiles = environment.getDefaultProfiles();
+        return defaultProfiles.length > 0 ? String.join(",", defaultProfiles) : "default";
+    }
+
+    private String resolveApplicationVersion() {
+        if (configuredVersion != null && !configuredVersion.trim().isEmpty()) {
+            return configuredVersion.trim();
+        }
+
+        Package applicationPackage = AdminDashboardController.class.getPackage();
+        String implementationVersion = applicationPackage != null ? applicationPackage.getImplementationVersion() : null;
+        if (implementationVersion != null && !implementationVersion.trim().isEmpty()) {
+            return implementationVersion;
+        }
+
+        return "0.0.1-SNAPSHOT";
     }
 }

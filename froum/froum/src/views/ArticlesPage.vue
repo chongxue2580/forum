@@ -184,8 +184,6 @@ export default defineComponent({
     const loadHotArticles = async () => {
       isLoading.value = true
       try {
-        console.log('加载热门文章...')
-        
         // 获取热门文章
         const response = await store.dispatch('fetchHotArticles', { 
           limit: 50 // 获取较多文章用于客户端分页
@@ -193,7 +191,6 @@ export default defineComponent({
         
         if (response && response.data) {
           const allHotArticles = response.data
-          console.log('热门文章加载成功:', allHotArticles.length)
           hotTotalItems.value = allHotArticles.length
           hotTotalPages.value = Math.ceil(allHotArticles.length / pageSize.value)
           
@@ -216,8 +213,6 @@ export default defineComponent({
     const loadRecommendedArticles = async () => {
       isLoading.value = true
       try {
-        console.log('加载推荐文章...')
-        
         // 获取推荐文章
         const response = await store.dispatch('fetchRecommendedArticles', { 
           limit: 50 // 获取较多文章用于客户端分页
@@ -225,7 +220,6 @@ export default defineComponent({
         
         if (response && response.data) {
           const allRecommendedArticles = response.data
-          console.log('推荐文章加载成功:', allRecommendedArticles.length)
           recommendedTotalItems.value = allRecommendedArticles.length
           recommendedTotalPages.value = Math.ceil(allRecommendedArticles.length / pageSize.value)
           
@@ -246,7 +240,6 @@ export default defineComponent({
     
     // 根据当前标签页加载相应数据
     const loadActiveTabData = () => {
-      console.log('加载当前活动标签数据:', activeTab.value)
       switch(activeTab.value) {
         case 'hot':
           loadHotArticles()

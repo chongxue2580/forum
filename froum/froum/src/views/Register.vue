@@ -82,6 +82,8 @@
           <input type="checkbox" id="agreement" v-model="agreeTerms" required />
           <label for="agreement">我已阅读并同意<a href="#">服务条款</a>和<a href="#">隐私政策</a></label>
         </div>
+
+        <TacCaptcha ref="captchaRef" v-model="captchaValue" />
         
         <button type="submit" class="btn-register" :disabled="loading">
           <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="loading" />
@@ -116,9 +118,11 @@
 import { defineComponent, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
+import TacCaptcha from '../components/TacCaptcha.vue'
 
 export default defineComponent({
   name: 'RegisterView',
+  components: { TacCaptcha },
   setup() {
     const router = useRouter()
     const store = useStore()
@@ -132,6 +136,8 @@ export default defineComponent({
     const agreeTerms = ref(false)
     const loading = ref(false)
     const error = ref('')
+    const captchaValue = ref(null)
+    const captchaRef = ref(null)
     
     const handleRegister = async () => {
       // 表单验证
@@ -149,6 +155,11 @@ export default defineComponent({
         error.value = '请阅读并同意服务条款和隐私政策'
         return
       }
+
+      if (!captchaValue.value?.captchaId) {
+        error.value = '请先完成验证码验证'
+        return
+      }
       
       loading.value = true
       error.value = ''
@@ -158,19 +169,23 @@ export default defineComponent({
         await store.dispatch('register', {
           username: username.value,
           email: email.value,
-          password: password.value
+          password: password.value,
+          captchaId: captchaValue.value.captchaId,
+          captchaPercentage: captchaValue.value.captchaPercentage
         })
 
-        // 注册成功后自动登录
-        await store.dispatch('login', {
-          username: username.value,
-          password: password.value
+        sessionStorage.setItem('postRegisterPassword', password.value)
+        router.push({
+          path: '/login',
+          query: {
+            registered: '1',
+            username: username.value
+          }
         })
-
-        // 注册成功，重定向到首页
-        router.push('/')
       } catch (err) {
         error.value = err.message || '注册失败，请稍后重试'
+        captchaValue.value = null
+        captchaRef.value?.refresh()
       } finally {
         loading.value = false
       }
@@ -186,6 +201,8 @@ export default defineComponent({
       agreeTerms,
       loading,
       error,
+      captchaValue,
+      captchaRef,
       handleRegister
     }
   }

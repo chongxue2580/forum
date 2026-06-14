@@ -14,6 +14,8 @@ import {
 const router = useRouter()
 const loading = ref(false)
 const questions = ref([])
+const viewMode = ref(localStorage.getItem('adminView_questions') || 'grid')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_questions', v) }
 const searchQuery = ref('')
 const filterOptions = ref({
   status: '',
@@ -262,17 +264,9 @@ onMounted(loadQuestions)
       </h1>
 
       <div class="header-actions">
-        <button class="admin-action-btn primary">
+        <button class="admin-action-btn primary" @click="router.push('/question/new')">
           <font-awesome-icon icon="plus" />
           新建问答
-        </button>
-        <button class="admin-action-btn success">
-          <font-awesome-icon icon="download" />
-          导出数据
-        </button>
-        <button class="admin-action-btn warning">
-          <font-awesome-icon icon="chart-bar" />
-          数据统计
         </button>
       </div>
     </div>
@@ -288,21 +282,21 @@ onMounted(loadQuestions)
           placeholder="搜索问题标题、内容或作者..."
           clearable
           size="large"
-          style="min-width: 300px; flex: 1;"
+          style="flex: 1 1 240px; min-width: 200px; max-width: 360px;"
         >
           <template #prefix>
             <font-awesome-icon icon="search" />
           </template>
         </el-input>
 
-        <el-select v-model="filterOptions.status" placeholder="审核状态" clearable size="large" style="min-width: 140px;">
+        <el-select v-model="filterOptions.status" placeholder="审核状态" clearable size="large" style="flex: 0 1 150px; min-width: 130px; max-width: 170px;">
           <el-option label="全部状态" value="" />
           <el-option label="已通过" value="approved" />
           <el-option label="已拒绝" value="rejected" />
           <el-option label="审核中" value="pending" />
         </el-select>
 
-        <el-select v-model="filterOptions.solved" placeholder="解决状态" clearable size="large" style="min-width: 140px;">
+        <el-select v-model="filterOptions.solved" placeholder="解决状态" clearable size="large" style="flex: 0 1 150px; min-width: 130px; max-width: 170px;">
           <el-option label="全部问题" value="" />
           <el-option label="已解决" value="true" />
           <el-option label="未解决" value="false" />
@@ -321,128 +315,63 @@ onMounted(loadQuestions)
     </div>
 
     <div class="admin-content-card">
-      <div class="admin-section-title">
-        <font-awesome-icon icon="table" />
-        问答列表
+      <div class="admin-section-title ad-list-head">
+        <span><font-awesome-icon icon="table" /> 问答列表</span>
+        <span class="ad-view-toggle">
+          <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+          <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+        </span>
       </div>
-      <div class="admin-table-container admin-responsive-table">
-        <el-table v-loading="loading" :data="filteredQuestions" style="width: 100%" stripe>
-          <el-table-column label="问题信息" min-width="350">
-            <template #default="{ row }">
-              <div class="admin-table-cell">
-                <div class="admin-cell-main">
-                  <h3 class="admin-cell-title">{{ row.title }}</h3>
-                  <p class="admin-cell-desc">{{ row.content }}</p>
-                </div>
-                <div class="admin-cell-meta">
-                  <div class="admin-meta-left">
-                    <div class="admin-author-info">
-                      <el-avatar
-                        :size="24"
-                        :style="{
-                          backgroundColor: getAvatarColor(row.author.name),
-                          color: '#ffffff',
-                          fontWeight: '500',
-                          fontSize: '12px'
-                        }"
-                      >
-                        {{ getAvatarText(row.author.name) }}
-                      </el-avatar>
-                      <span>{{ row.author.name }}</span>
-                    </div>
-                    <div class="admin-time-info">
-                      <font-awesome-icon icon="clock" />
-                      <span>{{ row.createTime }}</span>
-                    </div>
-                  </div>
-                  <div class="admin-tags">
-                    <el-tag
-                      v-for="tag in row.tags"
-                      :key="tag"
-                      size="small"
-                      effect="plain"
-                    >
-                      {{ tag }}
-                    </el-tag>
-                    <el-tag v-if="row.solved" type="success" size="small">已解决</el-tag>
-                  </div>
+      <div v-loading="loading">
+        <div v-if="filteredQuestions.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+          <div v-for="row in filteredQuestions" :key="row.id" class="ad-card">
+            <div class="ad-card__head">
+              <span class="ad-card__avatar" :style="{ backgroundColor: getAvatarColor(row.author.name) }">{{ getAvatarText(row.author.name) }}</span>
+              <div style="min-width:0;flex:1;">
+                <div class="ad-card__title">{{ row.title }}</div>
+                <div class="ad-card__sub">
+                  <span>{{ row.author.name }}</span>
+                  <span><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
                 </div>
               </div>
-            </template>
-          </el-table-column>
+            </div>
 
-          <el-table-column label="数据统计" width="120">
-            <template #default="{ row }">
-              <div class="admin-stats">
-                <div class="admin-stat-item">
-                  <font-awesome-icon icon="eye" />
-                  <span>{{ row.views }}</span>
-                </div>
-                <div class="admin-stat-item">
-                  <font-awesome-icon icon="comment-dots" />
-                  <span>{{ row.answers }}</span>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
+            <p class="question-desc">{{ row.content }}</p>
 
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="statusMap[row.status].type" size="small">
+            <div class="ad-card__pills">
+              <span class="ad-pill" :class="statusMap[row.status].type === 'success' ? 'is-success' : statusMap[row.status].type === 'danger' ? 'is-danger' : 'is-warning'">
                 {{ statusMap[row.status].text }}
-              </el-tag>
-            </template>
-          </el-table-column>
+              </span>
+              <span v-if="row.solved" class="ad-pill is-success"><font-awesome-icon icon="check-circle" /> 已解决</span>
+              <span class="ad-pill is-muted"><font-awesome-icon icon="eye" /> {{ row.views }}</span>
+              <span class="ad-pill is-muted"><font-awesome-icon icon="comment-dots" /> {{ row.answers }}</span>
+              <span v-for="tag in row.tags.slice(0, 2)" :key="tag" class="ad-pill is-accent">{{ tag }}</span>
+            </div>
 
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <div class="admin-table-actions">
-                <button
-                  class="admin-action-btn small success"
-                  :class="{ 'outline': !row.solved }"
-                  @click="toggleQuestionSolved(row)"
-                >
-                  <font-awesome-icon icon="check-circle" />
-                  {{ row.solved ? '取消解决' : '标记解决' }}
-                </button>
+            <div class="ad-card__actions">
+              <button v-if="row.status === 'pending'" class="ad-btn is-success" @click="updateQuestionStatus(row, 'approved')">
+                <font-awesome-icon icon="check" /> 通过
+              </button>
+              <button v-if="row.status === 'pending'" class="ad-btn is-danger" @click="updateQuestionStatus(row, 'rejected')">
+                <font-awesome-icon icon="times" /> 拒绝
+              </button>
+              <button class="ad-btn" :class="{ 'is-success': !row.solved }" @click="toggleQuestionSolved(row)">
+                <font-awesome-icon icon="check-circle" /> {{ row.solved ? '取消解决' : '标记解决' }}
+              </button>
+              <button class="ad-btn is-primary" @click="viewQuestion(row)">
+                <font-awesome-icon icon="eye" /> 查看
+              </button>
+              <button class="ad-btn is-danger" @click="deleteQuestion(row)">
+                <font-awesome-icon icon="trash-alt" /> 删除
+              </button>
+            </div>
+          </div>
+        </div>
 
-                <div class="admin-action-group" v-if="row.status === 'pending'">
-                  <button
-                    class="admin-action-btn small success"
-                    @click="updateQuestionStatus(row, 'approved')"
-                  >
-                    <font-awesome-icon icon="check" />
-                    通过
-                  </button>
-                  <button
-                    class="admin-action-btn small danger"
-                    @click="updateQuestionStatus(row, 'rejected')"
-                  >
-                    <font-awesome-icon icon="times" />
-                    拒绝
-                  </button>
-                </div>
-
-                <div class="admin-action-group">
-                  <button
-                    class="admin-action-btn small"
-                    @click="viewQuestion(row)"
-                  >
-                    <font-awesome-icon icon="eye" />
-                    查看
-                  </button>
-                  <button
-                    class="admin-action-btn small danger"
-                    @click="deleteQuestion(row)"
-                  >
-                    <font-awesome-icon icon="trash-alt" />
-                    删除
-                  </button>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-else-if="!loading" class="ad-empty">
+          <div class="ad-empty__icon"><font-awesome-icon icon="question-circle" /></div>
+          <div class="ad-empty__text">没有符合条件的问答</div>
+        </div>
       </div>
     </div>
 
@@ -466,6 +395,17 @@ onMounted(loadQuestions)
 @import './AdminCommonStyles.css';
 
 /* 问答管理特定样式 */
+.question-desc {
+  margin: 0;
+  color: var(--ad-text-muted, #5b6478);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .admin-table-cell {
   padding: 12px 0;
 }

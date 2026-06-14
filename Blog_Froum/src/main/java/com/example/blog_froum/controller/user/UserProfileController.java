@@ -4,7 +4,11 @@ import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.ProfileUpdateRequest;
 import com.example.blog_froum.dto.user.RegisterRequest;
+import com.example.blog_froum.dto.user.TwoFactorCodeRequest;
+import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
+import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
 import com.example.blog_froum.dto.user.UserResponse;
+import com.example.blog_froum.service.CaptchaService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.Result;
@@ -13,6 +17,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -31,6 +36,9 @@ public class UserProfileController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private CaptchaService captchaService;
+
     /**
      * 用户登录 - 兼容前端调用
      */
@@ -40,10 +48,14 @@ public class UserProfileController {
             @ApiParam(value = "登录信息", required = true)
             @Valid @RequestBody LoginRequest request) {
         try {
+            if (!StringUtils.hasText(request.getTwoFactorToken())) {
+                captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
+            }
             log.info("收到用户登录请求（profile路径），用户名/邮箱: {}", request.getUsername());
             LoginResponse loginResponse = userService.login(request);
-            log.info("用户登录成功（profile路径），用户名/邮箱: {}", request.getUsername());
-            return Result.success("登录成功", loginResponse);
+            String message = Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor()) ? "需要两步验证码" : "登录成功";
+            log.info("用户登录处理完成（profile路径），用户名/邮箱: {}, 状态: {}", request.getUsername(), message);
+            return Result.success(message, loginResponse);
         } catch (Exception e) {
             log.error("用户登录失败（profile路径），用户名/邮箱: {}, 错误: {}", request.getUsername(), e.getMessage());
             return Result.error(e.getMessage());
@@ -59,6 +71,7 @@ public class UserProfileController {
             @ApiParam(value = "注册信息", required = true)
             @Valid @RequestBody RegisterRequest request) {
         try {
+            captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
             log.info("收到用户注册请求（profile路径），用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
             UserResponse userResponse = userService.register(request);
             log.info("用户注册成功（profile路径），用户名: {}", request.getUsername());
@@ -114,6 +127,50 @@ public class UserProfileController {
         } catch (Exception e) {
             log.error("更新用户信息失败: {}", e.getMessage());
             return Result.error("更新用户信息失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/me/2fa/status")
+    @ApiOperation(value = "获取两步验证状态", notes = "获取当前登录用户的两步验证启用状态")
+    public Result<TwoFactorStatusResponse> getTwoFactorStatus() {
+        try {
+            return Result.success(userService.getTwoFactorStatus(BaseContext.getCurrentId()));
+        } catch (Exception e) {
+            log.error("获取两步验证状态失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/me/2fa/setup")
+    @ApiOperation(value = "生成两步验证绑定信息", notes = "为当前登录用户生成TOTP密钥和otpauth地址")
+    public Result<TwoFactorSetupResponse> setupTwoFactor() {
+        try {
+            return Result.success("两步验证绑定信息已生成", userService.beginTwoFactorSetup(BaseContext.getCurrentId()));
+        } catch (Exception e) {
+            log.error("生成两步验证绑定信息失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/me/2fa/enable")
+    @ApiOperation(value = "启用两步验证", notes = "校验验证器中的6位验证码后启用两步验证")
+    public Result<TwoFactorStatusResponse> enableTwoFactor(@Valid @RequestBody TwoFactorCodeRequest request) {
+        try {
+            return Result.success("两步验证已启用", userService.enableTwoFactor(BaseContext.getCurrentId(), request.getCode()));
+        } catch (Exception e) {
+            log.error("启用两步验证失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/me/2fa/disable")
+    @ApiOperation(value = "关闭两步验证", notes = "校验验证器中的6位验证码后关闭两步验证")
+    public Result<TwoFactorStatusResponse> disableTwoFactor(@Valid @RequestBody TwoFactorCodeRequest request) {
+        try {
+            return Result.success("两步验证已关闭", userService.disableTwoFactor(BaseContext.getCurrentId(), request.getCode()));
+        } catch (Exception e) {
+            log.error("关闭两步验证失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
         }
     }
 

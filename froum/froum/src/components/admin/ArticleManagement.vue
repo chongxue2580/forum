@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import '@/components/admin/AdminCommonStyles.css'
+import { formatDateTime } from '@/utils/dateUtils'
 import {
   approveArticle,
   deleteArticle,
@@ -34,6 +35,8 @@ const typeOptions = [
 
 const loading = ref(false)
 const tableData = ref([])
+const viewMode = ref(localStorage.getItem('adminView_articles') || 'grid')
+const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_articles', v) }
 
 // 筛选和搜索
 const searchQuery = ref('')
@@ -71,11 +74,25 @@ const displayedTableData = computed(() => {
   return result
 })
 
+// KPI（总数取后端 total，其余按当前页统计）
+const kpis = computed(() => {
+  const list = tableData.value
+  const pending = list.filter(a => a.status === 'pending').length
+  const approved = list.filter(a => a.status === 'approved').length
+  const featured = list.filter(a => a.isFeatured).length
+  return [
+    { key: 'total', label: '文章总数', value: total.value, icon: 'file-alt', tone: '' },
+    { key: 'pending', label: '待审核（本页）', value: pending, icon: 'clock', tone: 'is-warning' },
+    { key: 'approved', label: '已通过（本页）', value: approved, icon: 'circle-check', tone: 'is-success' },
+    { key: 'featured', label: '精选（本页）', value: featured, icon: 'star', tone: '' }
+  ]
+})
+
 const normalizeArticle = (article) => ({
   id: article.id,
   title: article.title || '',
   author: article.author?.nickname || article.author?.username || article.author?.name || '未知作者',
-  category: typeof article.category === 'string' ? article.category : article.category?.name || '',
+  category: typeof article.category === 'string' ? article.category : article.category?.name || '未分类',
   tags: Array.isArray(article.tags) ? article.tags : [],
   status: String(article.status || '').toLowerCase(),
   createTime: formatDateTime(article.createdAt || article.createTime || article.publishedAt),
@@ -252,11 +269,6 @@ const formatStatus = (status) => {
   }
 }
 
-const formatDateTime = (value) => {
-  if (!value) return ''
-  return new Date(value).toLocaleString('zh-CN')
-}
-
 onMounted(() => {
   loadArticles()
 })
@@ -275,14 +287,18 @@ onMounted(() => {
           <font-awesome-icon icon="plus" />
           新建文章
         </button>
-        <button class="admin-action-btn success" disabled title="当前后端暂未提供导出接口">
-          <font-awesome-icon icon="download" />
-          导出数据
-        </button>
-        <button class="admin-action-btn warning" disabled title="请在仪表盘查看统计数据">
-          <font-awesome-icon icon="chart-bar" />
-          数据统计
-        </button>
+      </div>
+    </div>
+
+    <div class="ad-kpi-row">
+      <div v-for="kpi in kpis" :key="kpi.key" class="ad-kpi">
+        <span class="ad-kpi__icon" :class="kpi.tone">
+          <font-awesome-icon :icon="kpi.icon" />
+        </span>
+        <div>
+          <div class="ad-kpi__num">{{ kpi.value }}</div>
+          <div class="ad-kpi__label">{{ kpi.label }}</div>
+        </div>
       </div>
     </div>
 
@@ -297,14 +313,14 @@ onMounted(() => {
           placeholder="搜索文章标题、作者或内容"
           clearable
           size="large"
-          style="min-width: 300px; flex: 1;"
+          style="flex: 1 1 240px; min-width: 200px; max-width: 360px;"
         >
           <template #prefix>
             <font-awesome-icon icon="search" />
           </template>
         </el-input>
 
-        <el-select v-model="statusFilter" placeholder="文章状态" size="large" style="min-width: 140px;">
+        <el-select v-model="statusFilter" placeholder="文章状态" size="large" style="flex: 0 1 150px; min-width: 130px; max-width: 170px;">
           <el-option
             v-for="item in statusOptions"
             :key="item.value"
@@ -313,7 +329,7 @@ onMounted(() => {
           />
         </el-select>
 
-        <el-select v-model="typeFilter" placeholder="文章类型" size="large" style="min-width: 140px;">
+        <el-select v-model="typeFilter" placeholder="文章类型" size="large" style="flex: 0 1 150px; min-width: 130px; max-width: 170px;">
           <el-option
             v-for="item in typeOptions"
             :key="item.value"
@@ -335,174 +351,84 @@ onMounted(() => {
     </div>
 
     <div class="admin-content-card">
-      <div class="admin-section-title">
-        <font-awesome-icon icon="table" />
-        文章列表
+      <div class="admin-section-title ad-list-head">
+        <span><font-awesome-icon icon="table" /> 文章列表</span>
+        <span class="ad-view-toggle">
+          <button :class="{ active: viewMode === 'grid' }" title="网格" @click="setView('grid')"><font-awesome-icon icon="th-large" /></button>
+          <button :class="{ active: viewMode === 'list' }" title="列表" @click="setView('list')"><font-awesome-icon icon="list" /></button>
+        </span>
       </div>
-      
-      <div class="admin-table-container admin-responsive-table">
-        <el-table
-          v-loading="loading"
-          :data="displayedTableData"
-          style="width: 100%"
-          stripe
-          highlight-current-row
-        >
-          <el-table-column prop="id" label="ID" width="80" />
 
-          <el-table-column label="文章信息" min-width="320">
-            <template #default="{ row }">
-              <div class="article-info">
-                <div class="article-title">{{ row.title }}</div>
-                <div class="article-meta">
-                  <div class="meta-left">
-                    <div class="author-info">
-                      <font-awesome-icon icon="user" />
-                      {{ row.author }}
-                    </div>
-                    <div class="time-info">
-                      <font-awesome-icon icon="clock" />
-                      {{ row.createTime }}
-                    </div>
-                  </div>
-                  <div class="article-flags">
-                    <div v-if="row.isOfficial" class="admin-tag success">
-                      <font-awesome-icon icon="shield-alt" />
-                      官方
-                    </div>
-                    <div v-if="row.isPinned" class="admin-tag warning">
-                      <font-awesome-icon icon="thumbtack" />
-                      置顶
-                    </div>
-                    <div v-if="row.isFeatured" class="admin-tag primary">
-                      <font-awesome-icon icon="star" />
-                      精选
-                    </div>
-                  </div>
+      <div v-loading="loading">
+        <div v-if="displayedTableData.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
+          <div v-for="row in displayedTableData" :key="row.id" class="ad-card">
+            <div class="ad-card__head">
+              <span class="ad-card__id">#{{ row.id }}</span>
+              <div style="min-width:0;flex:1;">
+                <div class="ad-card__title">{{ row.title }}</div>
+                <div class="ad-card__sub">
+                  <span><font-awesome-icon icon="user" /> {{ row.author }}</span>
+                  <span v-if="row.category"><font-awesome-icon icon="folder" /> {{ row.category }}</span>
+                  <span><font-awesome-icon icon="clock" /> {{ row.createTime }}</span>
                 </div>
               </div>
-            </template>
-          </el-table-column>
+            </div>
 
-          <el-table-column label="分类" prop="category" width="120" />
-
-          <el-table-column label="标签" width="200">
-            <template #default="{ row }">
-              <div class="tag-container">
-                <div
-                  v-for="(tag, index) in row.tags"
-                  :key="index"
-                  class="admin-tag primary"
-                >
-                  {{ tag }}
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <div
-                :class="['admin-tag', formatStatus(row.status).type]"
-              >
+            <div class="ad-card__pills">
+              <span class="ad-pill" :class="'is-' + (formatStatus(row.status).type === 'info' ? 'muted' : formatStatus(row.status).type === 'warning' ? 'warning' : formatStatus(row.status).type === 'danger' ? 'danger' : 'success')">
                 {{ formatStatus(row.status).text }}
+              </span>
+              <span v-if="row.isOfficial" class="ad-pill is-success"><font-awesome-icon icon="shield-alt" /> 官方</span>
+              <span v-if="row.isPinned" class="ad-pill is-warning"><font-awesome-icon icon="thumbtack" /> 置顶</span>
+              <span v-if="row.isFeatured" class="ad-pill is-accent"><font-awesome-icon icon="star" /> 精选</span>
+              <span v-for="(tag, i) in row.tags.slice(0, 3)" :key="i" class="ad-pill is-muted">{{ tag }}</span>
+            </div>
+
+            <div class="ad-card__metrics">
+              <div class="ad-metric">
+                <span class="ad-metric__num">{{ row.views }}</span>
+                <span class="ad-metric__label">浏览</span>
               </div>
-            </template>
-          </el-table-column>
-          
-          <el-table-column label="数据统计" width="200">
-            <template #default="{ row }">
-              <div class="stats">
-                <div class="stat-item">
-                  <font-awesome-icon icon="eye" />
-                  {{ row.views }}
-                </div>
-                <div class="stat-item">
-                  <font-awesome-icon icon="thumbs-up" />
-                  {{ row.likes }}
-                </div>
-                <div class="stat-item">
-                  <font-awesome-icon icon="comment" />
-                  {{ row.comments }}
-                </div>
+              <div class="ad-metric">
+                <span class="ad-metric__num">{{ row.likes }}</span>
+                <span class="ad-metric__label">点赞</span>
               </div>
-            </template>
-          </el-table-column>
-          
-          <el-table-column label="操作" width="240">
-            <template #default="{ row }">
-              <div class="action-buttons admin-mobile-stack">
-                <div class="button-row">
-                  <button
-                    v-if="row.status === 'pending'"
-                    class="admin-action-btn success"
-                    @click="handleApprove(row)"
-                  >
-                    <font-awesome-icon icon="check" />
-                    通过
-                  </button>
-
-                  <button
-                    v-if="row.status === 'pending'"
-                    class="admin-action-btn danger"
-                    @click="handleReject(row)"
-                  >
-                    <font-awesome-icon icon="times" />
-                    拒绝
-                  </button>
-
-                  <button
-                    class="admin-action-btn primary"
-                    @click="handleViewDetail(row)"
-                  >
-                    <font-awesome-icon icon="eye" />
-                    查看
-                  </button>
-                </div>
-
-                <div class="button-row">
-                  <button
-                    class="admin-action-btn primary"
-                    @click="handleEdit(row)"
-                  >
-                    <font-awesome-icon icon="edit" />
-                    编辑
-                  </button>
-
-                  <el-dropdown trigger="click">
-                    <button class="admin-action-btn">
-                      <font-awesome-icon icon="ellipsis-h" />
-                      更多
-                    </button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="toggleOfficial(row)">
-                          <font-awesome-icon :icon="row.isOfficial ? 'times-circle' : 'check-circle'" />
-                          {{ row.isOfficial ? '取消官方' : '设为官方' }}
-                        </el-dropdown-item>
-
-                        <el-dropdown-item @click="togglePinned(row)">
-                          <font-awesome-icon :icon="row.isPinned ? 'times-circle' : 'thumbtack'" />
-                          {{ row.isPinned ? '取消置顶' : '设为置顶' }}
-                        </el-dropdown-item>
-
-                        <el-dropdown-item @click="toggleFeatured(row)">
-                          <font-awesome-icon :icon="row.isFeatured ? 'times-circle' : 'star'" />
-                          {{ row.isFeatured ? '取消精选' : '设为精选' }}
-                        </el-dropdown-item>
-
-                        <el-dropdown-item divided @click="handleDelete(row)">
-                          <font-awesome-icon icon="trash-alt" />
-                          删除文章
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
+              <div class="ad-metric">
+                <span class="ad-metric__num">{{ row.comments }}</span>
+                <span class="ad-metric__label">评论</span>
               </div>
-            </template>
-          </el-table-column>
-        </el-table>
+            </div>
+
+            <div class="ad-card__actions">
+              <button v-if="row.status === 'pending'" class="ad-btn is-success" @click="handleApprove(row)">
+                <font-awesome-icon icon="check" /> 通过
+              </button>
+              <button v-if="row.status === 'pending'" class="ad-btn is-danger" @click="handleReject(row)">
+                <font-awesome-icon icon="times" /> 拒绝
+              </button>
+              <button class="ad-btn" @click="handleViewDetail(row)">
+                <font-awesome-icon icon="eye" /> 查看
+              </button>
+              <button class="ad-btn is-primary" @click="handleEdit(row)">
+                <font-awesome-icon icon="edit" /> 编辑
+              </button>
+              <button class="ad-btn is-warning" @click="togglePinned(row)">
+                <font-awesome-icon icon="thumbtack" /> {{ row.isPinned ? '取消置顶' : '置顶' }}
+              </button>
+              <button class="ad-btn" @click="toggleFeatured(row)">
+                <font-awesome-icon icon="star" /> {{ row.isFeatured ? '取消精选' : '精选' }}
+              </button>
+              <button class="ad-btn is-danger" @click="handleDelete(row)">
+                <font-awesome-icon icon="trash-alt" /> 删除
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!loading" class="ad-empty">
+          <div class="ad-empty__icon"><font-awesome-icon icon="file-alt" /></div>
+          <div class="ad-empty__text">没有符合条件的文章</div>
+        </div>
       </div>
     </div>
 

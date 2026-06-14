@@ -10,6 +10,11 @@
         <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="error-icon" />
         <span>{{ error }}</span>
       </div>
+
+      <div v-if="infoMessage" class="info-message">
+        <font-awesome-icon :icon="['fas', 'shield-alt']" class="info-icon" />
+        <span>{{ infoMessage }}</span>
+      </div>
       
       <form @submit.prevent="handleLogin">
         <div class="form-group">
@@ -49,10 +54,38 @@
             </button>
           </div>
         </div>
+
+        <div v-if="requiresTwoFactorSetup" class="setup-panel">
+          <div class="setup-title">
+            <font-awesome-icon :icon="['fas', 'shield-alt']" />
+            <span>绑定管理员两步验证</span>
+          </div>
+          <p>请在 Google Authenticator、Microsoft Authenticator 或其它 TOTP 验证器中添加以下密钥。</p>
+          <img v-if="setupQrCode" class="qr-code" :src="setupQrCode" alt="两步验证二维码">
+          <div class="secret-box">{{ setupSecret }}</div>
+          <a v-if="setupOtpAuthUrl" class="otp-link" :href="setupOtpAuthUrl">打开验证器添加账号</a>
+        </div>
+
+        <div v-if="requiresTwoFactor || requiresTwoFactorSetup" class="form-group">
+          <label for="twoFactorCode">两步验证码</label>
+          <div class="input-wrapper">
+            <font-awesome-icon :icon="['fas', 'shield-alt']" class="input-icon" />
+            <input
+              type="text"
+              id="twoFactorCode"
+              v-model="twoFactorCode"
+              placeholder="请输入验证器中的6位数字"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              required
+            />
+          </div>
+        </div>
         
         <button type="submit" class="btn-login" :disabled="loading">
           <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="loading" />
-          <span>{{ loading ? '登录中...' : '管理员登录' }}</span>
+          <span>{{ loading ? '处理中...' : submitButtonText }}</span>
         </button>
       </form>
       
@@ -73,9 +106,10 @@
 </template>
 
 <script>
-import { defineComponent, ref, onMounted } from 'vue'
+import { computed, defineComponent, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
+import QRCode from 'qrcode'
 
 export default defineComponent({
   name: 'AdminLoginView',
@@ -89,13 +123,40 @@ export default defineComponent({
     const showPassword = ref(false)
     const loading = ref(false)
     const error = ref('')
+    const infoMessage = ref('')
+    const requiresTwoFactor = ref(false)
+    const twoFactorToken = ref('')
+    const twoFactorCode = ref('')
+    const requiresTwoFactorSetup = ref(false)
+    const setupToken = ref('')
+    const setupSecret = ref('')
+    const setupOtpAuthUrl = ref('')
+    const setupQrCode = ref('')
+
+    const submitButtonText = computed(() => {
+      if (requiresTwoFactorSetup.value) return '绑定并登录'
+      if (requiresTwoFactor.value) return '验证并登录'
+      return '管理员登录'
+    })
+
+    const generateQrCode = async (otpAuthUrl) => {
+      if (!otpAuthUrl) {
+        setupQrCode.value = ''
+        return
+      }
+      setupQrCode.value = await QRCode.toDataURL(otpAuthUrl, {
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      })
+    }
     
     // 在组件挂载时检查是否已经登录
     onMounted(() => {
       const token = localStorage.getItem('token')
       if (token) {
         const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        if (userInfo.role === 'admin' || userInfo.role === 'ADMIN') {
+        if (userInfo.role === 'admin' || userInfo.role === 'ADMIN' || userInfo.role === 'SUPER_ADMIN') {
           // 如果已经是管理员登录状态，直接跳转到管理后台
           const redirectPath = route.query.redirect || '/admin/dashboard'
           router.replace(redirectPath)
@@ -108,16 +169,52 @@ export default defineComponent({
         error.value = '请输入管理员账号和密码'
         return
       }
+
+      if ((requiresTwoFactor.value || requiresTwoFactorSetup.value) && !twoFactorCode.value) {
+        error.value = '请输入两步验证码'
+        return
+      }
       
       loading.value = true
       error.value = ''
       
       try {
-        // 调用管理员登录接口
-        await store.dispatch('adminLogin', {
-          username: username.value,
-          password: password.value
-        })
+        let result
+
+        if (requiresTwoFactorSetup.value) {
+          result = await store.dispatch('confirmAdminTwoFactorSetup', {
+            setupToken: setupToken.value,
+            code: twoFactorCode.value
+          })
+        } else {
+          result = await store.dispatch('adminLogin', {
+            username: username.value,
+            password: password.value,
+            twoFactorCode: twoFactorCode.value,
+            twoFactorToken: twoFactorToken.value
+          })
+
+          if (result?.requiresTwoFactorSetup) {
+            requiresTwoFactorSetup.value = true
+            requiresTwoFactor.value = false
+            setupToken.value = result.setupToken || ''
+            setupSecret.value = result.twoFactorSecret || ''
+            setupOtpAuthUrl.value = result.twoFactorOtpAuthUrl || ''
+            await generateQrCode(setupOtpAuthUrl.value)
+            twoFactorCode.value = ''
+            infoMessage.value = '管理员账号首次使用必须先绑定两步验证'
+            return
+          }
+
+          if (result?.requiresTwoFactor) {
+            requiresTwoFactor.value = true
+            requiresTwoFactorSetup.value = false
+            twoFactorToken.value = result.twoFactorToken || ''
+            twoFactorCode.value = ''
+            infoMessage.value = '请输入验证器中的6位数字完成管理员登录'
+            return
+          }
+        }
         
         // 登录成功，重定向到管理后台
         const redirectPath = route.query.redirect || '/admin/dashboard'
@@ -135,6 +232,14 @@ export default defineComponent({
       showPassword,
       loading,
       error,
+      infoMessage,
+      requiresTwoFactor,
+      requiresTwoFactorSetup,
+      twoFactorCode,
+      setupSecret,
+      setupOtpAuthUrl,
+      setupQrCode,
+      submitButtonText,
       handleLogin
     }
   }
@@ -197,6 +302,81 @@ export default defineComponent({
 
 .error-icon {
   font-size: 1rem;
+}
+
+.info-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(var(--primary-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius);
+  color: var(--primary-color);
+}
+
+.info-icon {
+  font-size: 1rem;
+}
+
+.setup-panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: var(--bg-light);
+}
+
+.setup-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.setup-panel p {
+  margin: 0 0 0.75rem;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.secret-box {
+  word-break: break-all;
+  background-color: var(--bg-white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  font-family: monospace;
+  letter-spacing: 0;
+  color: var(--text-color);
+}
+
+.qr-code {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 0.75rem auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: #fff;
+  padding: 0.5rem;
+}
+
+.otp-link {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.otp-link:hover {
+  text-decoration: underline;
 }
 
 .form-group {

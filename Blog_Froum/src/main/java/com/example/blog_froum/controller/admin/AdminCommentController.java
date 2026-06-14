@@ -47,11 +47,12 @@ public class AdminCommentController {
             @ApiParam(value = "目标类型") @RequestParam(required = false) String targetType,
             @ApiParam(value = "目标ID") @RequestParam(required = false) Long targetId,
             @ApiParam(value = "关键词") @RequestParam(required = false) String keyword,
+            @ApiParam(value = "删除状态：active=未删除(默认)，deleted=已删除，all=全部") @RequestParam(required = false) String status,
             @ApiParam(value = "开始日期，格式yyyy-MM-dd") @RequestParam(required = false) String startDate,
             @ApiParam(value = "结束日期，格式yyyy-MM-dd") @RequestParam(required = false) String endDate) {
         try {
-            log.info("管理员获取评论列表，页码: {}, 每页数量: {}, 目标类型: {}, 目标ID: {}, 关键词: {}",
-                    page, pageSize, targetType, targetId, keyword);
+            log.info("管理员获取评论列表，页码: {}, 每页数量: {}, 目标类型: {}, 目标ID: {}, 关键词: {}, 状态: {}",
+                    page, pageSize, targetType, targetId, keyword, status);
             Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(pageSize, 1));
 
             Page<CommentResponse> responsePage = commentService.searchCommentsForAdmin(
@@ -60,8 +61,9 @@ public class AdminCommentController {
                     keyword,
                     parseStartDate(startDate),
                     parseEndDate(endDate),
+                    resolveDeletedFilter(status),
                     pageable);
-            
+
             return Result.success(responsePage);
         } catch (Exception e) {
             log.error("获取评论列表失败", e);
@@ -106,6 +108,26 @@ public class AdminCommentController {
         } catch (Exception e) {
             log.error("批量删除评论失败", e);
             return Result.error("批量删除失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 恢复评论（撤销删除）
+     */
+    @PutMapping("/{id}/restore")
+    @ApiOperation(value = "恢复评论", notes = "管理员恢复被删除的评论")
+    public Result<Void> restoreComment(
+            @ApiParam(value = "评论ID", required = true) @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            log.info("管理员恢复评论，ID: {}", id);
+            commentService.adminRestoreComment(id);
+            operationLogService.record(BaseContext.getCurrentId(), "COMMENT_MANAGEMENT", "restore",
+                    "恢复评论：" + id, "COMMENT", id, null, request);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("恢复评论失败", e);
+            return Result.error("恢复失败: " + e.getMessage());
         }
     }
 
@@ -164,8 +186,21 @@ public class AdminCommentController {
         }
     }
 
-    private LocalDateTime parseStartDate(String value) {
-        if (value == null || value.trim().isEmpty()) {
+    /**
+     * 将前端的 status 文本映射为删除状态过滤值。
+     * active/空 -> false（仅未删除）；deleted -> true（仅已删除）；all -> null（全部）
+     */
+    private Boolean resolveDeletedFilter(String status) {
+        if (status == null || status.trim().isEmpty() || "active".equalsIgnoreCase(status.trim())) {
+            return Boolean.FALSE;
+        }
+        if ("deleted".equalsIgnoreCase(status.trim())) {
+            return Boolean.TRUE;
+        }
+        return null;
+    }
+
+    private LocalDateTime parseStartDate(String value) {        if (value == null || value.trim().isEmpty()) {
             return null;
         }
         return LocalDate.parse(value.trim()).atStartOfDay();
