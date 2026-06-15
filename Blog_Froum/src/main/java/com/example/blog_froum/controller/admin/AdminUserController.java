@@ -2,6 +2,8 @@ package com.example.blog_froum.controller.admin;
 
 import com.example.blog_froum.dto.admin.BatchOperationResult;
 import com.example.blog_froum.dto.admin.BatchUserRequest;
+import com.example.blog_froum.dto.admin.AdminUserBanRequest;
+import com.example.blog_froum.dto.admin.AdminUserDetailResponse;
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
 import com.example.blog_froum.dto.user.UserResponse;
 import com.example.blog_froum.service.OperationLogService;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 
 /**
  * 管理员用户管理控制器
@@ -76,6 +79,23 @@ public class AdminUserController {
     }
 
     /**
+     * 获取用户管理详情
+     */
+    @GetMapping("/{id}/detail")
+    @ApiOperation(value = "获取用户管理详情", notes = "获取指定用户的安全、封禁、访问设备与内容统计信息")
+    public Result<AdminUserDetailResponse> getUserDetail(
+            @ApiParam(value = "用户ID", required = true) @PathVariable Long id) {
+        try {
+            log.info("管理员获取用户管理详情，ID: {}", id);
+            AdminUserDetailResponse userResponse = userService.getAdminUserDetail(id);
+            return Result.success(userResponse);
+        } catch (Exception e) {
+            log.error("获取用户管理详情失败", e);
+            return Result.error("获取用户管理详情失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 禁用用户
      */
     @PostMapping("/{id}/disable")
@@ -113,6 +133,51 @@ public class AdminUserController {
         } catch (Exception e) {
             log.error("启用用户失败", e);
             return Result.error("启用用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 封禁用户
+     */
+    @PostMapping("/{id}/ban")
+    @ApiOperation(value = "封禁用户", notes = "管理员按禁止登录或禁止发布内容两种方式封禁用户")
+    public Result<Void> banUser(
+            @ApiParam(value = "用户ID", required = true) @PathVariable Long id,
+            @Valid @RequestBody AdminUserBanRequest banRequest,
+            HttpServletRequest request) {
+        try {
+            log.info("管理员封禁用户，ID: {}, 类型: {}, 天数: {}, 原因: {}",
+                    id, banRequest.getBanType(), banRequest.getDurationDays(), banRequest.getReason());
+            userService.banUser(id, banRequest, BaseContext.getCurrentId());
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "ban",
+                    "封禁用户：" + id + "，类型：" + banRequest.getBanType()
+                            + "，期限：" + (banRequest.getDurationDays() == null ? "永久" : banRequest.getDurationDays() + "天")
+                            + "，原因：" + banRequest.getReason(),
+                    "USER", id, null, request);
+            return Result.success("用户已封禁");
+        } catch (Exception e) {
+            log.error("封禁用户失败", e);
+            return Result.error("封禁用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 解封用户
+     */
+    @PostMapping("/{id}/unban")
+    @ApiOperation(value = "解封用户", notes = "管理员解除用户封禁")
+    public Result<Void> unbanUser(
+            @ApiParam(value = "用户ID", required = true) @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            log.info("管理员解封用户，ID: {}", id);
+            userService.unbanUser(id);
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "unban",
+                    "解封用户：" + id, "USER", id, null, request);
+            return Result.success("用户已解封");
+        } catch (Exception e) {
+            log.error("解封用户失败", e);
+            return Result.error("解封用户失败: " + e.getMessage());
         }
     }
 
@@ -193,6 +258,34 @@ public class AdminUserController {
         } catch (Exception e) {
             log.error("批量禁用用户失败", e);
             return Result.error("批量禁用用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量封禁用户
+     */
+    @PostMapping("/batch-ban")
+    @ApiOperation(value = "批量封禁用户", notes = "管理员批量按指定封禁方式处理用户")
+    public Result<BatchOperationResult> batchBanUsers(@RequestBody BatchUserRequest batchRequest,
+                                                      HttpServletRequest request) {
+        try {
+            log.info("管理员批量封禁用户，IDs: {}, 类型: {}, 天数: {}",
+                    batchRequest.getIds(), batchRequest.getBanType(), batchRequest.getDurationDays());
+            AdminUserBanRequest banRequest = new AdminUserBanRequest();
+            banRequest.setBanType(batchRequest.getBanType());
+            banRequest.setReason(batchRequest.getReason());
+            banRequest.setDurationDays(batchRequest.getDurationDays());
+            BatchOperationResult result = userService.batchBanUsers(
+                    batchRequest.getIds(),
+                    banRequest,
+                    BaseContext.getCurrentId());
+            operationLogService.record(BaseContext.getCurrentId(), "USER_MANAGEMENT", "batch_ban",
+                    "批量封禁用户：" + batchRequest.getIds() + "，类型：" + batchRequest.getBanType(),
+                    "USER", null, null, request);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("批量封禁用户失败", e);
+            return Result.error("批量封禁用户失败: " + e.getMessage());
         }
     }
 

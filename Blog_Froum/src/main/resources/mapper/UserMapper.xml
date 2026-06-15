@@ -17,6 +17,12 @@
         <result column="login_count" property="loginCount"/>
         <result column="two_factor_enabled" property="twoFactorEnabled"/>
         <result column="two_factor_secret" property="twoFactorSecret"/>
+        <result column="ban_type" property="banType" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="ban_reason" property="banReason"/>
+        <result column="ban_expires_at" property="banExpiresAt"/>
+        <result column="banned_at" property="bannedAt"/>
+        <result column="banned_by" property="bannedBy"/>
+        <result column="banned_by_email" property="bannedByEmail"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -24,7 +30,9 @@
     <!-- 基础查询字段 -->
     <sql id="Base_Column_List">
         id, username, email, password, nickname, bio, avatar_url, role, status,
-        last_login_time, login_count, two_factor_enabled, two_factor_secret, created_at, updated_at
+        last_login_time, login_count, two_factor_enabled, two_factor_secret,
+        ban_type, ban_reason, ban_expires_at, banned_at, banned_by, banned_by_email,
+        created_at, updated_at
     </sql>
 
     <!-- 根据ID查询用户 -->
@@ -45,22 +53,26 @@
     <select id="findByEmail" resultMap="UserResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE email = #{email}
+        WHERE LOWER(email) = LOWER(#{email})
     </select>
 
     <!-- 根据用户名或邮箱查询用户 -->
     <select id="findByUsernameOrEmail" resultMap="UserResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE username = #{username} OR email = #{email}
+        WHERE username = #{username} OR LOWER(email) = LOWER(#{email})
     </select>
 
     <!-- 插入用户 -->
     <insert id="insert" parameterType="com.example.blog_froum.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (username, email, password, nickname, bio, avatar_url, role, status, 
-                          last_login_time, login_count, two_factor_enabled, two_factor_secret, created_at, updated_at)
+                          last_login_time, login_count, two_factor_enabled, two_factor_secret,
+                          ban_type, ban_reason, ban_expires_at, banned_at, banned_by, banned_by_email,
+                          created_at, updated_at)
         VALUES (#{username}, #{email}, #{password}, #{nickname}, #{bio}, #{avatarUrl}, 
-                #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{twoFactorEnabled}, #{twoFactorSecret}, #{createdAt}, #{updatedAt})
+                #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{twoFactorEnabled}, #{twoFactorSecret},
+                #{banType}, #{banReason}, #{banExpiresAt}, #{bannedAt}, #{bannedBy}, #{bannedByEmail},
+                #{createdAt}, #{updatedAt})
     </insert>
 
     <!-- 更新用户信息 -->
@@ -117,6 +129,20 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 更新用户封禁信息 -->
+    <update id="updateModeration" parameterType="com.example.blog_froum.entity.User">
+        UPDATE users
+        SET status = #{status},
+            ban_type = #{banType},
+            ban_reason = #{banReason},
+            ban_expires_at = #{banExpiresAt},
+            banned_at = #{bannedAt},
+            banned_by = #{bannedBy},
+            banned_by_email = #{bannedByEmail},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
     <!-- 删除用户 -->
     <delete id="deleteById">
         DELETE FROM users WHERE id = #{id}
@@ -170,7 +196,7 @@
 
     <!-- 检查邮箱是否存在 -->
     <select id="existsByEmail" resultType="boolean">
-        SELECT COUNT(*) > 0 FROM users WHERE email = #{email}
+        SELECT COUNT(*) > 0 FROM users WHERE LOWER(email) = LOWER(#{email})
     </select>
 
     <!-- 管理员功能需要的SQL -->

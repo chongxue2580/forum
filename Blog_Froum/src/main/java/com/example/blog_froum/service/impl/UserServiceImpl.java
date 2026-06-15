@@ -1,6 +1,8 @@
 package com.example.blog_froum.service.impl;
 
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
+import com.example.blog_froum.dto.admin.AdminUserBanRequest;
+import com.example.blog_froum.dto.admin.AdminUserDetailResponse;
 import com.example.blog_froum.dto.admin.BatchOperationResult;
 import com.example.blog_froum.dto.user.UserArticleSummaryResponse;
 import com.example.blog_froum.dto.user.LoginRequest;
@@ -10,11 +12,18 @@ import com.example.blog_froum.dto.user.RegisterRequest;
 import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
 import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
 import com.example.blog_froum.dto.user.UserResponse;
+import com.example.blog_froum.entity.OperationLog;
 import com.example.blog_froum.entity.User;
+import com.example.blog_froum.enums.UserBanType;
 import com.example.blog_froum.enums.UserRole;
 import com.example.blog_froum.enums.UserStatus;
 import com.example.blog_froum.mapper.UserMapper;
 import com.example.blog_froum.repository.ArticleRepository;
+import com.example.blog_froum.repository.CommentRepository;
+import com.example.blog_froum.repository.FollowRepository;
+import com.example.blog_froum.repository.LikeRepository;
+import com.example.blog_froum.repository.OperationLogRepository;
+import com.example.blog_froum.repository.QuestionRepository;
 import com.example.blog_froum.service.TwoFactorService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.utils.BaseContext;
@@ -27,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -48,34 +58,53 @@ public class UserServiceImpl implements UserService {
     private ArticleRepository articleRepository;
 
     @Autowired
+    private FollowRepository followRepository;
+
+    @Autowired
+    private QuestionRepository questionRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
+    private LikeRepository likeRepository;
+
+    @Autowired
+    private OperationLogRepository operationLogRepository;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
     private TwoFactorService twoFactorService;
 
+    private static final DateTimeFormatter BAN_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     @Override
     public UserResponse register(RegisterRequest request) {
-        log.info("开始用户注册，用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
+        String username = normalizeAccount(request.getUsername());
+        String email = normalizeEmail(request.getEmail());
+        log.info("开始用户注册，用户名: {}, 邮箱: {}", username, email);
 
         // 检查用户名是否已存在
-        if (userMapper.existsByUsername(request.getUsername())) {
-            log.warn("用户注册失败，用户名已存在: {}", request.getUsername());
+        if (userMapper.existsByUsername(username)) {
+            log.warn("用户注册失败，用户名已存在: {}", username);
             throw new RuntimeException("用户名已存在");
         }
 
         // 检查邮箱是否已存在
-        if (userMapper.existsByEmail(request.getEmail())) {
-            log.warn("用户注册失败，邮箱已存在: {}", request.getEmail());
+        if (userMapper.existsByEmail(email)) {
+            log.warn("用户注册失败，邮箱已存在: {}", email);
             throw new RuntimeException("邮箱已存在");
         }
 
         // 创建新用户
         User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
+        user.setUsername(username);
+        user.setEmail(email);
         user.setPassword(PasswordUtil.encode(request.getPassword()));
-        user.setNickname(StringUtils.hasText(request.getNickname()) ? request.getNickname() : request.getUsername());
-        user.setBio(request.getBio());
+        user.setNickname(StringUtils.hasText(request.getNickname()) ? request.getNickname().trim() : username);
+        user.setBio(StringUtils.hasText(request.getBio()) ? request.getBio().trim() : null);
         user.setRole(UserRole.USER);
         user.setStatus(UserStatus.ACTIVE);
         user.setLoginCount(0);
@@ -87,7 +116,7 @@ public class UserServiceImpl implements UserService {
         // 保存用户
         int result = userMapper.insert(user);
         if (result <= 0) {
-            log.error("用户注册失败，数据库插入失败，用户名: {}", request.getUsername());
+            log.error("用户注册失败，数据库插入失败，用户名: {}", username);
             throw new RuntimeException("注册失败");
         }
 
@@ -123,18 +152,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User authenticateUser(String username, String password) {
+        String account = normalizeAccount(username);
         // 查找用户（支持用户名或邮箱登录）
-        User user = userMapper.findByUsernameOrEmail(username, username);
+        User user = userMapper.findByUsernameOrEmail(account, account);
         if (user == null) {
-            log.warn("用户登录失败，用户不存在: {}", username);
+            log.warn("用户登录失败，用户不存在: {}", account);
             throw new RuntimeException("用户不存在");
         }
 
-        // 检查用户状态
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            log.warn("用户登录失败，账户状态异常: {}, 状态: {}", user.getUsername(), user.getStatus());
-            throw new RuntimeException("账户已被禁用或锁定");
-        }
+        assertCanLogin(user);
 
         // 验证密码
         if (!PasswordUtil.matches(password, user.getPassword())) {
@@ -159,6 +185,12 @@ public class UserServiceImpl implements UserService {
         // 返回登录响应
         UserResponse userResponse = UserResponse.fromUser(user);
         return new LoginResponse(token, userResponse);
+    }
+
+    @Override
+    public void assertCanUseAccount(Long userId) {
+        User user = getExistingUser(userId);
+        assertCanLogin(user);
     }
 
     @Override
@@ -193,6 +225,33 @@ public class UserServiceImpl implements UserService {
         log.info("获取用户文章成功，用户ID: {}, 文章数量: {}", id, articleList.size());
 
         return userResponse;
+    }
+
+    @Override
+    public AdminUserDetailResponse getAdminUserDetail(Long id) {
+        User user = userMapper.findById(id);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        clearExpiredBanIfNecessary(user);
+
+        OperationLog latestAccessLog = operationLogRepository.findFirstByUserIdOrderByCreatedAtDesc(id).orElse(null);
+        long articleCount = articleRepository.countByAuthorId(id);
+        long questionCount = questionRepository.countByAuthorId(id);
+        long commentCount = commentRepository.countByUserIdAndIsDeletedFalse(id);
+        long likeCount = likeRepository.countByUserId(id);
+        long followingCount = followRepository.countByFollowerIdAndTargetType(id, "USER");
+        long followerCount = followRepository.countByTargetIdAndTargetType(id, "USER");
+
+        return AdminUserDetailResponse.from(
+                user,
+                latestAccessLog,
+                articleCount,
+                questionCount,
+                commentCount,
+                likeCount,
+                followingCount,
+                followerCount);
     }
 
     @Override
@@ -255,6 +314,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户不存在");
         }
 
+        removeUserAsFollowTarget(id);
         int result = userMapper.deleteById(id);
         return result > 0;
     }
@@ -322,7 +382,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> validateUser(String username, String password) {
-        User user = userMapper.findByUsernameOrEmail(username, username);
+        String account = normalizeAccount(username);
+        User user = userMapper.findByUsernameOrEmail(account, account);
         if (user != null && PasswordUtil.matches(password, user.getPassword())) {
             return Optional.of(user);
         }
@@ -342,9 +403,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
-        if (!user.isActive()) {
-            throw new RuntimeException("账户已被禁用或锁定");
-        }
+        assertCanLogin(user);
         if (requireAdmin && !user.isAdmin()) {
             throw new RuntimeException("权限不足，非管理员账户");
         }
@@ -387,9 +446,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
-        if (!user.isActive()) {
-            throw new RuntimeException("账户已被禁用或锁定");
-        }
+        assertCanLogin(user);
         if (!user.isAdmin()) {
             throw new RuntimeException("权限不足，非管理员账户");
         }
@@ -459,6 +516,19 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("关闭两步验证失败");
         }
         return new TwoFactorStatusResponse(false);
+    }
+
+    @Override
+    public void assertCanCreateContent(Long userId) {
+        User user = getExistingUser(userId);
+        clearExpiredBanIfNecessary(user);
+
+        if (user.getStatus() != UserStatus.ACTIVE || user.hasActiveLoginBan()) {
+            throw new RuntimeException(buildBanMessage(user, "发布内容"));
+        }
+        if (user.hasActiveContentBan()) {
+            throw new RuntimeException(buildBanMessage(user, "发表文章、问题或评论"));
+        }
     }
 
     @Override
@@ -574,46 +644,83 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void disableUser(Long userId, String reason) {
-        log.info("管理员禁用用户，用户ID: {}, 原因: {}", userId, reason);
+        AdminUserBanRequest request = new AdminUserBanRequest();
+        request.setBanType(UserBanType.LOGIN.name());
+        request.setReason(StringUtils.hasText(reason) ? reason : "管理员封禁");
+        banUser(userId, request, BaseContext.getCurrentId());
+    }
+
+    @Override
+    public void banUser(Long userId, AdminUserBanRequest request, Long adminId) {
+        log.info("管理员封禁用户，用户ID: {}, 管理员ID: {}, 请求: {}", userId, adminId, request);
 
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        if (userId.equals(BaseContext.getCurrentId())) {
-            throw new RuntimeException("不能禁用当前登录的账号");
+        if (userId.equals(adminId)) {
+            throw new RuntimeException("不能封禁当前登录的账号");
+        }
+        if (user.isSuperAdmin()) {
+            throw new RuntimeException("不能封禁超级管理员账号");
         }
 
-        user.setStatus(UserStatus.DISABLED);
-        user.setUpdatedAt(LocalDateTime.now());
+        User admin = adminId == null ? null : userMapper.findById(adminId);
+        UserBanType banType = parseBanType(request == null ? null : request.getBanType());
+        if (banType == UserBanType.NONE) {
+            throw new RuntimeException("请选择有效的封禁类型");
+        }
 
-        int result = userMapper.update(user);
+        String reason = request == null ? "" : request.getReason();
+        if (!StringUtils.hasText(reason)) {
+            throw new RuntimeException("封禁理由不能为空");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Integer durationDays = request == null ? null : request.getDurationDays();
+        if (durationDays != null && durationDays < 1) {
+            throw new RuntimeException("封禁天数必须大于0");
+        }
+        user.setStatus(banType == UserBanType.LOGIN ? UserStatus.DISABLED : UserStatus.ACTIVE);
+        user.setBanType(banType);
+        user.setBanReason(reason.trim());
+        user.setBanExpiresAt(durationDays == null ? null : now.plusDays(durationDays));
+        user.setBannedAt(now);
+        user.setBannedBy(adminId);
+        user.setBannedByEmail(admin == null ? null : admin.getEmail());
+        user.setUpdatedAt(now);
+
+        int result = userMapper.updateModeration(user);
         if (result <= 0) {
-            throw new RuntimeException("禁用用户失败");
+            throw new RuntimeException("封禁用户失败");
         }
 
-        log.info("用户禁用成功，用户ID: {}", userId);
+        log.info("用户封禁成功，用户ID: {}, 类型: {}", userId, banType);
     }
 
     @Override
     public void enableUser(Long userId) {
-        log.info("管理员启用用户，用户ID: {}", userId);
+        unbanUser(userId);
+    }
+
+    @Override
+    public void unbanUser(Long userId) {
+        log.info("管理员解封用户，用户ID: {}", userId);
 
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        user.setStatus(UserStatus.ACTIVE);
-        user.setUpdatedAt(LocalDateTime.now());
+        clearBan(user);
 
-        int result = userMapper.update(user);
+        int result = userMapper.updateModeration(user);
         if (result <= 0) {
-            throw new RuntimeException("启用用户失败");
+            throw new RuntimeException("解封用户失败");
         }
 
-        log.info("用户启用成功，用户ID: {}", userId);
+        log.info("用户解封成功，用户ID: {}", userId);
     }
 
     @Override
@@ -683,6 +790,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("不能直接删除管理员账号，请先将其降级为普通用户");
         }
 
+        removeUserAsFollowTarget(userId);
         int result = userMapper.deleteById(userId);
         if (result <= 0) {
             throw new RuntimeException("删除用户失败");
@@ -694,6 +802,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public BatchOperationResult batchDisableUsers(List<Long> userIds, String reason) {
         return executeBatch(userIds, userId -> disableUser(userId, reason));
+    }
+
+    @Override
+    public BatchOperationResult batchBanUsers(List<Long> userIds, AdminUserBanRequest request, Long adminId) {
+        return executeBatch(userIds, userId -> banUser(userId, request, adminId));
     }
 
     @Override
@@ -723,6 +836,83 @@ public class UserServiceImpl implements UserService {
             }
         }
         return result;
+    }
+
+    private void removeUserAsFollowTarget(Long userId) {
+        followRepository.deleteByTargetTypeAndTargetId("USER", userId);
+    }
+
+    private void assertCanLogin(User user) {
+        clearExpiredBanIfNecessary(user);
+        if (user.getStatus() != UserStatus.ACTIVE || effectiveBanType(user) == UserBanType.LOGIN) {
+            log.warn("用户登录失败，账户被封禁或状态异常: {}, 状态: {}, 封禁类型: {}",
+                    user.getUsername(), user.getStatus(), effectiveBanType(user));
+            throw new RuntimeException(buildBanMessage(user, "登录"));
+        }
+    }
+
+    private String normalizeAccount(String account) {
+        return account == null ? "" : account.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase();
+    }
+
+    private void clearExpiredBanIfNecessary(User user) {
+        if (user == null || effectiveBanType(user) == UserBanType.NONE || !user.isBanExpired()) {
+            return;
+        }
+
+        clearBan(user);
+        int result = userMapper.updateModeration(user);
+        if (result <= 0) {
+            throw new RuntimeException("封禁状态更新失败");
+        }
+        log.info("用户封禁已到期并自动解除，用户ID: {}", user.getId());
+    }
+
+    private void clearBan(User user) {
+        user.setStatus(UserStatus.ACTIVE);
+        user.setBanType(UserBanType.NONE);
+        user.setBanReason(null);
+        user.setBanExpiresAt(null);
+        user.setBannedAt(null);
+        user.setBannedBy(null);
+        user.setBannedByEmail(null);
+        user.setUpdatedAt(LocalDateTime.now());
+    }
+
+    private UserBanType effectiveBanType(User user) {
+        if (user == null) {
+            return UserBanType.NONE;
+        }
+        if (user.getBanType() != null && user.getBanType() != UserBanType.NONE) {
+            return user.getBanType();
+        }
+        return user.getStatus() == UserStatus.ACTIVE ? UserBanType.NONE : UserBanType.LOGIN;
+    }
+
+    private UserBanType parseBanType(String banType) {
+        try {
+            return UserBanType.fromCode(banType);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("封禁类型无效，仅支持 LOGIN 或 CONTENT");
+        }
+    }
+
+    private String buildBanMessage(User user, String action) {
+        UserBanType banType = effectiveBanType(user);
+        String typeText = banType == UserBanType.CONTENT ? "内容封禁" : "登录封禁";
+        String reason = StringUtils.hasText(user.getBanReason()) ? user.getBanReason() : "未记录";
+        String adminEmail = StringUtils.hasText(user.getBannedByEmail()) ? user.getBannedByEmail() : "未记录";
+        String expiresAt = user.getBanExpiresAt() == null
+                ? "永久"
+                : user.getBanExpiresAt().format(BAN_TIME_FORMATTER);
+        return "账号已被" + typeText + "，暂不能" + action
+                + "。封禁理由：" + reason
+                + "；封禁期限：" + expiresAt
+                + "；处理管理员：" + adminEmail;
     }
 
     @Override

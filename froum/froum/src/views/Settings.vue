@@ -102,6 +102,26 @@
                 required
                 maxlength="100"
               >
+              <div v-if="isEmailChanged" class="verification-row">
+                <input
+                  v-model="emailVerificationCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="请输入新邮箱验证码"
+                >
+                <button
+                  type="button"
+                  class="code-btn"
+                  :disabled="isSendingEmailCode || emailCodeCountdown > 0"
+                  @click="sendEmailChangeCode"
+                >
+                  <font-awesome-icon v-if="isSendingEmailCode" :icon="['fas', 'spinner']" spin />
+                  <span v-else>{{ emailCodeButtonText }}</span>
+                </button>
+              </div>
+              <p v-if="isEmailChanged" class="form-hint">更换邮箱需要先验证新邮箱，验证码5分钟内有效。</p>
             </div>
             
             <div class="form-group">
@@ -292,7 +312,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import PasswordUpdate from '../components/PasswordUpdate.vue';
@@ -323,6 +343,11 @@ const isTwoFactorLoading = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
 const avatarInput = ref(null);
+const originalEmail = ref('');
+const emailVerificationCode = ref('');
+const isSendingEmailCode = ref(false);
+const emailCodeCountdown = ref(0);
+let emailCodeTimer = null;
 
 // 表单数据
 const form = ref({
@@ -350,6 +375,12 @@ const twoFactorQrCode = ref('');
 const enableTwoFactorCode = ref('');
 const disableTwoFactorCode = ref('');
 
+const normalizeEmail = (email) => (email || '').trim().toLowerCase();
+const isEmailChanged = computed(() => normalizeEmail(form.value.email) !== normalizeEmail(originalEmail.value));
+const emailCodeButtonText = computed(() => (
+  emailCodeCountdown.value > 0 ? `${emailCodeCountdown.value}s后重发` : '发送验证码'
+));
+
 // 获取用户名首字母
 const getInitials = (name) => {
   if (!name) return '?';
@@ -376,6 +407,8 @@ const fillForm = (userData) => {
     bio: userData.bio || '',
     email: userData.email || ''
   };
+  originalEmail.value = userData.email || '';
+  emailVerificationCode.value = '';
 };
 
 // 加载用户数据
@@ -417,6 +450,46 @@ const loadPrivacySettings = async () => {
   }
 };
 
+const startEmailCodeCountdown = () => {
+  if (emailCodeTimer) {
+    clearInterval(emailCodeTimer);
+  }
+  emailCodeCountdown.value = 60;
+  emailCodeTimer = setInterval(() => {
+    emailCodeCountdown.value -= 1;
+    if (emailCodeCountdown.value <= 0) {
+      clearInterval(emailCodeTimer);
+      emailCodeTimer = null;
+    }
+  }, 1000);
+};
+
+const sendEmailChangeCode = async () => {
+  const email = form.value.email.trim();
+  if (!isEmailChanged.value) {
+    errorMessage.value = '请先输入新的邮箱地址';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errorMessage.value = '请输入正确的邮箱地址';
+    return;
+  }
+
+  try {
+    isSendingEmailCode.value = true;
+    successMessage.value = '';
+    errorMessage.value = '';
+    await userApi.sendEmailChangeCode(email);
+    startEmailCodeCountdown();
+    successMessage.value = '验证码已发送，请查收新邮箱';
+  } catch (error) {
+    console.error('Failed to send email change code:', error);
+    errorMessage.value = error.message || '发送邮箱验证码失败';
+  } finally {
+    isSendingEmailCode.value = false;
+  }
+};
+
 // 保存个人资料
 const saveProfile = async () => {
   try {
@@ -424,14 +497,26 @@ const saveProfile = async () => {
     successMessage.value = '';
     errorMessage.value = '';
 
-    const updatedUser = await store.dispatch('updateUserProfile', {
+    if (isEmailChanged.value && !/^\d{6}$/.test(emailVerificationCode.value.trim())) {
+      errorMessage.value = '更换邮箱请输入6位邮箱验证码';
+      return;
+    }
+
+    const profilePayload = {
       nickname: form.value.name.trim(),
       email: form.value.email.trim(),
       bio: form.value.bio,
       avatarUrl: form.value.avatar || null
-    });
+    };
+    if (isEmailChanged.value) {
+      profilePayload.verificationCode = emailVerificationCode.value.trim();
+    }
+
+    const updatedUser = await store.dispatch('updateUserProfile', profilePayload);
 
     fillForm(updatedUser);
+    originalEmail.value = updatedUser.email || form.value.email.trim();
+    emailVerificationCode.value = '';
     
     successMessage.value = '个人资料已更新';
     
@@ -625,6 +710,12 @@ onMounted(() => {
   loadPrivacySettings();
   loadTwoFactorStatus();
 });
+
+onUnmounted(() => {
+  if (emailCodeTimer) {
+    clearInterval(emailCodeTimer);
+  }
+});
 </script>
 
 <style scoped>
@@ -746,9 +837,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: rgba(var(--error-rgb), 0.1);
-  color: var(--error-color);
-  border: 1px solid var(--error-color);
+  background-color: #fff1f0;
+  color: #a8071a;
+  border: 1px solid #ff7875;
 }
 
 /* 头像部分 */
@@ -871,6 +962,41 @@ onMounted(() => {
   font-size: 0.85rem;
   color: var(--text-light);
   margin-top: 0.35rem;
+}
+
+.verification-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.verification-row input {
+  flex: 1;
+}
+
+.code-btn {
+  flex: 0 0 132px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--primary-color);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.code-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.code-btn:disabled {
+  background-color: var(--text-lighter);
+  cursor: not-allowed;
 }
 
 .input-with-prefix {

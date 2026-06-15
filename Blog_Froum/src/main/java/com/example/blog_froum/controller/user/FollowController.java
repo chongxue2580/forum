@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 关注控制器
  */
@@ -137,6 +139,160 @@ public class FollowController {
     }
 
 
+    /**
+     * 兼容旧用户关注接口：关注用户
+     */
+    @PostMapping("/users/{targetUserId}")
+    @ApiOperation(value = "关注用户", notes = "兼容旧接口，实际写入统一 follows 表")
+    public Result<Void> followUser(
+            @ApiParam(value = "旧接口用户ID参数，优先使用当前登录用户")
+            @RequestParam(required = false) Long userId,
+            @ApiParam(value = "目标用户ID", required = true, example = "2")
+            @PathVariable Long targetUserId) {
+        try {
+            Long currentUserId = resolveUserId(userId);
+            if (currentUserId == null) {
+                return Result.error("用户未登录");
+            }
+
+            followService.followTarget(currentUserId, "USER", targetUserId);
+            return Result.success("关注成功");
+        } catch (Exception e) {
+            log.error("关注用户失败", e);
+            return Result.error("关注用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：取消关注用户
+     */
+    @DeleteMapping("/users/{targetUserId}")
+    @ApiOperation(value = "取消关注用户", notes = "兼容旧接口，实际删除统一 follows 表记录")
+    public Result<Void> unfollowUser(
+            @ApiParam(value = "旧接口用户ID参数，优先使用当前登录用户")
+            @RequestParam(required = false) Long userId,
+            @ApiParam(value = "目标用户ID", required = true, example = "2")
+            @PathVariable Long targetUserId) {
+        try {
+            Long currentUserId = resolveUserId(userId);
+            if (currentUserId == null) {
+                return Result.error("用户未登录");
+            }
+
+            followService.unfollowTarget(currentUserId, "USER", targetUserId);
+            return Result.success("取消关注成功");
+        } catch (Exception e) {
+            log.error("取消关注用户失败", e);
+            return Result.error("取消关注用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：检查是否关注用户
+     */
+    @GetMapping("/users/check")
+    @ApiOperation(value = "检查用户关注状态", notes = "兼容旧接口，实际读取统一 follows 表")
+    public Result<Boolean> checkUserFollowing(
+            @ApiParam(value = "旧接口用户ID参数，优先使用当前登录用户")
+            @RequestParam(required = false) Long userId,
+            @ApiParam(value = "目标用户ID", required = true, example = "2")
+            @RequestParam Long targetUserId) {
+        try {
+            Long currentUserId = resolveUserId(userId);
+            if (currentUserId == null) {
+                return Result.success(false);
+            }
+
+            boolean isFollowing = followService.isTargetFollowedByUser(currentUserId, "USER", targetUserId);
+            return Result.success(isFollowing);
+        } catch (Exception e) {
+            log.error("检查用户关注状态失败", e);
+            return Result.error("检查用户关注状态失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：获取关注列表
+     */
+    @GetMapping("/users/following")
+    @ApiOperation(value = "获取用户关注列表", notes = "兼容旧接口，返回统一 follows 表中的用户关注列表")
+    public Result<List<FollowUserResponse>> getFollowing(
+            @ApiParam(value = "用户ID，不传则查询当前登录用户")
+            @RequestParam(required = false) Long userId,
+            @ApiParam(value = "页码", example = "0")
+            @RequestParam(defaultValue = "0") Integer page,
+            @ApiParam(value = "每页数量", example = "10")
+            @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            Long queryUserId = resolveUserId(userId);
+            if (queryUserId == null) {
+                return Result.error("用户未登录");
+            }
+
+            return Result.success(followService.getUserFollowedUsers(queryUserId, page, size).getContent());
+        } catch (Exception e) {
+            log.error("获取用户关注列表失败", e);
+            return Result.error("获取用户关注列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：获取粉丝列表
+     */
+    @GetMapping("/users/followers")
+    @ApiOperation(value = "获取用户粉丝列表", notes = "兼容旧接口，返回统一 follows 表中的用户粉丝列表")
+    public Result<List<FollowUserResponse>> getUserFollowersCompat(
+            @ApiParam(value = "用户ID，不传则查询当前登录用户")
+            @RequestParam(required = false) Long userId,
+            @ApiParam(value = "页码", example = "0")
+            @RequestParam(defaultValue = "0") Integer page,
+            @ApiParam(value = "每页数量", example = "10")
+            @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            Long queryUserId = resolveUserId(userId);
+            if (queryUserId == null) {
+                return Result.error("用户未登录");
+            }
+
+            return Result.success(followService.getUserFollowers(queryUserId, page, size).getContent());
+        } catch (Exception e) {
+            log.error("获取用户粉丝列表失败", e);
+            return Result.error("获取用户粉丝列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：获取关注数量
+     */
+    @GetMapping("/users/{userId}/following/count")
+    @ApiOperation(value = "获取用户关注数量", notes = "兼容旧接口，统计统一 follows 表中的 USER 关注数量")
+    public Result<Long> getFollowingCount(
+            @ApiParam(value = "用户ID", required = true, example = "1")
+            @PathVariable Long userId) {
+        try {
+            return Result.success(followService.getUserFollowingCount(userId, "USER"));
+        } catch (Exception e) {
+            log.error("获取用户关注数量失败", e);
+            return Result.error("获取用户关注数量失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容旧用户关注接口：获取粉丝数量
+     */
+    @GetMapping("/users/{userId}/followers/count")
+    @ApiOperation(value = "获取用户粉丝数量", notes = "兼容旧接口，统计统一 follows 表中的 USER 粉丝数量")
+    public Result<Long> getFollowersCount(
+            @ApiParam(value = "用户ID", required = true, example = "1")
+            @PathVariable Long userId) {
+        try {
+            return Result.success(followService.getUserFollowerCount(userId));
+        } catch (Exception e) {
+            log.error("获取用户粉丝数量失败", e);
+            return Result.error("获取用户粉丝数量失败: " + e.getMessage());
+        }
+    }
+
 
 
 
@@ -240,5 +396,10 @@ public class FollowController {
             log.error("获取关注问题列表失败", e);
             return Result.error("获取关注问题列表失败: " + e.getMessage());
         }
+    }
+
+    private Long resolveUserId(Long requestUserId) {
+        Long currentUserId = BaseContext.getCurrentId();
+        return currentUserId != null ? currentUserId : requestUserId;
     }
 }

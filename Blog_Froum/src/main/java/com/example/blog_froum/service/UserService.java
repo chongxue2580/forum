@@ -3,6 +3,8 @@ package com.example.blog_froum.service;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.RegisterRequest;
+import com.example.blog_froum.dto.admin.AdminUserBanRequest;
+import com.example.blog_froum.dto.admin.AdminUserDetailResponse;
 import com.example.blog_froum.dto.statistics.UserStatisticsResponse;
 import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
 import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
@@ -34,6 +36,11 @@ public interface UserService {
      * 根据ID获取用户信息
      */
     UserResponse getUserById(Long id);
+
+    /**
+     * 管理员获取用户详情
+     */
+    AdminUserDetailResponse getAdminUserDetail(Long id);
 
     /**
      * 根据用户名获取用户信息
@@ -116,6 +123,11 @@ public interface UserService {
     LoginResponse completeLogin(User user);
 
     /**
+     * 校验用户当前登录态是否仍可继续访问受保护接口。
+     */
+    void assertCanUseAccount(Long userId);
+
+    /**
      * 使用临时令牌完成两步验证登录
      */
     LoginResponse completeTwoFactorLogin(String twoFactorToken, String code, boolean requireAdmin);
@@ -151,6 +163,11 @@ public interface UserService {
     TwoFactorStatusResponse disableTwoFactor(Long userId, String code);
 
     /**
+     * 校验用户是否可以发布文章、问题或评论。
+     */
+    void assertCanCreateContent(Long userId);
+
+    /**
      * 更新用户密码
      */
     boolean updatePassword(Long userId, String currentPassword, String newPassword);
@@ -173,9 +190,19 @@ public interface UserService {
     void disableUser(Long userId, String reason);
 
     /**
+     * 封禁用户
+     */
+    void banUser(Long userId, AdminUserBanRequest request, Long adminId);
+
+    /**
      * 启用用户
      */
     void enableUser(Long userId);
+
+    /**
+     * 解封用户
+     */
+    void unbanUser(Long userId);
 
     /**
      * 重置用户密码
@@ -196,6 +223,12 @@ public interface UserService {
      * 批量禁用用户
      */
     com.example.blog_froum.dto.admin.BatchOperationResult batchDisableUsers(java.util.List<Long> userIds, String reason);
+
+    /**
+     * 批量封禁用户
+     */
+    com.example.blog_froum.dto.admin.BatchOperationResult batchBanUsers(
+            java.util.List<Long> userIds, AdminUserBanRequest request, Long adminId);
 
     /**
      * 批量启用用户

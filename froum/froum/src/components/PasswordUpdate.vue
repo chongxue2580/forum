@@ -104,7 +104,33 @@
             </li>
           </ul>
         </div>
-        
+
+        <div class="form-item">
+          <label for="passwordVerificationCode">邮箱验证码</label>
+          <div class="verification-row">
+            <input
+              id="passwordVerificationCode"
+              v-model="form.verificationCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              placeholder="请输入6位验证码"
+              required
+            />
+            <button
+              type="button"
+              class="code-btn"
+              :disabled="isSendingCode || codeCountdown > 0"
+              @click="sendPasswordCode"
+            >
+              <font-awesome-icon v-if="isSendingCode" :icon="['fas', 'spinner']" spin />
+              <span v-else>{{ codeButtonText }}</span>
+            </button>
+          </div>
+          <p class="form-hint">验证码会发送到当前绑定邮箱，5分钟内有效。</p>
+        </div>
+
         <div class="form-actions">
           <button 
             type="submit" 
@@ -121,23 +147,28 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
+import { userApi } from '../api/userApi';
 
 const store = useStore();
 
 const form = ref({
   currentPassword: '',
   newPassword: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  verificationCode: ''
 });
 
 const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
 const isLoading = ref(false);
+const isSendingCode = ref(false);
+const codeCountdown = ref(0);
 const successMessage = ref('');
 const errorMessage = ref('');
+let codeTimer = null;
 
 // 密码验证规则
 const hasValidLength = computed(() => form.value.newPassword.length >= 6 && form.value.newPassword.length <= 20);
@@ -180,6 +211,10 @@ const passwordStrength = computed(() => {
   };
 });
 
+const codeButtonText = computed(() => (
+  codeCountdown.value > 0 ? `${codeCountdown.value}s后重发` : '发送验证码'
+));
+
 // 表单验证
 const isFormValid = computed(() => {
   return (
@@ -187,9 +222,39 @@ const isFormValid = computed(() => {
     form.value.newPassword && 
     form.value.confirmPassword && 
     form.value.newPassword === form.value.confirmPassword && 
-    hasValidLength.value
+    hasValidLength.value &&
+    /^\d{6}$/.test(form.value.verificationCode.trim())
   );
 });
+
+const startCodeCountdown = () => {
+  if (codeTimer) {
+    clearInterval(codeTimer);
+  }
+  codeCountdown.value = 60;
+  codeTimer = setInterval(() => {
+    codeCountdown.value -= 1;
+    if (codeCountdown.value <= 0) {
+      clearInterval(codeTimer);
+      codeTimer = null;
+    }
+  }, 1000);
+};
+
+const sendPasswordCode = async () => {
+  try {
+    isSendingCode.value = true;
+    successMessage.value = '';
+    errorMessage.value = '';
+    await userApi.sendPasswordChangeCode();
+    startCodeCountdown();
+    successMessage.value = '验证码已发送，请查收当前绑定邮箱';
+  } catch (error) {
+    errorMessage.value = error.message || '发送验证码失败';
+  } finally {
+    isSendingCode.value = false;
+  }
+};
 
 // 重置消息
 watch(form, () => {
@@ -207,14 +272,16 @@ const updatePassword = async () => {
 
     await store.dispatch('updatePassword', {
       currentPassword: form.value.currentPassword,
-      newPassword: form.value.newPassword
+      newPassword: form.value.newPassword,
+      verificationCode: form.value.verificationCode.trim()
     });
-    
+
     successMessage.value = '密码已成功更新';
     form.value = {
       currentPassword: '',
       newPassword: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      verificationCode: ''
     };
   } catch (error) {
     errorMessage.value = error.message || '更新密码时出错';
@@ -222,6 +289,12 @@ const updatePassword = async () => {
     isLoading.value = false;
   }
 };
+
+onUnmounted(() => {
+  if (codeTimer) {
+    clearInterval(codeTimer);
+  }
+});
 </script>
 
 <style scoped>
@@ -261,9 +334,9 @@ const updatePassword = async () => {
 }
 
 .error-message {
-  background-color: rgba(var(--error-rgb), 0.1);
-  color: var(--error-color);
-  border: 1px solid var(--error-color);
+  background-color: #fff1f0;
+  color: #a8071a;
+  border: 1px solid #ff7875;
 }
 
 .form-item {
@@ -396,6 +469,58 @@ const updatePassword = async () => {
 
 .password-rules li.valid {
   color: var(--success-color);
+}
+
+.verification-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.verification-row input {
+  flex: 1;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.verification-row input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.code-btn {
+  flex: 0 0 132px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--primary-color);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.code-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.code-btn:disabled {
+  background-color: var(--text-lighter);
+  cursor: not-allowed;
+}
+
+.form-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-light);
 }
 
 .form-actions {

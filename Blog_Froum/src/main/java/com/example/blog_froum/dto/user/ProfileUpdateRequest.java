@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.Email;
+import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 /**
@@ -26,10 +27,14 @@ public class ProfileUpdateRequest {
     @ApiModelProperty(value = "邮箱", example = "user@example.com")
     private String email;
 
+    @Pattern(regexp = "\\d{6}", message = "邮箱验证码必须是6位数字")
+    @ApiModelProperty(value = "更换邮箱验证码", example = "123456")
+    private String verificationCode;
+
     @Size(max = 500, message = "个人简介长度不能超过500个字符")
     @ApiModelProperty(value = "个人简介", example = "热爱技术，专注分享")
     private String bio;
 
     @ApiModelProperty(value = "头像URL", example = "https://example.com/avatar.jpg")
     private String avatarUrl;
-} 
+}

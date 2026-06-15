@@ -1,5 +1,6 @@
 package com.example.blog_froum.controller.user;
 
+import com.example.blog_froum.dto.user.EmailCodeRequest;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.ProfileUpdateRequest;
@@ -9,6 +10,8 @@ import com.example.blog_froum.dto.user.TwoFactorSetupResponse;
 import com.example.blog_froum.dto.user.TwoFactorStatusResponse;
 import com.example.blog_froum.dto.user.UserResponse;
 import com.example.blog_froum.service.CaptchaService;
+import com.example.blog_froum.service.EmailVerificationService;
+import com.example.blog_froum.service.OperationLogService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.Result;
@@ -39,6 +42,37 @@ public class UserProfileController {
     @Autowired
     private CaptchaService captchaService;
 
+    @Autowired
+    private EmailVerificationService emailVerificationService;
+
+    @Autowired
+    private OperationLogService operationLogService;
+
+    @PostMapping("/email-change/email-code")
+    @ApiOperation(value = "发送更换邮箱验证码", notes = "向待绑定的新邮箱发送6位验证码")
+    public Result<Void> sendEmailChangeCode(@Valid @RequestBody EmailCodeRequest request) {
+        try {
+            emailVerificationService.sendEmailChangeCode(BaseContext.getCurrentId(), request.getEmail());
+            return Result.success("验证码已发送，请查收新邮箱");
+        } catch (Exception e) {
+            log.error("发送更换邮箱验证码失败，用户ID: {}, 邮箱: {}, 错误: {}",
+                    BaseContext.getCurrentId(), request.getEmail(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/password-change/email-code")
+    @ApiOperation(value = "发送修改密码验证码", notes = "向当前绑定邮箱发送6位验证码")
+    public Result<Void> sendPasswordChangeCode() {
+        try {
+            emailVerificationService.sendPasswordChangeCode(BaseContext.getCurrentId());
+            return Result.success("验证码已发送，请查收当前绑定邮箱");
+        } catch (Exception e) {
+            log.error("发送修改密码验证码失败，用户ID: {}, 错误: {}", BaseContext.getCurrentId(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
     /**
      * 用户登录 - 兼容前端调用
      */
@@ -46,7 +80,8 @@ public class UserProfileController {
     @ApiOperation(value = "用户登录", notes = "使用用户名/邮箱和密码登录系统")
     public Result<LoginResponse> login(
             @ApiParam(value = "登录信息", required = true)
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
         try {
             if (!StringUtils.hasText(request.getTwoFactorToken())) {
                 captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
@@ -54,6 +89,13 @@ public class UserProfileController {
             log.info("收到用户登录请求（profile路径），用户名/邮箱: {}", request.getUsername());
             LoginResponse loginResponse = userService.login(request);
             String message = Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor()) ? "需要两步验证码" : "登录成功";
+            if (!Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor())
+                    && !Boolean.TRUE.equals(loginResponse.getRequiresTwoFactorSetup())
+                    && loginResponse.getUser() != null) {
+                UserResponse user = loginResponse.getUser();
+                operationLogService.record(user.getId(), "USER_LOGIN", "login",
+                        "用户登录系统", "USER", user.getId(), user.getNickname(), httpRequest);
+            }
             log.info("用户登录处理完成（profile路径），用户名/邮箱: {}, 状态: {}", request.getUsername(), message);
             return Result.success(message, loginResponse);
         } catch (Exception e) {
@@ -72,6 +114,7 @@ public class UserProfileController {
             @Valid @RequestBody RegisterRequest request) {
         try {
             captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
+            emailVerificationService.verifyRegistrationCode(request.getEmail(), request.getVerificationCode());
             log.info("收到用户注册请求（profile路径），用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
             UserResponse userResponse = userService.register(request);
             log.info("用户注册成功（profile路径），用户名: {}", request.getUsername());
@@ -122,12 +165,26 @@ public class UserProfileController {
             
             log.info("用户 {} (ID: {}) 尝试更新个人信息", username, currentUserId);
 
+            UserResponse currentUser = userService.getUserById(currentUserId);
+            if (isEmailChanged(currentUser.getEmail(), updateRequest.getEmail())) {
+                emailVerificationService.verifyEmailChangeCode(updateRequest.getEmail(), updateRequest.getVerificationCode());
+            }
+
             UserResponse updatedUser = userService.updateProfile(currentUserId, updateRequest);
             return Result.success("用户信息更新成功", updatedUser);
         } catch (Exception e) {
             log.error("更新用户信息失败: {}", e.getMessage());
             return Result.error("更新用户信息失败: " + e.getMessage());
         }
+    }
+
+    private boolean isEmailChanged(String currentEmail, String newEmail) {
+        if (!StringUtils.hasText(newEmail)) {
+            return false;
+        }
+
+        String normalizedCurrent = currentEmail == null ? "" : currentEmail.trim();
+        return !newEmail.trim().equalsIgnoreCase(normalizedCurrent);
     }
 
     @GetMapping("/me/2fa/status")

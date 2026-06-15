@@ -13,12 +13,24 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INT DEFAULT 0 COMMENT '登录次数',
     two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否启用两步验证',
     two_factor_secret VARCHAR(64) COMMENT 'TOTP密钥',
+    ban_type VARCHAR(20) DEFAULT 'NONE' COMMENT '封禁类型：NONE, LOGIN, CONTENT',
+    ban_reason VARCHAR(500) COMMENT '封禁理由',
+    ban_expires_at TIMESTAMP COMMENT '封禁到期时间，空表示永久',
+    banned_at TIMESTAMP COMMENT '封禁时间',
+    banned_by BIGINT COMMENT '执行封禁的管理员ID',
+    banned_by_email VARCHAR(100) COMMENT '执行封禁的管理员邮箱',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 );
 
 ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否启用两步验证';
 ALTER TABLE users ADD COLUMN two_factor_secret VARCHAR(64) COMMENT 'TOTP密钥';
+ALTER TABLE users ADD COLUMN ban_type VARCHAR(20) DEFAULT 'NONE' COMMENT '封禁类型：NONE, LOGIN, CONTENT';
+ALTER TABLE users ADD COLUMN ban_reason VARCHAR(500) COMMENT '封禁理由';
+ALTER TABLE users ADD COLUMN ban_expires_at TIMESTAMP COMMENT '封禁到期时间，空表示永久';
+ALTER TABLE users ADD COLUMN banned_at TIMESTAMP COMMENT '封禁时间';
+ALTER TABLE users ADD COLUMN banned_by BIGINT COMMENT '执行封禁的管理员ID';
+ALTER TABLE users ADD COLUMN banned_by_email VARCHAR(100) COMMENT '执行封禁的管理员邮箱';
 
 -- 分类表
 CREATE TABLE IF NOT EXISTS categories (
@@ -50,8 +62,8 @@ CREATE TABLE IF NOT EXISTS articles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL COMMENT '文章标题',
     summary VARCHAR(500) COMMENT '文章摘要',
-    content TEXT COMMENT '文章内容',
-    cover_image VARCHAR(255) COMMENT '封面图片',
+    content LONGTEXT COMMENT '文章内容',
+    cover_image TEXT COMMENT '封面图片',
     author_id BIGINT NOT NULL COMMENT '作者ID',
     category_id BIGINT COMMENT '分类ID',
     view_count INT DEFAULT 0 COMMENT '浏览量',
@@ -68,11 +80,16 @@ CREATE TABLE IF NOT EXISTS articles (
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
 );
 
+ALTER TABLE articles MODIFY COLUMN content LONGTEXT COMMENT '文章内容';
+ALTER TABLE articles MODIFY COLUMN cover_image TEXT COMMENT '封面图片';
+ALTER TABLE articles ADD COLUMN tags_string TEXT COMMENT '标签字符串';
+ALTER TABLE articles MODIFY COLUMN tags_string TEXT COMMENT '标签字符串';
+
 -- 问答表
 CREATE TABLE IF NOT EXISTS questions (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL COMMENT '问题标题',
-    content TEXT COMMENT '问题内容',
+    content LONGTEXT COMMENT '问题内容',
     author_id BIGINT NOT NULL COMMENT '作者ID',
     view_count INT DEFAULT 0 COMMENT '浏览量',
     like_count INT DEFAULT 0 COMMENT '点赞数',
@@ -86,6 +103,8 @@ CREATE TABLE IF NOT EXISTS questions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+ALTER TABLE questions MODIFY COLUMN content LONGTEXT COMMENT '问题内容';
 
 -- 文章标签关联表
 CREATE TABLE IF NOT EXISTS article_tags (
@@ -195,17 +214,12 @@ CREATE TABLE IF NOT EXISTS system_settings (
 ALTER TABLE operation_logs ADD COLUMN operation_action VARCHAR(50) COMMENT '操作动作';
 ALTER TABLE operation_logs ADD COLUMN target_name VARCHAR(200) COMMENT '目标名称';
 
--- 添加用户关注表
-CREATE TABLE IF NOT EXISTS user_follows (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    follower_id BIGINT NOT NULL COMMENT '关注者ID（粉丝）',
-    following_id BIGINT NOT NULL COMMENT '被关注者ID',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_follower_following (follower_id, following_id),
-    CONSTRAINT fk_follower_id FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_following_id FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户关注表';
+-- 迁移旧 user_follows 表数据到统一 follows 表；旧表不存在时由 continue-on-error 忽略。
+INSERT IGNORE INTO follows (follower_id, target_type, target_id, created_at)
+SELECT follower_id, 'USER', following_id, created_at
+FROM user_follows;
+
+DROP TABLE IF EXISTS user_follows;
 
 -- 创建索引
 CREATE INDEX idx_articles_author ON articles(author_id);

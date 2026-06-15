@@ -97,6 +97,9 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 // 排除不需要认证的接口
                 .excludePathPatterns("/api/user/login")
                 .excludePathPatterns("/api/user/register")
+                .excludePathPatterns("/api/user/register/email-code")
+                .excludePathPatterns("/api/user/forgot-password/email-code")
+                .excludePathPatterns("/api/user/forgot-password/reset")
                 .excludePathPatterns("/api/user/profile/login")
                 .excludePathPatterns("/api/user/profile/register")
                 .excludePathPatterns("/api/user/check-username")

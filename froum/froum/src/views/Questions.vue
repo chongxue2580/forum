@@ -85,7 +85,12 @@
                 <span v-if="question.solved" class="solved-badge">已解决</span>
                 {{ question.title }}
               </h3>
-              <p class="question-excerpt">{{ question.summary }}</p>
+              <p v-if="getQuestionExcerpt(question)" class="question-excerpt">
+                {{ getQuestionExcerpt(question) }}
+              </p>
+              <div v-if="getQuestionImage(question)" class="question-image-preview">
+                <img :src="getQuestionImage(question)" :alt="question.title" loading="lazy">
+              </div>
               <div class="question-meta">
                 <div class="tags">
                   <span v-for="tag in question.tags" :key="tag" class="tag">{{ tag }}</span>
@@ -161,6 +166,80 @@ export default defineComponent({
         hour: '2-digit',
         minute: '2-digit'
       })
+    }
+
+    const resolveContentImageUrl = (url) => {
+      if (!url) return ''
+      const normalizedUrl = String(url).trim().replace(/^<|>$/g, '')
+      if (/^(https?:|data:image\/|blob:)/i.test(normalizedUrl)) {
+        return normalizedUrl
+      }
+      if (normalizedUrl.startsWith('/')) {
+        return normalizedUrl
+      }
+      if (normalizedUrl.startsWith('uploads/')) {
+        return `/${normalizedUrl}`
+      }
+      return normalizedUrl
+    }
+
+    const imageUrlPattern = /(?:data:image\/|blob:|https?:\/\/|\/uploads\/|uploads\/)[^\s)'"<>]+?\.(?:png|jpe?g|gif|webp|bmp|svg)(?:\?[^\s)'"<>]*)?|(?:\/uploads\/|uploads\/)images\/[^\s)'"<>]+/i
+
+    const parseMarkdownTarget = (target = '') => {
+      const trimmed = String(target || '').trim()
+      if (!trimmed) return ''
+      if (trimmed.startsWith('<')) {
+        const end = trimmed.indexOf('>')
+        return end > 0 ? trimmed.slice(1, end).trim() : trimmed.replace(/^<|>$/g, '').trim()
+      }
+      return trimmed.replace(/\s+["'][^"']*["']\s*$/, '').trim()
+    }
+
+    const isImageUrl = (url) => imageUrlPattern.test(resolveContentImageUrl(url))
+
+    const extractFirstImageUrl = (content = '') => {
+      const text = String(content || '')
+      const htmlMatch = text.match(/<img[^>]+src=["']([^"']+)["']/i)
+      if (htmlMatch?.[1]) {
+        return resolveContentImageUrl(htmlMatch[1])
+      }
+
+      const markdownMatch = text.match(/!\[[^\]]*]\(\s*<?([^)\s>]+)(?:\s+["'][^)]*["'])?\s*\)/i)
+      if (markdownMatch?.[1]) {
+        return resolveContentImageUrl(markdownMatch[1])
+      }
+
+      const markdownLinkMatch = text.match(/\[[^\]]*]\(([^)]*)\)/i)
+      if (markdownLinkMatch?.[1]) {
+        const target = parseMarkdownTarget(markdownLinkMatch[1])
+        if (isImageUrl(target)) {
+          return resolveContentImageUrl(target)
+        }
+      }
+
+      const plainMatch = text.match(imageUrlPattern)
+      return plainMatch?.[0] ? resolveContentImageUrl(plainMatch[0]) : ''
+    }
+
+    const stripInlineMediaSyntax = (content = '') => {
+      return String(content || '')
+        .replace(/<img\b[^>]*>/gi, ' ')
+        .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]*)]\(([^)]*)\)/g, (match, label, target) => {
+          return isImageUrl(parseMarkdownTarget(target)) ? ' ' : label
+        })
+        .replace(new RegExp(imageUrlPattern.source, 'gi'), ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    const getQuestionImage = (question) => {
+      return extractFirstImageUrl(question?.content || question?.summary || '')
+    }
+
+    const getQuestionExcerpt = (question) => {
+      return stripInlineMediaSyntax(question?.summary || question?.content || '')
     }
     
     const loadQuestions = async () => {
@@ -268,7 +347,9 @@ export default defineComponent({
       setFilter,
       changePage,
       navigateToQuestion,
-      formatQuestionTime
+      formatQuestionTime,
+      getQuestionImage,
+      getQuestionExcerpt
     }
   }
 })
@@ -511,6 +592,23 @@ export default defineComponent({
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.question-image-preview {
+  width: min(320px, 100%);
+  aspect-ratio: 16 / 9;
+  margin: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #f3f4f6;
+}
+
+.question-image-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .question-meta {

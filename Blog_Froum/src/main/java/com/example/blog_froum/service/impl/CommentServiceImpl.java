@@ -14,6 +14,7 @@ import com.example.blog_froum.repository.QuestionRepository;
 import com.example.blog_froum.service.CommentService;
 import com.example.blog_froum.service.LikeService;
 import com.example.blog_froum.service.NotificationService;
+import com.example.blog_froum.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -55,6 +56,9 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private UserService userService;
+
     @Override
     public CommentResponse createComment(Long userId, CommentCreateRequest request) {
         log.info("用户 {} 创建评论，目标类型: {}, 目标ID: {}", userId, request.getTargetType(), request.getTargetId());
@@ -64,6 +68,7 @@ public class CommentServiceImpl implements CommentService {
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
+        userService.assertCanCreateContent(userId);
 
         // 验证目标是否存在
         Long targetAuthorId = null;

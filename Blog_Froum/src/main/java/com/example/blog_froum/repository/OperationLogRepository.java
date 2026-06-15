@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Repository
 public interface OperationLogRepository extends JpaRepository<OperationLog, Long> {
@@ -40,4 +41,6 @@ public interface OperationLogRepository extends JpaRepository<OperationLog, Long
                                   @Param("startTime") LocalDateTime startTime,
                                   @Param("endTime") LocalDateTime endTime,
                                   Pageable pageable);
+
+    Optional<OperationLog> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
 }

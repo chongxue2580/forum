@@ -2,6 +2,7 @@ package com.example.blog_froum.interceptor;
 
 import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.JwtUtil;
+import com.example.blog_froum.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,9 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserService userService;
 
     /**
      * 校验JWT
@@ -80,7 +84,15 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             Long userId = jwtUtil.getUserIdFromToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
             String role = jwtUtil.getRoleFromToken(token);
-            
+
+            try {
+                userService.assertCanUseAccount(userId);
+            } catch (RuntimeException e) {
+                log.warn("用户账号已被限制访问，用户ID: {}, 原因: {}", userId, e.getMessage());
+                writeBusinessError(response, 403, e.getMessage());
+                return false;
+            }
+
             log.info("用户JWT校验成功，用户ID: {}, 用户名: {}, 角色: {}", userId, username, role);
             
             // 将用户信息存储到请求属性中，供Controller使用
@@ -122,6 +134,10 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
         // 用户相关接口
         if (requestURI.startsWith("/api/user")) {
+            if (isPublicUserEndpoint(requestURI, method)) {
+                return false;
+            }
+
             // 获取用户资料和统计数据不需要认证
             if (requestURI.matches("/api/user/profile/\\d+") && "GET".equals(method)) {
                 return false;
@@ -171,6 +187,23 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    private boolean isPublicUserEndpoint(String requestURI, String method) {
+        if ("POST".equals(method)
+                && ("/api/user/login".equals(requestURI)
+                || "/api/user/register".equals(requestURI)
+                || "/api/user/register/email-code".equals(requestURI)
+                || "/api/user/forgot-password/email-code".equals(requestURI)
+                || "/api/user/forgot-password/reset".equals(requestURI)
+                || "/api/user/profile/login".equals(requestURI)
+                || "/api/user/profile/register".equals(requestURI))) {
+            return true;
+        }
+
+        return "GET".equals(method)
+                && ("/api/user/check-username".equals(requestURI)
+                || "/api/user/check-email".equals(requestURI));
+    }
+
     private void resolveOptionalUserContext(HttpServletRequest request) {
         String token = request.getHeader("Authorization");
         if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
@@ -197,6 +230,23 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         } catch (Exception ex) {
             log.debug("可选用户JWT解析失败，按未登录访问处理: {}", ex.getMessage());
         }
+    }
+
+    private void writeBusinessError(HttpServletResponse response, int status, String message) throws Exception {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"success\":false,\"message\":\""
+                + escapeJson(message)
+                + "\",\"data\":null,\"code\":"
+                + status
+                + "}");
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.example.blog_froum.dto.user;
 
 import com.example.blog_froum.entity.User;
+import com.example.blog_froum.enums.UserBanType;
 import com.example.blog_froum.enums.UserRole;
 import com.example.blog_froum.enums.UserStatus;
 import lombok.Data;
@@ -25,6 +26,9 @@ public class UserResponse {
     private LocalDateTime lastLoginTime;
     private Integer loginCount;
     private Boolean twoFactorEnabled;
+    private UserBanType banType;
+    private Boolean banned;
+    private LocalDateTime banExpiresAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -46,6 +50,11 @@ public class UserResponse {
         this.lastLoginTime = source.getLastLoginTime();
         this.loginCount = source.getLoginCount();
         this.twoFactorEnabled = Boolean.TRUE.equals(source.getTwoFactorEnabled());
+        this.banType = source.getBanType() == null
+                ? (source.getStatus() == UserStatus.ACTIVE ? UserBanType.NONE : UserBanType.LOGIN)
+                : source.getBanType();
+        this.banned = this.banType != UserBanType.NONE && !source.isBanExpired();
+        this.banExpiresAt = source.getBanExpiresAt();
         this.createdAt = source.getCreatedAt();
         this.updatedAt = source.getUpdatedAt();
     }

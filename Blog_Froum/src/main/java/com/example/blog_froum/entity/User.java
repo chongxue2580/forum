@@ -1,6 +1,7 @@
 package com.example.blog_froum.entity;
 
 import com.example.blog_froum.enums.UserRole;
+import com.example.blog_froum.enums.UserBanType;
 import com.example.blog_froum.enums.UserStatus;
 import lombok.Data;
 
@@ -55,6 +56,25 @@ public class User {
 
     @Column(name = "two_factor_secret", length = 64)
     private String twoFactorSecret;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ban_type", length = 20)
+    private UserBanType banType;
+
+    @Column(name = "ban_reason", length = 500)
+    private String banReason;
+
+    @Column(name = "ban_expires_at")
+    private LocalDateTime banExpiresAt;
+
+    @Column(name = "banned_at")
+    private LocalDateTime bannedAt;
+
+    @Column(name = "banned_by")
+    private Long bannedBy;
+
+    @Column(name = "banned_by_email", length = 100)
+    private String bannedByEmail;
     
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -67,6 +87,7 @@ public class User {
         this.status = UserStatus.ACTIVE;
         this.loginCount = 0;
         this.twoFactorEnabled = false;
+        this.banType = UserBanType.NONE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -98,6 +119,18 @@ public class User {
      */
     public boolean isActive() {
         return status == UserStatus.ACTIVE;
+    }
+
+    public boolean isBanExpired() {
+        return banExpiresAt != null && !banExpiresAt.isAfter(LocalDateTime.now());
+    }
+
+    public boolean hasActiveLoginBan() {
+        return banType == UserBanType.LOGIN && !isBanExpired();
+    }
+
+    public boolean hasActiveContentBan() {
+        return banType == UserBanType.CONTENT && !isBanExpired();
     }
 
     /**

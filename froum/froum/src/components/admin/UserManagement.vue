@@ -4,13 +4,14 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getAllUsers,
-  disableUser,
-  enableUser,
+  getUserDetail,
+  banUser,
+  unbanUser,
   resetUserPassword,
   changeUserRole,
   deleteUser,
   searchUsers,
-  batchDisableUsers,
+  batchBanUsers,
   batchEnableUsers,
   batchDeleteUsers
 } from '@/api/admin'
@@ -31,20 +32,38 @@ const filterOptions = ref({
   role: '',
   status: ''
 })
+const detailDialogVisible = ref(false)
+const detailLoading = ref(false)
+const selectedUserDetail = ref(null)
+const banDialogVisible = ref(false)
+const banSubmitting = ref(false)
+const banTarget = ref(null)
+const banMode = ref('single')
+const banForm = ref({
+  banType: 'LOGIN',
+  durationMode: 'permanent',
+  durationDays: 7,
+  reason: ''
+})
 
 const displayedUsers = computed(() => users.value)
+
+const banTypeOptions = [
+  { label: '禁止登录', value: 'LOGIN', icon: 'lock' },
+  { label: '禁止发布内容', value: 'CONTENT', icon: 'edit' }
+]
 
 // KPI（总数取后端 total，其余按当前页统计）
 const kpis = computed(() => {
   const list = users.value
   const admins = list.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length
-  const active = list.filter(u => u.status === 'ACTIVE').length
-  const disabled = list.filter(u => u.status === 'DISABLED').length
+  const active = list.filter(u => u.status === 'ACTIVE' && !u.banned).length
+  const banned = list.filter(u => u.banned || u.status === 'DISABLED').length
   return [
     { key: 'total', label: '用户总数', value: total.value, icon: 'users', tone: '' },
     { key: 'active', label: '正常（本页）', value: active, icon: 'circle-check', tone: 'is-success' },
     { key: 'admin', label: '管理员（本页）', value: admins, icon: 'user-shield', tone: '' },
-    { key: 'disabled', label: '已禁用（本页）', value: disabled, icon: 'ban', tone: 'is-danger' }
+    { key: 'banned', label: '封禁（本页）', value: banned, icon: 'ban', tone: 'is-danger' }
   ]
 })
 
@@ -66,7 +85,8 @@ const roleOptions = [
 
 const statusOptions = [
   { label: '正常', value: 'ACTIVE' },
-  { label: '已禁用', value: 'DISABLED' }
+  { label: '已禁用', value: 'DISABLED' },
+  { label: '锁定', value: 'LOCKED' }
 ]
 
 const unwrapPage = (response) => {
@@ -93,16 +113,47 @@ const formatDateTime = (value) => {
   })
 }
 
+const formatValueDateTime = (value) => {
+  if (!value) return '-'
+  const date = Array.isArray(value)
+    ? new Date(value[0], value[1] - 1, value[2], value[3] || 0, value[4] || 0)
+    : new Date(value)
+
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getBanTypeLabel = (type) => {
+  const normalized = String(type || 'NONE').toUpperCase()
+  if (normalized === 'LOGIN') return '禁止登录'
+  if (normalized === 'CONTENT') return '禁止发布'
+  return '未封禁'
+}
+
+const getBanExpiresText = (value) => (value ? formatValueDateTime(value) : '永久')
+
 const normalizeUser = (user) => {
   const role = String(user.role || 'USER').toUpperCase()
   const status = String(user.status || 'ACTIVE').toUpperCase()
+  const banType = String(user.banType || 'NONE').toUpperCase()
+  const banned = Boolean(user.banned || status !== 'ACTIVE' || banType !== 'NONE')
   return {
     ...user,
     name: user.nickname || user.username || `用户${user.id}`,
     role,
     status,
+    banType,
+    banned,
     roleLabel: roleOptions.find(option => option.value === role)?.label || role,
     statusLabel: statusOptions.find(option => option.value === status)?.label || status,
+    banTypeLabel: getBanTypeLabel(banType),
+    banExpiresText: getBanExpiresText(user.banExpiresAt),
     lastLoginText: formatDateTime(user.lastLoginTime),
     createdAtText: formatDateTime(user.createdAt),
     loginCount: user.loginCount || 0
@@ -180,33 +231,81 @@ const handlePageSizeChange = (size) => {
   loadUsers()
 }
 
-const toggleUserStatus = async (user) => {
-  const isActive = user.status === 'ACTIVE'
-  try {
-    let reason
-    if (isActive) {
-      const result = await ElMessageBox.prompt(`请输入禁用用户「${user.name}」的原因`, '禁用用户', {
-        confirmButtonText: '禁用',
-        cancelButtonText: '取消',
-        inputType: 'textarea'
-      })
-      reason = result.value
-      await disableUser(user.id, reason)
-    } else {
-      await ElMessageBox.confirm(`确定要启用用户「${user.name}」吗？`, '启用用户', {
-        confirmButtonText: '启用',
-        cancelButtonText: '取消',
-        type: 'success'
-      })
-      await enableUser(user.id)
-    }
+const resetBanForm = () => {
+  banForm.value = {
+    banType: 'LOGIN',
+    durationMode: 'permanent',
+    durationDays: 7,
+    reason: ''
+  }
+}
 
-    ElMessage.success(isActive ? '用户已禁用' : '用户已启用')
+const openBanDialog = (user = null) => {
+  resetBanForm()
+  banTarget.value = user
+  banMode.value = user ? 'single' : 'batch'
+  banDialogVisible.value = true
+}
+
+const handleUnban = async (user) => {
+  try {
+    await ElMessageBox.confirm(`确定要解封用户「${user.name}」吗？`, '解封用户', {
+      confirmButtonText: '解封',
+      cancelButtonText: '取消',
+      type: 'success'
+    })
+    await unbanUser(user.id)
+    ElMessage.success('用户已解封')
     loadUsers()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '更新用户状态失败')
+      ElMessage.error(error.message || '解封用户失败')
     }
+  }
+}
+
+const submitBan = async () => {
+  const reason = banForm.value.reason.trim()
+  if (!reason) {
+    ElMessage.warning('请输入封禁理由')
+    return
+  }
+  if (banForm.value.durationMode === 'days' && (!banForm.value.durationDays || banForm.value.durationDays < 1)) {
+    ElMessage.warning('请输入有效的封禁天数')
+    return
+  }
+
+  const payload = {
+    banType: banForm.value.banType,
+    reason,
+    durationDays: banForm.value.durationMode === 'days' ? Number(banForm.value.durationDays) : null
+  }
+
+  try {
+    banSubmitting.value = true
+    if (banMode.value === 'batch') {
+      const ids = selectedUsers.value.map(user => user.id)
+      const response = await batchBanUsers(ids, payload)
+      reportBatchResult(response, '批量封禁')
+      clearSelection()
+    } else {
+      await banUser(banTarget.value.id, payload)
+      ElMessage.success('用户已封禁')
+    }
+    banDialogVisible.value = false
+    loadUsers()
+  } catch (error) {
+    ElMessage.error(error.message || '封禁用户失败')
+  } finally {
+    banSubmitting.value = false
+  }
+}
+
+const toggleUserStatus = (user) => {
+  if (user.banned || user.status !== 'ACTIVE') {
+    handleUnban(user)
+  } else {
+    openBanDialog(user)
   }
 }
 
@@ -269,8 +368,31 @@ const handleDeleteUser = async (user) => {
   }
 }
 
-const viewUserProfile = (user) => {
-  router.push(`/user/${user.id}`)
+const openUserDetail = async (user) => {
+  detailDialogVisible.value = true
+  detailLoading.value = true
+  selectedUserDetail.value = null
+  try {
+    const response = await getUserDetail(user.id)
+    const detail = response?.data || response
+    selectedUserDetail.value = {
+      ...detail,
+      name: detail.nickname || detail.username || `用户${detail.id}`,
+      roleLabel: roleOptions.find(option => option.value === String(detail.role || '').toUpperCase())?.label || detail.role,
+      statusLabel: statusOptions.find(option => option.value === String(detail.status || '').toUpperCase())?.label || detail.status,
+      banTypeLabel: getBanTypeLabel(detail.banType),
+      banExpiresText: getBanExpiresText(detail.banExpiresAt),
+      lastLoginText: formatDateTime(detail.lastLoginTime),
+      lastAccessText: detail.lastAccessTime ? formatValueDateTime(detail.lastAccessTime) : '暂无记录',
+      createdAtText: formatValueDateTime(detail.createdAt),
+      updatedAtText: formatValueDateTime(detail.updatedAt)
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '获取用户详情失败')
+    detailDialogVisible.value = false
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 const handleSelectionChange = (rows) => {
@@ -291,43 +413,25 @@ const reportBatchResult = (result, actionLabel) => {
 }
 
 const handleBatchDisable = async () => {
-  const ids = selectedUsers.value.map(user => user.id)
-  try {
-    const result = await ElMessageBox.prompt(`将批量禁用 ${ids.length} 个用户，请输入禁用原因`, '批量禁用', {
-      confirmButtonText: '禁用',
-      cancelButtonText: '取消',
-      inputType: 'textarea'
-    })
-    batchLoading.value = true
-    const response = await batchDisableUsers(ids, result.value)
-    reportBatchResult(response, '批量禁用')
-    clearSelection()
-    loadUsers()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '批量禁用失败')
-    }
-  } finally {
-    batchLoading.value = false
-  }
+  openBanDialog()
 }
 
 const handleBatchEnable = async () => {
   const ids = selectedUsers.value.map(user => user.id)
   try {
-    await ElMessageBox.confirm(`确定要批量启用 ${ids.length} 个用户吗？`, '批量启用', {
-      confirmButtonText: '启用',
+    await ElMessageBox.confirm(`确定要批量解封 ${ids.length} 个用户吗？`, '批量解封', {
+      confirmButtonText: '解封',
       cancelButtonText: '取消',
       type: 'success'
     })
     batchLoading.value = true
     const response = await batchEnableUsers(ids)
-    reportBatchResult(response, '批量启用')
+    reportBatchResult(response, '批量解封')
     clearSelection()
     loadUsers()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '批量启用失败')
+      ElMessage.error(error.message || '批量解封失败')
     }
   } finally {
     batchLoading.value = false
@@ -431,6 +535,7 @@ onMounted(loadUsers)
           <el-option label="全部状态" value="" />
           <el-option label="正常" value="ACTIVE" />
           <el-option label="已禁用" value="DISABLED" />
+          <el-option label="锁定" value="LOCKED" />
         </el-select>
 
         <button class="admin-action-btn primary" @click="handleSearch">
@@ -454,10 +559,10 @@ onMounted(loadUsers)
           <span class="batch-count">已选 <strong>{{ selectedUsers.length }}</strong> 个用户</span>
           <div class="batch-buttons">
             <button class="ad-btn is-success" :disabled="batchLoading" @click="handleBatchEnable">
-              <font-awesome-icon icon="check-circle" /> 批量启用
+              <font-awesome-icon icon="check-circle" /> 批量解封
             </button>
             <button class="ad-btn is-warning" :disabled="batchLoading" @click="handleBatchDisable">
-              <font-awesome-icon icon="ban" /> 批量禁用
+              <font-awesome-icon icon="ban" /> 批量封禁
             </button>
             <button class="ad-btn is-danger" :disabled="batchLoading" @click="handleBatchDelete">
               <font-awesome-icon icon="trash" /> 批量删除
@@ -500,6 +605,10 @@ onMounted(loadUsers)
                 <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'circle-check' : 'ban'" />
                 {{ row.statusLabel }}
               </span>
+              <span v-if="row.banned" class="ad-pill is-warning">
+                <font-awesome-icon icon="ban" />
+                {{ row.banTypeLabel }} · {{ row.banExpiresText }}
+              </span>
             </div>
 
             <div class="ad-card__metrics">
@@ -515,14 +624,14 @@ onMounted(loadUsers)
 
             <div class="ad-card__actions">
               <button
-                v-if="row.role !== 'SUPER_ADMIN'"
-                class="ad-btn"
-                :class="row.status === 'ACTIVE' ? 'is-danger' : 'is-success'"
-                @click="toggleUserStatus(row)"
-              >
-                <font-awesome-icon :icon="row.status === 'ACTIVE' ? 'ban' : 'check-circle'" />
-                {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
-              </button>
+	                v-if="row.role !== 'SUPER_ADMIN'"
+	                class="ad-btn"
+	                :class="row.banned || row.status !== 'ACTIVE' ? 'is-success' : 'is-danger'"
+	                @click="toggleUserStatus(row)"
+	              >
+	                <font-awesome-icon :icon="row.banned || row.status !== 'ACTIVE' ? 'check-circle' : 'ban'" />
+	                {{ row.banned || row.status !== 'ACTIVE' ? '解封' : '封禁' }}
+	              </button>
               <button
                 v-if="row.role !== 'SUPER_ADMIN'"
                 class="ad-btn"
@@ -532,9 +641,9 @@ onMounted(loadUsers)
                 <font-awesome-icon :icon="row.role === 'ADMIN' ? 'user-minus' : 'user-plus'" />
                 {{ row.role === 'ADMIN' ? '设为用户' : '设为管理员' }}
               </button>
-              <button class="ad-btn" @click="viewUserProfile(row)">
-                <font-awesome-icon icon="user" /> 查看
-              </button>
+	              <button class="ad-btn" @click="openUserDetail(row)">
+	                <font-awesome-icon icon="user" /> 查看详情
+	              </button>
               <button v-if="row.role !== 'SUPER_ADMIN'" class="ad-btn" @click="sendMessage(row)">
                 <font-awesome-icon icon="paper-plane" /> 私信
               </button>
@@ -570,6 +679,135 @@ onMounted(loadUsers)
         @current-change="handlePageChange"
       />
     </div>
+
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="用户详情"
+      width="760px"
+      class="admin-user-detail-dialog"
+    >
+      <div v-loading="detailLoading" class="detail-dialog-body">
+        <template v-if="selectedUserDetail">
+          <div class="detail-profile-head">
+            <span class="ad-card__avatar" :style="{ backgroundColor: getAvatarColor(selectedUserDetail.name) }">
+              {{ getAvatarText(selectedUserDetail.name) }}
+            </span>
+            <div>
+              <h3>{{ selectedUserDetail.name }}</h3>
+              <p>ID {{ selectedUserDetail.id }} · {{ selectedUserDetail.username }}</p>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>基本信息</h4>
+            <div class="detail-info-grid">
+              <div><span>邮箱</span><strong>{{ selectedUserDetail.email || '-' }}</strong></div>
+              <div><span>角色</span><strong>{{ selectedUserDetail.roleLabel }}</strong></div>
+              <div><span>状态</span><strong>{{ selectedUserDetail.statusLabel }}</strong></div>
+              <div><span>昵称</span><strong>{{ selectedUserDetail.nickname || '-' }}</strong></div>
+              <div class="detail-span-2"><span>个人简介</span><strong>{{ selectedUserDetail.bio || '-' }}</strong></div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>安全与封禁</h4>
+            <div class="detail-info-grid">
+              <div><span>二次验证</span><strong>{{ selectedUserDetail.twoFactorEnabled ? '已开启' : '未开启' }}</strong></div>
+              <div><span>登录次数</span><strong>{{ selectedUserDetail.loginCount || 0 }}</strong></div>
+              <div><span>封禁状态</span><strong>{{ selectedUserDetail.banned ? selectedUserDetail.banTypeLabel : '未封禁' }}</strong></div>
+              <div><span>封禁期限</span><strong>{{ selectedUserDetail.banned ? selectedUserDetail.banExpiresText : '-' }}</strong></div>
+              <div class="detail-span-2"><span>封禁理由</span><strong>{{ selectedUserDetail.banReason || '-' }}</strong></div>
+              <div><span>执行管理员邮箱</span><strong>{{ selectedUserDetail.bannedByEmail || '-' }}</strong></div>
+              <div><span>封禁时间</span><strong>{{ formatValueDateTime(selectedUserDetail.bannedAt) }}</strong></div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>登录与访问</h4>
+            <div class="detail-info-grid">
+              <div><span>最近登录</span><strong>{{ selectedUserDetail.lastLoginText }}</strong></div>
+              <div><span>在线状态</span><strong>{{ selectedUserDetail.online ? '可能在线' : '离线' }}</strong></div>
+              <div><span>最近访问 IP</span><strong>{{ selectedUserDetail.lastKnownIp || '暂无记录' }}</strong></div>
+              <div><span>最近访问时间</span><strong>{{ selectedUserDetail.lastAccessText }}</strong></div>
+              <div class="detail-span-2"><span>访问设备</span><strong>{{ selectedUserDetail.lastKnownUserAgent || '暂无记录' }}</strong></div>
+              <div><span>注册时间</span><strong>{{ selectedUserDetail.createdAtText }}</strong></div>
+              <div><span>更新时间</span><strong>{{ selectedUserDetail.updatedAtText }}</strong></div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>内容与关系</h4>
+            <div class="detail-stat-row">
+              <div><strong>{{ selectedUserDetail.articleCount || 0 }}</strong><span>文章</span></div>
+              <div><strong>{{ selectedUserDetail.questionCount || 0 }}</strong><span>问题</span></div>
+              <div><strong>{{ selectedUserDetail.commentCount || 0 }}</strong><span>评论</span></div>
+              <div><strong>{{ selectedUserDetail.likeCount || 0 }}</strong><span>点赞</span></div>
+              <div><strong>{{ selectedUserDetail.followingCount || 0 }}</strong><span>关注</span></div>
+              <div><strong>{{ selectedUserDetail.followerCount || 0 }}</strong><span>粉丝</span></div>
+            </div>
+          </div>
+        </template>
+      </div>
+      <template #footer>
+        <button class="ad-btn" @click="detailDialogVisible = false">关闭</button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="banDialogVisible"
+      :title="banMode === 'batch' ? '批量封禁用户' : `封禁用户：${banTarget?.name || ''}`"
+      width="560px"
+      class="admin-user-ban-dialog"
+    >
+      <div class="ban-form">
+        <label>封禁方式</label>
+        <div class="ban-type-options">
+          <button
+            v-for="option in banTypeOptions"
+            :key="option.value"
+            type="button"
+            class="ban-type-option"
+            :class="{ active: banForm.banType === option.value }"
+            @click="banForm.banType = option.value"
+          >
+            <font-awesome-icon :icon="option.icon" />
+            <span>{{ option.label }}</span>
+          </button>
+        </div>
+
+        <label>封禁期限</label>
+        <el-radio-group v-model="banForm.durationMode" class="duration-radio-group">
+          <el-radio-button label="permanent">永久</el-radio-button>
+          <el-radio-button label="days">按天数</el-radio-button>
+        </el-radio-group>
+        <el-input-number
+          v-if="banForm.durationMode === 'days'"
+          v-model="banForm.durationDays"
+          :min="1"
+          :max="3650"
+          controls-position="right"
+          class="duration-input"
+        />
+
+        <label>封禁理由</label>
+        <el-input
+          v-model="banForm.reason"
+          type="textarea"
+          :rows="4"
+          maxlength="500"
+          show-word-limit
+          placeholder="请输入封禁理由，用户登录或操作受限时会看到该原因"
+        />
+      </div>
+      <template #footer>
+        <button class="ad-btn" :disabled="banSubmitting" @click="banDialogVisible = false">取消</button>
+        <button class="ad-btn is-danger" :disabled="banSubmitting" @click="submitBan">
+          <font-awesome-icon v-if="banSubmitting" icon="sync" spin />
+          <font-awesome-icon v-else icon="ban" />
+          确认封禁
+        </button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -725,6 +963,161 @@ onMounted(loadUsers)
   transform: translateY(-6px);
 }
 
+.detail-dialog-body {
+  min-height: 180px;
+}
+
+.detail-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 18px;
+  border-bottom: 1px solid rgba(127, 149, 176, 0.18);
+}
+
+.detail-profile-head .ad-card__avatar {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  font-size: 1.25rem;
+}
+
+.detail-profile-head h3 {
+  margin: 0 0 4px;
+  color: #263246;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.detail-profile-head p {
+  margin: 0;
+  color: #8190a3;
+  font-size: 0.86rem;
+}
+
+.detail-section {
+  padding: 18px 0 2px;
+}
+
+.detail-section + .detail-section {
+  border-top: 1px solid rgba(127, 149, 176, 0.14);
+}
+
+.detail-section h4 {
+  margin: 0 0 12px;
+  color: #263246;
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.detail-info-grid > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7fafd;
+  border: 1px solid rgba(127, 149, 176, 0.14);
+}
+
+.detail-info-grid span,
+.detail-stat-row span {
+  display: block;
+  margin-bottom: 5px;
+  color: #8190a3;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.detail-info-grid strong {
+  display: block;
+  min-width: 0;
+  color: #263246;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.detail-span-2 {
+  grid-column: span 2;
+}
+
+.detail-stat-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-stat-row > div {
+  min-width: 0;
+  padding: 12px 8px;
+  text-align: center;
+  border-radius: 10px;
+  background: #f7fafd;
+  border: 1px solid rgba(127, 149, 176, 0.14);
+}
+
+.detail-stat-row strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #4169d8;
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.ban-form {
+  display: grid;
+  gap: 12px;
+}
+
+.ban-form label {
+  color: #263246;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.ban-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ban-type-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(127, 149, 176, 0.22);
+  color: #46566e;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.ban-type-option:hover,
+.ban-type-option.active {
+  color: #cf3d3d;
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.34);
+}
+
+.duration-radio-group {
+  display: flex;
+}
+
+.duration-input {
+  width: 180px;
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .header-actions {
@@ -755,6 +1148,16 @@ onMounted(loadUsers)
 
   .button-group {
     flex-direction: column;
+  }
+
+  .detail-info-grid,
+  .detail-stat-row,
+  .ban-type-options {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-span-2 {
+    grid-column: auto;
   }
 }
 

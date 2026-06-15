@@ -725,9 +725,9 @@ onUnmounted(() => {
 }
 
 .error-message {
-  background-color: rgba(var(--error-rgb), 0.1);
-  border: 1px solid var(--error-color);
-  color: var(--error-color);
+  background-color: #fff1f0;
+  border: 1px solid #ff7875;
+  color: #a8071a;
 }
 
 .editor-main {

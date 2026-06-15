@@ -292,12 +292,12 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: rgba(var(--error-rgb), 0.05);
-  border: 1px solid var(--error-color);
+  background-color: #fff1f0;
+  border: 1px solid #ff7875;
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
   border-radius: var(--radius);
-  color: var(--error-color);
+  color: #a8071a;
 }
 
 .error-icon {

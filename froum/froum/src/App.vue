@@ -748,11 +748,11 @@ a {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background-color: rgba(var(--error-rgb), 0.05);
-  border: 1px solid var(--error-color);
+  background-color: #fff1f0;
+  border: 1px solid #ff7875;
   border-radius: var(--radius);
-  color: var(--error-color);
-  box-shadow: var(--shadow);
+  color: #a8071a;
+  box-shadow: 0 12px 30px rgba(168, 7, 26, 0.18);
 }
 
 .error-icon {

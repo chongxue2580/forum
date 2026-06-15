@@ -18,14 +18,14 @@
       
       <form @submit.prevent="handleLogin">
         <div class="form-group">
-          <label for="username">用户名</label>
+          <label for="username">用户名或邮箱</label>
           <div class="input-wrapper">
             <font-awesome-icon :icon="['fas', 'user']" class="input-icon" />
             <input 
               type="text" 
               id="username" 
               v-model="username" 
-              placeholder="请输入用户名" 
+              placeholder="请输入用户名或邮箱"
               required
               autocomplete="username"
             />
@@ -149,8 +149,8 @@ export default defineComponent({
     const loginButtonText = computed(() => requiresTwoFactor.value ? '验证并登录' : '登录')
 
     onMounted(() => {
-      if (route.query.username) {
-        username.value = String(route.query.username)
+      if (route.query.account || route.query.username) {
+        username.value = String(route.query.account || route.query.username).trim()
       }
       const pendingPassword = sessionStorage.getItem('postRegisterPassword')
       if (pendingPassword) {
@@ -159,13 +159,14 @@ export default defineComponent({
         sessionStorage.removeItem('postRegisterPassword')
       }
       if (route.query.registered === '1') {
-        infoMessage.value = '注册成功，账号密码已填入，完成验证码后即可登录'
+        infoMessage.value = '注册成功，邮箱和密码已填入，完成验证码后即可登录'
       }
     })
     
     const handleLogin = async () => {
-      if (!username.value || !password.value) {
-        error.value = '请输入用户名和密码'
+      const account = username.value.trim()
+      if (!account || !password.value) {
+        error.value = '请输入用户名或邮箱和密码'
         return
       }
 
@@ -184,7 +185,7 @@ export default defineComponent({
       
       try {
         const result = await store.dispatch('login', {
-          username: username.value,
+          username: account,
           password: password.value,
           remember: remember.value,
           captchaId: captchaValue.value?.captchaId,
@@ -207,7 +208,7 @@ export default defineComponent({
         await router.push(redirectPath)
       } catch (err) {
         console.error('登录失败:', err)
-        error.value = err.message || '登录失败，请检查用户名和密码'
+        error.value = err.message || '登录失败，请检查用户名或邮箱和密码'
         if (!requiresTwoFactor.value) {
           captchaValue.value = null
           captchaRef.value?.refresh()
@@ -281,12 +282,12 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: rgba(var(--error-rgb), 0.05);
-  border: 1px solid var(--error-color);
+  background-color: #fff1f0;
+  border: 1px solid #ff7875;
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
   border-radius: var(--radius);
-  color: var(--error-color);
+  color: #a8071a;
 }
 
 .error-icon {

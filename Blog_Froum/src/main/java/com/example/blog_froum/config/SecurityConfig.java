@@ -51,6 +51,8 @@ public class SecurityConfig {
                 .antMatchers("/api/captcha/**").permitAll()
                 // 允许登录注册接口
                 .antMatchers("/api/user/login", "/api/user/register").permitAll()
+                .antMatchers("/api/user/register/email-code").permitAll()
+                .antMatchers("/api/user/forgot-password/email-code", "/api/user/forgot-password/reset").permitAll()
                 .antMatchers("/api/user/profile/login", "/api/user/profile/register").permitAll()
                 .antMatchers("/api/user/check-username", "/api/user/check-email").permitAll()
                 .antMatchers("/api/admin/login").permitAll()

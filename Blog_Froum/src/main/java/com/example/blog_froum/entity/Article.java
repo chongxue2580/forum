@@ -27,10 +27,10 @@ public class Article {
     @Column(length = 500)
     private String summary;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String content;
 
-    @Column(name = "cover_image")
+    @Column(name = "cover_image", columnDefinition = "TEXT")
     private String coverImage;
 
     @Column(name = "author_id", nullable = false)
@@ -78,7 +78,7 @@ public class Article {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    @Column(name = "tags_string", length = 500)
+    @Column(name = "tags_string", columnDefinition = "TEXT")
     private String tagsString;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -104,4 +104,4 @@ public class Article {
     public void decrementLikeCount() {
         this.likeCount = (this.likeCount == null || this.likeCount <= 0) ? 0 : this.likeCount - 1;
     }
-} 
+}

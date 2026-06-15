@@ -76,6 +76,13 @@ export function getUserById(id) {
   })
 }
 
+export function getUserDetail(id) {
+  return request({
+    url: `/admin/users/${id}/detail`,
+    method: 'get'
+  })
+}
+
 export function disableUser(id, reason) {
   return request({
     url: `/admin/users/${id}/disable`,
@@ -87,6 +94,21 @@ export function disableUser(id, reason) {
 export function enableUser(id) {
   return request({
     url: `/admin/users/${id}/enable`,
+    method: 'post'
+  })
+}
+
+export function banUser(id, data) {
+  return request({
+    url: `/admin/users/${id}/ban`,
+    method: 'post',
+    data
+  })
+}
+
+export function unbanUser(id) {
+  return request({
+    url: `/admin/users/${id}/unban`,
     method: 'post'
   })
 }
@@ -118,6 +140,14 @@ export function batchDisableUsers(ids, reason) {
     url: '/admin/users/batch-disable',
     method: 'post',
     data: { ids, reason }
+  })
+}
+
+export function batchBanUsers(ids, data) {
+  return request({
+    url: '/admin/users/batch-ban',
+    method: 'post',
+    data: { ids, ...data }
   })
 }
 

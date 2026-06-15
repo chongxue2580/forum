@@ -33,6 +33,11 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     void deleteByFollowerIdAndTargetTypeAndTargetId(Long followerId, String targetType, Long targetId);
 
     /**
+     * 删除指定目标的全部关注记录
+     */
+    void deleteByTargetTypeAndTargetId(String targetType, Long targetId);
+
+    /**
      * 统计目标的关注数
      */
     long countByTargetTypeAndTargetId(String targetType, Long targetId);

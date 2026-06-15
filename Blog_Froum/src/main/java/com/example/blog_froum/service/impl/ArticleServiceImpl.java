@@ -12,6 +12,7 @@ import com.example.blog_froum.repository.ArticleRepository;
 import com.example.blog_froum.service.ArticleService;
 import com.example.blog_froum.service.LikeService;
 import com.example.blog_froum.service.NotificationService;
+import com.example.blog_froum.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -45,6 +46,9 @@ public class ArticleServiceImpl implements ArticleService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private UserService userService;
+
     @Override
     public ArticleResponse createArticle(Long authorId, ArticleCreateRequest request) {
         log.info("创建文章，作者ID: {}, 标题: {}", authorId, request.getTitle());
@@ -54,14 +58,15 @@ public class ArticleServiceImpl implements ArticleService {
         if (author == null) {
             throw new RuntimeException("作者不存在");
         }
+        userService.assertCanCreateContent(authorId);
 
         // 创建文章实体
         Article article = new Article();
-        article.setTitle(request.getTitle());
-        article.setContent(request.getContent());
-        article.setSummary(request.getSummary());
+        article.setTitle(normalizeText(request.getTitle()));
+        article.setContent(normalizeText(request.getContent()));
+        article.setSummary(normalizeText(request.getSummary()));
         article.setCategoryId(request.getCategoryId());
-        article.setCoverImage(request.getCoverImage());
+        article.setCoverImage(normalizeText(request.getCoverImage()));
         article.setAuthorId(authorId);
         // 草稿保持 DRAFT；管理员/超管发布免审核直接 APPROVED；普通用户进入 PENDING 待审核
         if (Boolean.TRUE.equals(request.getIsDraft())) {
@@ -80,8 +85,9 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedAt(LocalDateTime.now());
         
         // 设置标签字符串
-        if (request.getTags() != null && !request.getTags().isEmpty()) {
-            article.setTagsString(String.join(",", request.getTags()));
+        List<String> normalizedTags = normalizeTags(request.getTags());
+        if (!normalizedTags.isEmpty()) {
+            article.setTagsString(String.join(",", normalizedTags));
         } else {
             article.setTagsString("");
         }
@@ -109,17 +115,18 @@ public class ArticleServiceImpl implements ArticleService {
         if (!article.getAuthorId().equals(authorId)) {
             throw new RuntimeException("无权限修改此文章");
         }
+        userService.assertCanCreateContent(authorId);
 
         // 更新文章信息
-        article.setTitle(request.getTitle());
-        article.setContent(request.getContent());
-        article.setSummary(request.getSummary());
+        article.setTitle(normalizeText(request.getTitle()));
+        article.setContent(normalizeText(request.getContent()));
+        article.setSummary(normalizeText(request.getSummary()));
         article.setCategoryId(request.getCategoryId());
-        article.setCoverImage(request.getCoverImage());
+        article.setCoverImage(normalizeText(request.getCoverImage()));
         
         // 设置标签字符串
         if (request.getTags() != null) {
-            article.setTagsString(String.join(",", request.getTags()));
+            article.setTagsString(String.join(",", normalizeTags(request.getTags())));
         } else {
             article.setTagsString("");
         }
@@ -397,6 +404,21 @@ public class ArticleServiceImpl implements ArticleService {
         
         return featuredArticles.stream()
                 .map(ArticleResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    private String normalizeText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
+            return List.of();
+        }
+        return tags.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
                 .collect(Collectors.toList());
     }
 }

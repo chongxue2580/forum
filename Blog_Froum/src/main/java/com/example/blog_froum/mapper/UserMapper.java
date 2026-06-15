@@ -117,6 +117,11 @@ public interface UserMapper {
                         @Param("enabled") Boolean enabled,
                         @Param("secret") String secret);
 
+    /**
+     * 更新用户封禁信息
+     */
+    int updateModeration(User user);
+
     // 管理员功能需要的方法
     /**
      * 根据角色和状态查询用户

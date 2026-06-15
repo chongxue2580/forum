@@ -11,4 +11,6 @@ import java.util.List;
 public class BatchUserRequest {
     private List<Long> ids;
     private String reason;
+    private String banType;
+    private Integer durationDays;
 }

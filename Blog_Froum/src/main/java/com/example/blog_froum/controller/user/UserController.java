@@ -1,6 +1,9 @@
 package com.example.blog_froum.controller.user;
 
 import com.example.blog_froum.dto.question.QuestionResponse;
+import com.example.blog_froum.dto.user.EmailCodeRequest;
+import com.example.blog_froum.dto.user.ForgotPasswordCodeRequest;
+import com.example.blog_froum.dto.user.ForgotPasswordResetRequest;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.RegisterRequest;
@@ -11,6 +14,8 @@ import com.example.blog_froum.dto.user.PasswordUpdateRequest;
 import com.example.blog_froum.dto.user.ProfileUpdateRequest;
 import com.example.blog_froum.service.QuestionService;
 import com.example.blog_froum.service.CaptchaService;
+import com.example.blog_froum.service.EmailVerificationService;
+import com.example.blog_froum.service.OperationLogService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.service.UserStatsService;
 import com.example.blog_froum.utils.Result;
@@ -23,6 +28,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,6 +56,63 @@ public class UserController {
     @Autowired
     private CaptchaService captchaService;
 
+    @Autowired
+    private EmailVerificationService emailVerificationService;
+
+    @Autowired
+    private OperationLogService operationLogService;
+
+    /**
+     * 发送注册邮箱验证码
+     */
+    @PostMapping("/register/email-code")
+    @ApiOperation(value = "发送注册邮箱验证码", notes = "向注册邮箱发送6位验证码")
+    public Result<Void> sendRegistrationEmailCode(
+            @ApiParam(value = "邮箱信息", required = true)
+            @Valid @RequestBody EmailCodeRequest request) {
+        try {
+            emailVerificationService.sendRegistrationCode(request.getEmail());
+            return Result.success("验证码已发送，请查收邮箱");
+        } catch (Exception e) {
+            log.error("发送注册邮箱验证码失败，邮箱: {}, 错误: {}", request.getEmail(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 发送忘记密码邮箱验证码
+     */
+    @PostMapping("/forgot-password/email-code")
+    @ApiOperation(value = "发送忘记密码验证码", notes = "根据用户名或邮箱查找绑定邮箱并发送6位验证码")
+    public Result<Void> sendForgotPasswordEmailCode(
+            @ApiParam(value = "账号信息", required = true)
+            @Valid @RequestBody ForgotPasswordCodeRequest request) {
+        try {
+            emailVerificationService.sendPasswordResetCode(request.getAccount());
+            return Result.success("验证码已发送，请查收绑定邮箱");
+        } catch (Exception e) {
+            log.error("发送忘记密码验证码失败，账号: {}, 错误: {}", request.getAccount(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 忘记密码重置
+     */
+    @PostMapping("/forgot-password/reset")
+    @ApiOperation(value = "忘记密码重置", notes = "校验邮箱验证码后重置密码")
+    public Result<Void> resetForgottenPassword(
+            @ApiParam(value = "重置密码信息", required = true)
+            @Valid @RequestBody ForgotPasswordResetRequest request) {
+        try {
+            emailVerificationService.resetPassword(request.getAccount(), request.getVerificationCode(), request.getNewPassword());
+            return Result.success("密码重置成功");
+        } catch (Exception e) {
+            log.error("忘记密码重置失败，账号: {}, 错误: {}", request.getAccount(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
     /**
      * 用户注册
      */
@@ -60,6 +123,7 @@ public class UserController {
             @Valid @RequestBody RegisterRequest request) {
         try {
             captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
+            emailVerificationService.verifyRegistrationCode(request.getEmail(), request.getVerificationCode());
             log.info("收到用户注册请求，用户名: {}, 邮箱: {}", request.getUsername(), request.getEmail());
             UserResponse userResponse = userService.register(request);
             log.info("用户注册成功，用户名: {}", request.getUsername());
@@ -77,7 +141,8 @@ public class UserController {
     @ApiOperation(value = "用户登录", notes = "使用用户名/邮箱和密码登录系统")
     public Result<LoginResponse> login(
             @ApiParam(value = "登录信息", required = true)
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
         try {
             if (!StringUtils.hasText(request.getTwoFactorToken())) {
                 captchaService.validate(request.getCaptchaId(), request.getCaptchaPercentage());
@@ -85,6 +150,13 @@ public class UserController {
             log.info("收到用户登录请求，用户名/邮箱: {}", request.getUsername());
             LoginResponse loginResponse = userService.login(request);
             String message = Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor()) ? "需要两步验证码" : "登录成功";
+            if (!Boolean.TRUE.equals(loginResponse.getRequiresTwoFactor())
+                    && !Boolean.TRUE.equals(loginResponse.getRequiresTwoFactorSetup())
+                    && loginResponse.getUser() != null) {
+                UserResponse user = loginResponse.getUser();
+                operationLogService.record(user.getId(), "USER_LOGIN", "login",
+                        "用户登录系统", "USER", user.getId(), user.getNickname(), httpRequest);
+            }
             log.info("用户登录处理完成，用户名/邮箱: {}, 状态: {}", request.getUsername(), message);
             return Result.success(message, loginResponse);
         } catch (Exception e) {
@@ -192,10 +264,15 @@ public class UserController {
     @ApiOperation(value = "更新用户资料", notes = "更新指定用户的个人资料信息")
     public Result<UserResponse> updateProfile(
             @ApiParam(value = "用户ID", required = true, example = "1")
-            @PathVariable Long userId, 
+            @PathVariable Long userId,
             @ApiParam(value = "用户资料", required = true)
             @Valid @RequestBody ProfileUpdateRequest request) {
         try {
+            UserResponse currentUser = userService.getUserById(userId);
+            if (isEmailChanged(currentUser.getEmail(), request.getEmail())) {
+                emailVerificationService.verifyEmailChangeCode(request.getEmail(), request.getVerificationCode());
+            }
+
             UserResponse updatedUser = userService.updateProfile(userId, request);
             return Result.success("资料更新成功", updatedUser);
         } catch (Exception e) {
@@ -242,14 +319,24 @@ public class UserController {
     @ApiOperation(value = "更新用户密码", notes = "更新指定用户的登录密码")
     public Result<Void> updatePassword(
             @ApiParam(value = "用户ID", required = true, example = "1")
-            @PathVariable Long userId, 
+            @PathVariable Long userId,
             @ApiParam(value = "密码更新信息", required = true)
             @Valid @RequestBody PasswordUpdateRequest request) {
         try {
+            emailVerificationService.verifyPasswordChangeCode(userId, request.getVerificationCode());
             userService.updatePassword(userId, request.getCurrentPassword(), request.getNewPassword());
             return Result.success("密码更新成功");
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
+    }
+
+    private boolean isEmailChanged(String currentEmail, String newEmail) {
+        if (!StringUtils.hasText(newEmail)) {
+            return false;
+        }
+
+        String normalizedCurrent = currentEmail == null ? "" : currentEmail.trim();
+        return !newEmail.trim().equalsIgnoreCase(normalizedCurrent);
     }
 }

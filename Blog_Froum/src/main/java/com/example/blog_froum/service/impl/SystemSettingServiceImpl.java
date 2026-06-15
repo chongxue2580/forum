@@ -43,8 +43,8 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         define("content.maxUploadSize", 10, "最大上传大小", false);
         define("content.allowedFileTypes", "jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,zip,rar", "允许的文件类型", false);
 
-        define("email.smtpServer", "", "SMTP服务器", false);
-        define("email.smtpPort", 465, "SMTP端口", false);
+        define("email.smtpServer", "smtp-relay.brevo.com", "SMTP服务器", false);
+        define("email.smtpPort", 587, "SMTP端口", false);
         define("email.smtpUsername", "", "SMTP用户名", false);
         define("email.smtpPassword", "", "SMTP密码", true);
         define("email.senderName", "FroumX 社区", "发件人名称", false);
@@ -119,12 +119,14 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         Map<String, Object> email = getGroup(settings, "email");
 
         String host = asString(email.get("smtpServer"));
-        int port = asInt(email.get("smtpPort"), 465);
+        int port = asInt(email.get("smtpPort"), 587);
         String username = asString(email.get("smtpUsername"));
         String password = asString(email.get("smtpPassword"));
         String senderEmail = asString(email.get("senderEmail"));
         String senderName = asString(email.get("senderName"));
-        boolean enableSsl = asBoolean(email.get("enableSsl"), true);
+        boolean tlsEnabled = asBoolean(email.get("enableSsl"), true);
+        boolean enableSsl = tlsEnabled && port == 465;
+        boolean enableStartTls = tlsEnabled && port != 465;
         String target = StringUtils.hasText(recipient) ? recipient : senderEmail;
 
         if (!StringUtils.hasText(host)) {
@@ -148,7 +150,8 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.smtp.auth", String.valueOf(StringUtils.hasText(username)));
         props.put("mail.smtp.ssl.enable", String.valueOf(enableSsl));
-        props.put("mail.smtp.starttls.enable", String.valueOf(enableSsl));
+        props.put("mail.smtp.starttls.enable", String.valueOf(enableStartTls));
+        props.put("mail.smtp.starttls.required", String.valueOf(enableStartTls));
         props.put("mail.smtp.connectiontimeout", "8000");
         props.put("mail.smtp.timeout", "8000");
 

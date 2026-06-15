@@ -498,7 +498,7 @@ export default createStore({
 
         // 使用真实API登录
         const response = await userApi.login({
-          username,
+          username: username?.trim(),
           password,
           remember,
           captchaId,
@@ -542,16 +542,17 @@ export default createStore({
       }
     },
 
-    async register({ commit }, { username, email, password, captchaId, captchaPercentage }) {
+    async register({ commit }, { username, email, password, verificationCode, captchaId, captchaPercentage }) {
       try {
         commit('SET_LOADING', true)
         commit('SET_ERROR', null)
 
         // 调用注册API
         const response = await userApi.register({
-          username,
-          email,
+          username: username?.trim(),
+          email: email?.trim(),
           password,
+          verificationCode,
           captchaId,
           captchaPercentage
         })
@@ -671,7 +672,7 @@ export default createStore({
       }
     },
     
-    async updatePassword({ commit }, { currentPassword, newPassword }) {
+    async updatePassword({ commit }, { currentPassword, newPassword, verificationCode }) {
       try {
         commit('SET_LOADING', true)
         const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -679,7 +680,7 @@ export default createStore({
           throw new Error('无法确定当前用户ID')
         }
 
-        return await userApi.updatePassword(userInfo.id, { currentPassword, newPassword })
+        return await userApi.updatePassword(userInfo.id, { currentPassword, newPassword, verificationCode })
       } catch (error) {
         commit('SET_ERROR', error.message || '更新密码失败')
         throw error

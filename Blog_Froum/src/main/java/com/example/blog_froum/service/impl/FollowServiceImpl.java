@@ -4,6 +4,7 @@ import com.example.blog_froum.dto.follow.FollowQuestionResponse;
 import com.example.blog_froum.dto.follow.FollowUserResponse;
 import com.example.blog_froum.entity.Follow;
 import com.example.blog_froum.entity.Question;
+import com.example.blog_froum.entity.User;
 import com.example.blog_froum.mapper.UserMapper;
 import com.example.blog_froum.repository.FollowRepository;
 import com.example.blog_froum.repository.QuestionRepository;
@@ -40,7 +41,10 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public void followTarget(Long followerId, String targetType, Long targetId) {
+        targetType = normalizeTargetType(targetType);
         log.info("用户 {} 关注 {} {}", followerId, targetType, targetId);
+
+        validateFollowTarget(followerId, targetType, targetId);
 
         // 检查是否已经关注
         if (followRepository.existsByFollowerIdAndTargetTypeAndTargetId(followerId, targetType, targetId)) {
@@ -60,7 +64,11 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public void unfollowTarget(Long followerId, String targetType, Long targetId) {
+        targetType = normalizeTargetType(targetType);
         log.info("用户 {} 取消关注 {} {}", followerId, targetType, targetId);
+
+        validateFollower(followerId);
+        validateTargetId(targetId);
 
         // 检查是否已经关注
         if (!followRepository.existsByFollowerIdAndTargetTypeAndTargetId(followerId, targetType, targetId)) {
@@ -80,12 +88,14 @@ public class FollowServiceImpl implements FollowService {
     @Override
     @Transactional(readOnly = true)
     public boolean isTargetFollowedByUser(Long followerId, String targetType, Long targetId) {
+        targetType = normalizeTargetType(targetType);
         return followRepository.existsByFollowerIdAndTargetTypeAndTargetId(followerId, targetType, targetId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public long getTargetFollowCount(String targetType, Long targetId) {
+        targetType = normalizeTargetType(targetType);
         return followRepository.countByTargetTypeAndTargetId(targetType, targetId);
     }
 
@@ -96,6 +106,7 @@ public class FollowServiceImpl implements FollowService {
     @Override
     @Transactional(readOnly = true)
     public long getUserFollowingCount(Long followerId, String targetType) {
+        targetType = normalizeTargetType(targetType);
         return followRepository.countByFollowerIdAndTargetType(followerId, targetType);
     }
 
@@ -184,8 +195,12 @@ public class FollowServiceImpl implements FollowService {
     private void updateTargetFollowCount(String targetType, Long targetId, int delta) {
         switch (targetType) {
             case "QUESTION":
-                Question question = questionRepository.findById(targetId)
-                        .orElseThrow(() -> new RuntimeException("问答不存在"));
+                Optional<Question> optionalQuestion = questionRepository.findById(targetId);
+                if (!optionalQuestion.isPresent()) {
+                    log.warn("问答不存在，跳过关注数更新，问答ID: {}", targetId);
+                    return;
+                }
+                Question question = optionalQuestion.get();
                 if (delta > 0) {
                     question.incrementFollowCount();
                 } else {
@@ -198,6 +213,54 @@ public class FollowServiceImpl implements FollowService {
                 break;
             default:
                 log.warn("未知的目标类型: {}", targetType);
+        }
+    }
+
+    private String normalizeTargetType(String targetType) {
+        if (targetType == null) {
+            throw new RuntimeException("关注类型不能为空");
+        }
+        String normalizedTargetType = targetType.trim().toUpperCase();
+        if (!"USER".equals(normalizedTargetType) && !"QUESTION".equals(normalizedTargetType)) {
+            throw new RuntimeException("不支持的关注类型: " + targetType);
+        }
+        return normalizedTargetType;
+    }
+
+    private void validateFollowTarget(Long followerId, String targetType, Long targetId) {
+        validateFollower(followerId);
+        validateTargetId(targetId);
+
+        if ("USER".equals(targetType)) {
+            User targetUser = userMapper.findById(targetId);
+            if (targetUser == null) {
+                throw new RuntimeException("目标用户不存在");
+            }
+            if (followerId.equals(targetId)) {
+                throw new RuntimeException("不能关注自己");
+            }
+            return;
+        }
+
+        if (!questionRepository.existsById(targetId)) {
+            throw new RuntimeException("问答不存在");
+        }
+    }
+
+    private void validateFollower(Long followerId) {
+        if (followerId == null) {
+            throw new RuntimeException("用户未登录");
+        }
+
+        User follower = userMapper.findById(followerId);
+        if (follower == null) {
+            throw new RuntimeException("用户不存在");
+        }
+    }
+
+    private void validateTargetId(Long targetId) {
+        if (targetId == null) {
+            throw new RuntimeException("关注目标不能为空");
         }
     }
 }

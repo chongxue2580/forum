@@ -129,6 +129,11 @@ const routes = [
     component: () => import('../views/Register.vue')
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../views/ForgotPassword.vue')
+  },
+  {
     path: '/admin',
     name: 'AdminRoot',
     redirect: '/admin/dashboard'

@@ -2,11 +2,11 @@
   <div class="register-container">
     <div class="register-card">
       <h1>注册账号</h1>
-      
+
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
-      
+
       <form @submit.prevent="handleRegister">
         <div class="form-group">
           <label for="username">用户名</label>
@@ -21,7 +21,7 @@
             />
           </div>
         </div>
-        
+
         <div class="form-group">
           <label for="email">电子邮箱</label>
           <div class="input-wrapper">
@@ -35,7 +35,35 @@
             />
           </div>
         </div>
-        
+
+        <div class="form-group">
+          <label for="emailCode">邮箱验证码</label>
+          <div class="email-code-row">
+            <div class="input-wrapper email-code-input">
+              <font-awesome-icon :icon="['fas', 'shield-alt']" class="input-icon" />
+              <input
+                type="text"
+                id="emailCode"
+                v-model="emailCode"
+                placeholder="6位验证码"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                required
+              />
+            </div>
+            <button
+              type="button"
+              class="btn-code"
+              :disabled="sendingEmailCode || emailCodeCountdown > 0"
+              @click="handleSendEmailCode"
+            >
+              <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="sendingEmailCode" />
+              <span>{{ emailCodeButtonText }}</span>
+            </button>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="password">密码</label>
           <div class="input-wrapper">
@@ -84,7 +112,7 @@
         </div>
 
         <TacCaptcha ref="captchaRef" v-model="captchaValue" />
-        
+
         <button type="submit" class="btn-register" :disabled="loading">
           <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="loading" />
           {{ loading ? '注册中...' : '立即注册' }}
@@ -115,9 +143,10 @@
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue'
+import { computed, defineComponent, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
+import { userApi } from '../api/userApi'
 import TacCaptcha from '../components/TacCaptcha.vue'
 
 export default defineComponent({
@@ -129,23 +158,82 @@ export default defineComponent({
     
     const username = ref('')
     const email = ref('')
+    const emailCode = ref('')
     const password = ref('')
     const confirmPassword = ref('')
     const showPassword = ref(false)
     const showConfirmPassword = ref(false)
     const agreeTerms = ref(false)
     const loading = ref(false)
+    const sendingEmailCode = ref(false)
+    const emailCodeCountdown = ref(0)
+    let emailCodeTimer = null
     const error = ref('')
     const captchaValue = ref(null)
     const captchaRef = ref(null)
-    
+    const emailCodeButtonText = computed(() => {
+      if (sendingEmailCode.value) {
+        return '发送中'
+      }
+      return emailCodeCountdown.value > 0 ? `${emailCodeCountdown.value}s` : '发送验证码'
+    })
+
+    const startEmailCodeCountdown = () => {
+      emailCodeCountdown.value = 60
+      if (emailCodeTimer) {
+        clearInterval(emailCodeTimer)
+      }
+      emailCodeTimer = setInterval(() => {
+        emailCodeCountdown.value -= 1
+        if (emailCodeCountdown.value <= 0) {
+          clearInterval(emailCodeTimer)
+          emailCodeTimer = null
+        }
+      }, 1000)
+    }
+
+    const handleSendEmailCode = async () => {
+      const normalizedEmail = email.value.trim()
+      if (!normalizedEmail) {
+        error.value = '请先填写邮箱地址'
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        error.value = '邮箱格式不正确'
+        return
+      }
+
+      sendingEmailCode.value = true
+      error.value = ''
+
+      try {
+        await userApi.sendRegistrationEmailCode(normalizedEmail)
+        startEmailCodeCountdown()
+      } catch (err) {
+        error.value = err.message || '验证码发送失败，请稍后重试'
+      } finally {
+        sendingEmailCode.value = false
+      }
+    }
+
+    onUnmounted(() => {
+      if (emailCodeTimer) {
+        clearInterval(emailCodeTimer)
+      }
+    })
+
     const handleRegister = async () => {
       // 表单验证
-      if (!username.value || !email.value || !password.value || !confirmPassword.value) {
+      if (!username.value || !email.value || !emailCode.value || !password.value || !confirmPassword.value) {
         error.value = '请填写所有必填项'
         return
       }
-      
+
+      if (!/^\d{6}$/.test(emailCode.value)) {
+        error.value = '邮箱验证码必须是6位数字'
+        return
+      }
+
       if (password.value !== confirmPassword.value) {
         error.value = '两次输入的密码不一致'
         return
@@ -160,7 +248,7 @@ export default defineComponent({
         error.value = '请先完成验证码验证'
         return
       }
-      
+
       loading.value = true
       error.value = ''
       
@@ -170,6 +258,7 @@ export default defineComponent({
           username: username.value,
           email: email.value,
           password: password.value,
+          verificationCode: emailCode.value,
           captchaId: captchaValue.value.captchaId,
           captchaPercentage: captchaValue.value.captchaPercentage
         })
@@ -179,7 +268,7 @@ export default defineComponent({
           path: '/login',
           query: {
             registered: '1',
-            username: username.value
+            account: email.value.trim()
           }
         })
       } catch (err) {
@@ -194,15 +283,20 @@ export default defineComponent({
     return {
       username,
       email,
+      emailCode,
       password,
       confirmPassword,
       showPassword,
       showConfirmPassword,
       agreeTerms,
       loading,
+      sendingEmailCode,
+      emailCodeCountdown,
+      emailCodeButtonText,
       error,
       captchaValue,
       captchaRef,
+      handleSendEmailCode,
       handleRegister
     }
   }
@@ -292,6 +386,44 @@ input[type="password"]:focus {
   border: none;
   color: #999;
   cursor: pointer;
+}
+
+.email-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.email-code-input {
+  min-width: 0;
+}
+
+.btn-code {
+  border: 1px solid #1890ff;
+  border-radius: 4px;
+  background: #fff;
+  color: #1890ff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 45px;
+  white-space: nowrap;
+}
+
+.btn-code:hover:not(:disabled) {
+  background: #e6f4ff;
+}
+
+.btn-code:disabled {
+  border-color: #91caff;
+  color: #91caff;
+  cursor: not-allowed;
 }
 
 .agreement {
@@ -426,5 +558,9 @@ input[type="password"]:focus {
   .social-register {
     flex-direction: column;
   }
+
+  .email-code-row {
+    grid-template-columns: 1fr;
+  }
 }
-</style> 
+</style>

@@ -1,14 +1,6 @@
 import request from '../utils/request'
 
-// 获取当前用户ID的辅助函数
-function getCurrentUserId() {
-  try {
-    const user = JSON.parse(localStorage.getItem('userInfo') || localStorage.getItem('user') || '{}')
-    return user.id || null
-  } catch (error) {
-    return null
-  }
-}
+const unwrapPageContent = (response) => response?.data?.content || response?.data || response?.content || []
 
 // 用户相关API
 export const userApi = {
@@ -52,6 +44,51 @@ export const userApi = {
       return response // 响应拦截器已经返回了response.data，所以这里直接返回response
     } catch (error) {
       console.error('用户注册失败:', error)
+      throw error
+    }
+  },
+
+  async sendRegistrationEmailCode(email) {
+    try {
+      return await request.post('/user/register/email-code', { email })
+    } catch (error) {
+      console.error('发送注册邮箱验证码失败:', error)
+      throw error
+    }
+  },
+
+  async sendForgotPasswordCode(account) {
+    try {
+      return await request.post('/user/forgot-password/email-code', { account })
+    } catch (error) {
+      console.error('发送忘记密码验证码失败:', error)
+      throw error
+    }
+  },
+
+  async resetForgotPassword(resetData) {
+    try {
+      return await request.post('/user/forgot-password/reset', resetData)
+    } catch (error) {
+      console.error('重置密码失败:', error)
+      throw error
+    }
+  },
+
+  async sendEmailChangeCode(email) {
+    try {
+      return await request.post('/user/profile/email-change/email-code', { email })
+    } catch (error) {
+      console.error('发送更换邮箱验证码失败:', error)
+      throw error
+    }
+  },
+
+  async sendPasswordChangeCode() {
+    try {
+      return await request.post('/user/profile/password-change/email-code')
+    } catch (error) {
+      console.error('发送修改密码验证码失败:', error)
       throw error
     }
   },
@@ -117,11 +154,7 @@ export const userApi = {
   // 关注用户
   async followUser(targetUserId) {
     try {
-      const currentUserId = getCurrentUserId()
-      if (!currentUserId) {
-        throw new Error('用户未登录')
-      }
-      const response = await request.post(`/follows/users/${targetUserId}?userId=${currentUserId}`)
+      const response = await request.post(`/follows/USER/${targetUserId}`)
       return response
     } catch (error) {
       console.error('关注用户失败:', error)
@@ -132,11 +165,7 @@ export const userApi = {
   // 取消关注用户
   async unfollowUser(targetUserId) {
     try {
-      const currentUserId = getCurrentUserId()
-      if (!currentUserId) {
-        throw new Error('用户未登录')
-      }
-      const response = await request.delete(`/follows/users/${targetUserId}?userId=${currentUserId}`)
+      const response = await request.delete(`/follows/USER/${targetUserId}`)
       return response
     } catch (error) {
       console.error('取消关注用户失败:', error)
@@ -147,12 +176,8 @@ export const userApi = {
   // 检查是否关注用户
   async checkFollowStatus(targetUserId) {
     try {
-      const currentUserId = getCurrentUserId()
-      if (!currentUserId) {
-        return false
-      }
-      const response = await request.get(`/follows/users/check?userId=${currentUserId}&targetUserId=${targetUserId}`)
-      return response
+      const response = await request.get(`/follows/USER/${targetUserId}/status`)
+      return Boolean(response.data)
     } catch (error) {
       console.error('检查关注状态失败:', error)
       throw error
@@ -162,8 +187,10 @@ export const userApi = {
   // 获取用户关注列表
   async getUserFollowing(userId, page = 0, size = 10) {
     try {
-      const response = await request.get(`/follows/users/following?userId=${userId}&page=${page}&size=${size}`)
-      return response
+      const response = await request.get('/follows/users', {
+        params: { userId, page, size }
+      })
+      return unwrapPageContent(response)
     } catch (error) {
       console.error('获取关注列表失败:', error)
       throw error
@@ -173,8 +200,10 @@ export const userApi = {
   // 获取用户粉丝列表
   async getUserFollowers(userId, page = 0, size = 10) {
     try {
-      const response = await request.get(`/follows/users/followers?userId=${userId}&page=${page}&size=${size}`)
-      return response
+      const response = await request.get('/follows/followers', {
+        params: { userId, page, size }
+      })
+      return unwrapPageContent(response)
     } catch (error) {
       console.error('获取粉丝列表失败:', error)
       throw error

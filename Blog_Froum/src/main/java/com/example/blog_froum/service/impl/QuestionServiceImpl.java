@@ -16,6 +16,7 @@ import com.example.blog_froum.service.FollowService;
 import com.example.blog_froum.service.LikeService;
 import com.example.blog_froum.service.NotificationService;
 import com.example.blog_froum.service.QuestionService;
+import com.example.blog_froum.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -59,6 +60,9 @@ public class QuestionServiceImpl implements QuestionService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private UserService userService;
+
     @Override
     public QuestionResponse createQuestion(Long authorId, QuestionCreateRequest request) {
         log.info("创建问答，作者ID: {}, 标题: {}", authorId, request.getTitle());
@@ -68,6 +72,7 @@ public class QuestionServiceImpl implements QuestionService {
         if (author == null) {
             throw new RuntimeException("作者不存在");
         }
+        userService.assertCanCreateContent(authorId);
 
         // 创建问答实体
         Question question = new Question();
@@ -94,6 +99,7 @@ public class QuestionServiceImpl implements QuestionService {
         if (!question.getAuthorId().equals(authorId)) {
             throw new RuntimeException("无权限修改此问答");
         }
+        userService.assertCanCreateContent(authorId);
 
         // 更新问答信息
         question.setTitle(request.getTitle());
