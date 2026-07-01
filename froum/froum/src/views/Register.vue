@@ -124,13 +124,21 @@
       </div>
       
       <div class="social-register">
-        <button class="btn-social github">
+        <button
+          class="btn-social github"
+          :disabled="!!oauthLoadingProvider"
+          @click="handleOAuthRegister('github')"
+        >
           <font-awesome-icon :icon="['fab', 'github']" />
-          GitHub账号注册
+          {{ oauthLoadingProvider === 'github' ? '跳转中...' : 'GitHub账号注册' }}
         </button>
-        <button class="btn-social google">
+        <button
+          class="btn-social google"
+          :disabled="!!oauthLoadingProvider"
+          @click="handleOAuthRegister('google')"
+        >
           <font-awesome-icon :icon="['fab', 'google']" />
-          Google账号注册
+          {{ oauthLoadingProvider === 'google' ? '跳转中...' : 'Google账号注册' }}
         </button>
       </div>
       
@@ -171,6 +179,7 @@ export default defineComponent({
     const error = ref('')
     const captchaValue = ref(null)
     const captchaRef = ref(null)
+    const oauthLoadingProvider = ref('')
     const emailCodeButtonText = computed(() => {
       if (sendingEmailCode.value) {
         return '发送中'
@@ -279,6 +288,26 @@ export default defineComponent({
         loading.value = false
       }
     }
+
+    const handleOAuthRegister = async (provider) => {
+      oauthLoadingProvider.value = provider
+      error.value = ''
+
+      try {
+        sessionStorage.setItem('oauthRedirect', '/')
+        sessionStorage.setItem('oauthProvider', provider)
+        const response = await userApi.getOAuthAuthorizeUrl(provider)
+        const authorizationUrl = response?.data?.authorizationUrl
+        if (!authorizationUrl) {
+          throw new Error(response?.message || '第三方注册暂不可用')
+        }
+        window.location.href = authorizationUrl
+      } catch (err) {
+        console.error('第三方注册跳转失败:', err)
+        error.value = err.message || '第三方注册暂不可用'
+        oauthLoadingProvider.value = ''
+      }
+    }
     
     return {
       username,
@@ -296,8 +325,10 @@ export default defineComponent({
       error,
       captchaValue,
       captchaRef,
+      oauthLoadingProvider,
       handleSendEmailCode,
-      handleRegister
+      handleRegister,
+      handleOAuthRegister
     }
   }
 })
@@ -526,6 +557,11 @@ input[type="password"]:focus {
 
 .btn-social:hover {
   opacity: 0.9;
+}
+
+.btn-social:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .github {

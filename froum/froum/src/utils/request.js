@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 10000,
+  timeout: 30000,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8'
@@ -29,6 +29,15 @@ const createBusinessError = (response, data) => {
 }
 
 const isAdminUrl = (url = '') => typeof url === 'string' && url.startsWith('/admin/')
+
+const isAuthStateError = (message = '') => {
+  return message.includes('用户不存在') ||
+    message.includes('账号已被') ||
+    message.includes('账户被') ||
+    message.includes('登录已过期') ||
+    message.includes('令牌无效') ||
+    message.includes('token')
+}
 
 const isProtectedUserPath = (path = window.location.pathname) => {
   return path === '/messages' ||
@@ -87,6 +96,27 @@ const handleUnauthorized = (error) => {
   }
 }
 
+const handleInvalidAuthState = (error) => {
+  const requestUrl = error.config?.url || ''
+  const adminRequest = isAdminUrl(requestUrl) || window.location.pathname.startsWith('/admin/')
+
+  if (adminRequest) {
+    clearAdminAuth()
+  } else {
+    clearUserAuth()
+  }
+
+  if (window.location.pathname.startsWith('/admin/') && window.location.pathname !== '/admin/login') {
+    window.location.href = '/admin/login'
+    return
+  }
+
+  if (isProtectedUserPath()) {
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+    window.location.href = `/login?redirect=${redirect}`
+  }
+}
+
 request.interceptors.request.use(
   config => {
     stripDuplicatedApiPrefix(config)
@@ -132,9 +162,14 @@ request.interceptors.response.use(
   error => {
     if (error.response) {
       const { status, data } = error.response
+      const responseMessage = data?.message || data?.msg || ''
 
       if (status === 401) {
         handleUnauthorized(error)
+      }
+
+      if (status === 403 && isAuthStateError(responseMessage)) {
+        handleInvalidAuthState(error)
       }
 
       const messageMap = {
@@ -143,7 +178,7 @@ request.interceptors.response.use(
         404: '请求的资源不存在',
         500: '服务器内部错误'
       }
-      ElMessage.error(data?.message || data?.msg || messageMap[status] || `请求失败 (${status})`)
+      ElMessage.error(responseMessage || messageMap[status] || `请求失败 (${status})`)
     } else if (error.request) {
       ElMessage.error('网络连接失败，请检查网络')
     } else {

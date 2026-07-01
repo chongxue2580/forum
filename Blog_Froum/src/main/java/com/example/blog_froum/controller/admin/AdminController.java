@@ -1,6 +1,7 @@
 package com.example.blog_froum.controller.admin;
 
 import com.example.blog_froum.dto.admin.AdminTwoFactorSetupConfirmRequest;
+import com.example.blog_froum.dto.admin.AdminTwoFactorEmailCodeRequest;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
 import com.example.blog_froum.dto.user.UserResponse;
@@ -53,10 +54,16 @@ public class AdminController {
             LoginResponse loginResponse;
 
             if (StringUtils.hasText(request.getTwoFactorToken())) {
-                loginResponse = userService.completeTwoFactorLogin(
-                        request.getTwoFactorToken(),
-                        request.getTwoFactorCode(),
-                        true);
+                if ("email".equalsIgnoreCase(request.getTwoFactorMethod())) {
+                    loginResponse = userService.completeAdminTwoFactorEmailLogin(
+                            request.getTwoFactorToken(),
+                            request.getTwoFactorCode());
+                } else {
+                    loginResponse = userService.completeTwoFactorLogin(
+                            request.getTwoFactorToken(),
+                            request.getTwoFactorCode(),
+                            true);
+                }
             } else {
                 User admin = userService.authenticateUser(request.getUsername(), request.getPassword());
 
@@ -96,6 +103,19 @@ public class AdminController {
             return Result.success("管理员登录成功", loginResponse);
         } catch (Exception e) {
             log.error("管理员登录失败，用户名/邮箱: {}, 错误: {}", request.getUsername(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/2fa/email-code")
+    @ApiOperation(value = "发送管理员登录邮箱验证码", notes = "账号密码校验通过后，可使用两步验证临时令牌发送邮箱验证码")
+    public Result<Void> sendAdminTwoFactorEmailCode(
+            @Valid @RequestBody AdminTwoFactorEmailCodeRequest request) {
+        try {
+            userService.sendAdminTwoFactorEmailCode(request.getTwoFactorToken());
+            return Result.success("验证码已发送，请查收管理员邮箱");
+        } catch (Exception e) {
+            log.error("管理员邮箱验证码发送失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }

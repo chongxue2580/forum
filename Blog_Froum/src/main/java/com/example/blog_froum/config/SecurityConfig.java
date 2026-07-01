@@ -52,10 +52,12 @@ public class SecurityConfig {
                 // 允许登录注册接口
                 .antMatchers("/api/user/login", "/api/user/register").permitAll()
                 .antMatchers("/api/user/register/email-code").permitAll()
+                .antMatchers("/api/user/oauth/*/authorize", "/api/user/oauth/*/callback").permitAll()
                 .antMatchers("/api/user/forgot-password/email-code", "/api/user/forgot-password/reset").permitAll()
                 .antMatchers("/api/user/profile/login", "/api/user/profile/register").permitAll()
                 .antMatchers("/api/user/check-username", "/api/user/check-email").permitAll()
                 .antMatchers("/api/admin/login").permitAll()
+                .antMatchers("/api/admin/2fa/email-code").permitAll()
                 .antMatchers("/api/admin/2fa/setup/confirm").permitAll()
                 // 其他请求都允许通过，由JWT拦截器处理
                 .anyRequest().permitAll()

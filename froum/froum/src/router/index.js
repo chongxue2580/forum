@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { userApi } from '../api/userApi'
 
 const routes = [
   {
@@ -134,6 +135,11 @@ const routes = [
     component: () => import('../views/ForgotPassword.vue')
   },
   {
+    path: '/oauth/callback',
+    name: 'OAuthCallback',
+    component: () => import('../views/OAuthCallback.vue')
+  },
+  {
     path: '/admin',
     name: 'AdminRoot',
     redirect: '/admin/dashboard'
@@ -175,23 +181,63 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  const userInfoJson = localStorage.getItem('userInfo')
-  const isAuthenticated = Boolean(token && userInfoJson)
-  let isAdmin = false
+const isAdminRole = (role) => ['ADMIN', 'SUPER_ADMIN', 'admin'].includes(role)
 
-  if (isAuthenticated) {
-    try {
-      const userInfo = JSON.parse(userInfoJson)
-      isAdmin = userInfo.role === 'ADMIN' || userInfo.role === 'SUPER_ADMIN' || userInfo.role === 'admin'
-    } catch (error) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      localStorage.removeItem('adminToken')
-      localStorage.removeItem('adminUser')
-    }
+const clearAuthState = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+  localStorage.removeItem('adminToken')
+  localStorage.removeItem('adminUser')
+}
+
+const readCachedUser = () => {
+  const userInfoJson = localStorage.getItem('userInfo')
+  if (!userInfoJson) {
+    return null
   }
+
+  try {
+    return JSON.parse(userInfoJson)
+  } catch (error) {
+    clearAuthState()
+    return null
+  }
+}
+
+const validateCurrentUser = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    return null
+  }
+
+  try {
+    const response = await userApi.getCurrentUser()
+    const currentUser = response?.data || response
+    if (!currentUser?.id) {
+      throw new Error('登录状态无效')
+    }
+
+    localStorage.setItem('userInfo', JSON.stringify(currentUser))
+    if (isAdminRole(currentUser.role) && localStorage.getItem('adminToken') === token) {
+      localStorage.setItem('adminUser', JSON.stringify(currentUser))
+    }
+    return currentUser
+  } catch (error) {
+    clearAuthState()
+    return null
+  }
+}
+
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('token')
+  const shouldValidate = Boolean(token) && (
+    to.meta.requiresAuth ||
+    to.meta.requiresAdmin ||
+    to.path === '/admin/login'
+  )
+  const userInfo = shouldValidate ? await validateCurrentUser() : readCachedUser()
+  const isAuthenticated = Boolean(token && userInfo)
+  const isAdmin = isAdminRole(userInfo?.role)
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({

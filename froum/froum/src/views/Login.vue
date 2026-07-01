@@ -95,13 +95,21 @@
       </div>
       
       <div class="social-login">
-        <button class="btn-social github">
+        <button
+          class="btn-social github"
+          :disabled="!!oauthLoadingProvider"
+          @click="handleOAuthLogin('github')"
+        >
           <font-awesome-icon :icon="['fab', 'github']" />
-          <span>GitHub登录</span>
+          <span>{{ oauthLoadingProvider === 'github' ? '跳转中...' : 'GitHub登录' }}</span>
         </button>
-        <button class="btn-social google">
+        <button
+          class="btn-social google"
+          :disabled="!!oauthLoadingProvider"
+          @click="handleOAuthLogin('google')"
+        >
           <font-awesome-icon :icon="['fab', 'google']" />
-          <span>Google登录</span>
+          <span>{{ oauthLoadingProvider === 'google' ? '跳转中...' : 'Google登录' }}</span>
         </button>
       </div>
       
@@ -123,6 +131,7 @@
 import { computed, defineComponent, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
+import { userApi } from '../api/userApi'
 import TacCaptcha from '../components/TacCaptcha.vue'
 
 export default defineComponent({
@@ -145,6 +154,7 @@ export default defineComponent({
     const requiresTwoFactor = ref(false)
     const twoFactorCode = ref('')
     const twoFactorToken = ref('')
+    const oauthLoadingProvider = ref('')
 
     const loginButtonText = computed(() => requiresTwoFactor.value ? '验证并登录' : '登录')
 
@@ -161,7 +171,31 @@ export default defineComponent({
       if (route.query.registered === '1') {
         infoMessage.value = '注册成功，邮箱和密码已填入，完成验证码后即可登录'
       }
+      if (route.query.oauthError) {
+        error.value = String(route.query.oauthError)
+      }
     })
+
+    const handleOAuthLogin = async (provider) => {
+      oauthLoadingProvider.value = provider
+      error.value = ''
+
+      try {
+        const redirectPath = route.query.redirect ? String(route.query.redirect) : '/'
+        sessionStorage.setItem('oauthRedirect', redirectPath)
+        sessionStorage.setItem('oauthProvider', provider)
+        const response = await userApi.getOAuthAuthorizeUrl(provider)
+        const authorizationUrl = response?.data?.authorizationUrl
+        if (!authorizationUrl) {
+          throw new Error(response?.message || '第三方登录暂不可用')
+        }
+        window.location.href = authorizationUrl
+      } catch (err) {
+        console.error('第三方登录跳转失败:', err)
+        error.value = err.message || '第三方登录暂不可用'
+        oauthLoadingProvider.value = ''
+      }
+    }
     
     const handleLogin = async () => {
       const account = username.value.trim()
@@ -230,8 +264,10 @@ export default defineComponent({
       captchaRef,
       requiresTwoFactor,
       twoFactorCode,
+      oauthLoadingProvider,
       loginButtonText,
-      handleLogin
+      handleLogin,
+      handleOAuthLogin
     }
   }
 })
@@ -463,6 +499,11 @@ input[type="password"]:focus {
   transition: var(--transition);
   border: 1px solid var(--border-color);
   background-color: var(--bg-white);
+}
+
+.btn-social:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .github {

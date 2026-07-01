@@ -411,14 +411,14 @@ export default createStore({
     },
     
     // 管理员登录
-    async adminLogin({ commit }, { username, password, twoFactorCode, twoFactorToken }) {
+    async adminLogin({ commit }, { username, password, twoFactorCode, twoFactorToken, twoFactorMethod }) {
       try {
         commit('SET_LOADING', true)
         commit('SET_ERROR', null)
 
         // 调用真实的后端API
         const { adminLogin } = await import('../api/admin.js')
-        const response = await adminLogin({ username, password, twoFactorCode, twoFactorToken })
+        const response = await adminLogin({ username, password, twoFactorCode, twoFactorToken, twoFactorMethod })
 
         // 检查响应格式
         if (response && (response.code === 200 || response.code === 1) && response.data) {
@@ -450,6 +450,22 @@ export default createStore({
       } catch (error) {
         console.error('管理员登录错误:', error)
         const errorMessage = error.response?.data?.message || error.message || '管理员登录失败'
+        commit('SET_ERROR', errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        commit('SET_LOADING', false)
+      }
+    },
+
+    async sendAdminTwoFactorEmailCode({ commit }, { twoFactorToken }) {
+      try {
+        commit('SET_LOADING', true)
+        commit('SET_ERROR', null)
+
+        const { sendAdminTwoFactorEmailCode } = await import('../api/admin.js')
+        return await sendAdminTwoFactorEmailCode({ twoFactorToken })
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message || '邮箱验证码发送失败'
         commit('SET_ERROR', errorMessage)
         throw new Error(errorMessage)
       } finally {
@@ -573,6 +589,37 @@ export default createStore({
       }
     },
 
+    async oauthLogin({ commit }, { provider, code, state }) {
+      try {
+        commit('SET_LOADING', true)
+        commit('SET_ERROR', null)
+
+        const response = await userApi.completeOAuthLogin(provider, { code, state })
+        if (response && response.success === true && response.data) {
+          const { token, user } = response.data
+          if (!token || !user) {
+            throw new Error(response?.message || response?.msg || '第三方登录失败')
+          }
+
+          localStorage.setItem('token', token)
+          localStorage.setItem('userInfo', JSON.stringify(user))
+
+          commit('SET_USER', user)
+          commit('SET_AUTHENTICATED', true)
+          return { success: true, user }
+        }
+
+        throw new Error(response?.message || response?.msg || '第三方登录失败')
+      } catch (error) {
+        console.error('第三方登录错误:', error)
+        const errorMessage = error.response?.data?.message || error.message || '第三方登录失败'
+        commit('SET_ERROR', errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        commit('SET_LOADING', false)
+      }
+    },
+
     logout({ commit }) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
@@ -583,17 +630,24 @@ export default createStore({
       commit('SET_AUTHENTICATED', false)
     },
     
-    checkAuth({ commit }) {
+    async checkAuth({ commit }) {
       const token = localStorage.getItem('token')
       const userInfoJson = localStorage.getItem('userInfo')
 
       if (token && userInfoJson) {
         try {
-          const userInfo = JSON.parse(userInfoJson)
-          commit('SET_USER', userInfo)
+          JSON.parse(userInfoJson)
+          const response = await userApi.getCurrentUser()
+          const currentUser = response?.data || response
+          if (!currentUser?.id) {
+            throw new Error('登录状态无效')
+          }
+
+          localStorage.setItem('userInfo', JSON.stringify(currentUser))
+          commit('SET_USER', currentUser)
           commit('SET_AUTHENTICATED', true)
         } catch (e) {
-          console.error('解析用户信息失败:', e)
+          console.error('恢复登录状态失败:', e)
           localStorage.removeItem('token')
           localStorage.removeItem('userInfo')
           localStorage.removeItem('adminToken')

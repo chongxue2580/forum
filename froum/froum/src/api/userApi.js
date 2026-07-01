@@ -57,6 +57,24 @@ export const userApi = {
     }
   },
 
+  async getOAuthAuthorizeUrl(provider) {
+    try {
+      return await request.get(`/user/oauth/${provider}/authorize`)
+    } catch (error) {
+      console.error('获取第三方登录授权地址失败:', error)
+      throw error
+    }
+  },
+
+  async completeOAuthLogin(provider, callbackData) {
+    try {
+      return await request.post(`/user/oauth/${provider}/callback`, callbackData)
+    } catch (error) {
+      console.error('第三方登录失败:', error)
+      throw error
+    }
+  },
+
   async sendForgotPasswordCode(account) {
     try {
       return await request.post('/user/forgot-password/email-code', { account })

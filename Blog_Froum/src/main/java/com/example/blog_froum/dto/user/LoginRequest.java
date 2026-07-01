@@ -24,4 +24,6 @@ public class LoginRequest {
     private String twoFactorCode;
 
     private String twoFactorToken;
+
+    private String twoFactorMethod;
 }

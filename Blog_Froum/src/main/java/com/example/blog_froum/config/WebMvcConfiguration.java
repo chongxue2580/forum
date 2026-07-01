@@ -73,6 +73,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/api/admin/**")
                 .excludePathPatterns("/api/admin/login")
+                .excludePathPatterns("/api/admin/2fa/email-code")
                 .excludePathPatterns("/api/admin/2fa/setup/confirm");
 
         // 用户拦截器 - 拦截需要认证的接口，内部根据HTTP方法判断
@@ -98,6 +99,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 .excludePathPatterns("/api/user/login")
                 .excludePathPatterns("/api/user/register")
                 .excludePathPatterns("/api/user/register/email-code")
+                .excludePathPatterns("/api/user/oauth/*/authorize")
+                .excludePathPatterns("/api/user/oauth/*/callback")
                 .excludePathPatterns("/api/user/forgot-password/email-code")
                 .excludePathPatterns("/api/user/forgot-password/reset")
                 .excludePathPatterns("/api/user/profile/login")

@@ -133,6 +133,16 @@ public interface UserService {
     LoginResponse completeTwoFactorLogin(String twoFactorToken, String code, boolean requireAdmin);
 
     /**
+     * 发送管理员登录两步验证邮箱验证码。
+     */
+    void sendAdminTwoFactorEmailCode(String twoFactorToken);
+
+    /**
+     * 使用邮箱验证码完成管理员两步验证登录。
+     */
+    LoginResponse completeAdminTwoFactorEmailLogin(String twoFactorToken, String code);
+
+    /**
      * 管理员首次登录发起两步验证绑定
      */
     LoginResponse beginAdminTwoFactorSetup(User user);

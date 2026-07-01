@@ -36,6 +36,11 @@ public interface UserMapper {
     User findByUsernameOrEmail(@Param("username") String username, @Param("email") String email);
 
     /**
+     * 根据第三方账号查询用户
+     */
+    User findByOauthProviderAndSubject(@Param("provider") String provider, @Param("subject") String subject);
+
+    /**
      * 插入用户
      */
     int insert(User user);
@@ -116,6 +121,11 @@ public interface UserMapper {
     int updateTwoFactor(@Param("id") Long id,
                         @Param("enabled") Boolean enabled,
                         @Param("secret") String secret);
+
+    /**
+     * 绑定第三方账号
+     */
+    int updateOauthIdentity(User user);
 
     /**
      * 更新用户封禁信息

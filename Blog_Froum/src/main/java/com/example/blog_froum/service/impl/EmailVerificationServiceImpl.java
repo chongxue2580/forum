@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private static final String PURPOSE_REGISTER = "register";
     private static final String PURPOSE_EMAIL_CHANGE = "email-change";
     private static final String PURPOSE_PASSWORD_CHANGE = "password-change";
+    private static final String PURPOSE_ADMIN_TWO_FACTOR = "admin-2fa-login";
     private static final String PURPOSE_PASSWORD_RESET = "password-reset";
     private static final String CODE_PLACEHOLDER = "${code}";
 
@@ -111,6 +113,26 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     public void verifyPasswordChangeCode(Long userId, String code) {
         User user = findUserById(userId);
         verifyCode(normalizeEmail(user.getEmail()), PURPOSE_PASSWORD_CHANGE, code);
+    }
+
+    @Override
+    public void sendAdminTwoFactorCode(Long userId) {
+        User user = findUserById(userId);
+        if (!user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+
+        sendCode(normalizeEmail(user.getEmail()), PURPOSE_ADMIN_TWO_FACTOR, "管理员登录验证", buildAdminTwoFactorEmailHtml(CODE_PLACEHOLDER));
+    }
+
+    @Override
+    public void verifyAdminTwoFactorCode(Long userId, String code) {
+        User user = findUserById(userId);
+        if (!user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+
+        verifyCode(normalizeEmail(user.getEmail()), PURPOSE_ADMIN_TWO_FACTOR, code);
     }
 
     @Override
@@ -230,6 +252,9 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             helper.setSubject(subject);
             helper.setText(html, true);
             mailSender.send(message);
+        } catch (MailAuthenticationException e) {
+            log.error("邮箱验证码发送认证失败，收件人: {}", recipient, e);
+            throw new RuntimeException("SMTP账号或授权码错误，请检查邮件设置");
         } catch (Exception e) {
             log.error("邮箱验证码发送失败，收件人: {}", recipient, e);
             throw new RuntimeException("邮件发送失败，请稍后重试");
@@ -330,6 +355,10 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     private String buildPasswordChangeEmailHtml(String codePlaceholder) {
         return buildEmailHtml("修改密码验证", "请输入以下验证码确认本次密码修改。", codePlaceholder);
+    }
+
+    private String buildAdminTwoFactorEmailHtml(String codePlaceholder) {
+        return buildEmailHtml("管理员登录验证", "请输入以下验证码完成本次管理员登录。", codePlaceholder);
     }
 
     private String buildPasswordResetEmailHtml(String codePlaceholder) {

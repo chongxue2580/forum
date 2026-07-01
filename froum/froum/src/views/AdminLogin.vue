@@ -66,21 +66,51 @@
           <a v-if="setupOtpAuthUrl" class="otp-link" :href="setupOtpAuthUrl">打开验证器添加账号</a>
         </div>
 
+        <div v-if="requiresTwoFactor && !requiresTwoFactorSetup" class="verification-methods">
+          <button
+            type="button"
+            class="method-button"
+            :class="{ active: twoFactorMethod === 'totp' }"
+            @click="selectTwoFactorMethod('totp')"
+          >
+            验证器
+          </button>
+          <button
+            type="button"
+            class="method-button"
+            :class="{ active: twoFactorMethod === 'email' }"
+            @click="selectTwoFactorMethod('email')"
+          >
+            邮箱验证码
+          </button>
+        </div>
+
         <div v-if="requiresTwoFactor || requiresTwoFactorSetup" class="form-group">
-          <label for="twoFactorCode">两步验证码</label>
+          <label for="twoFactorCode">{{ twoFactorCodeLabel }}</label>
           <div class="input-wrapper">
-            <font-awesome-icon :icon="['fas', 'shield-alt']" class="input-icon" />
+            <font-awesome-icon :icon="['fas', twoFactorMethod === 'email' && !requiresTwoFactorSetup ? 'envelope' : 'shield-alt']" class="input-icon" />
             <input
               type="text"
               id="twoFactorCode"
               v-model="twoFactorCode"
-              placeholder="请输入验证器中的6位数字"
+              :placeholder="twoFactorCodePlaceholder"
               inputmode="numeric"
               autocomplete="one-time-code"
               maxlength="6"
               required
             />
           </div>
+          <button
+            v-if="requiresTwoFactor && twoFactorMethod === 'email'"
+            type="button"
+            class="btn-secondary"
+            :disabled="loading || emailCodeCooldown > 0"
+            @click="sendEmailCode"
+          >
+            <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="sendingEmailCode" />
+            <font-awesome-icon :icon="['fas', 'paper-plane']" v-else />
+            <span>{{ emailCodeButtonText }}</span>
+          </button>
         </div>
         
         <button type="submit" class="btn-login" :disabled="loading">
@@ -106,7 +136,7 @@
 </template>
 
 <script>
-import { computed, defineComponent, ref, onMounted } from 'vue'
+import { computed, defineComponent, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import QRCode from 'qrcode'
@@ -127,16 +157,36 @@ export default defineComponent({
     const requiresTwoFactor = ref(false)
     const twoFactorToken = ref('')
     const twoFactorCode = ref('')
+    const twoFactorMethod = ref('totp')
+    const sendingEmailCode = ref(false)
+    const emailCodeCooldown = ref(0)
+    let emailCodeTimer = null
     const requiresTwoFactorSetup = ref(false)
     const setupToken = ref('')
     const setupSecret = ref('')
     const setupOtpAuthUrl = ref('')
     const setupQrCode = ref('')
 
+    const isAdminRole = (role) => ['admin', 'ADMIN', 'SUPER_ADMIN'].includes(role)
+
     const submitButtonText = computed(() => {
       if (requiresTwoFactorSetup.value) return '绑定并登录'
       if (requiresTwoFactor.value) return '验证并登录'
       return '管理员登录'
+    })
+
+    const twoFactorCodeLabel = computed(() => {
+      if (requiresTwoFactorSetup.value || twoFactorMethod.value === 'totp') return '两步验证码'
+      return '邮箱验证码'
+    })
+
+    const twoFactorCodePlaceholder = computed(() => {
+      if (requiresTwoFactorSetup.value || twoFactorMethod.value === 'totp') return '请输入验证器中的6位数字'
+      return '请输入邮箱收到的6位数字'
+    })
+
+    const emailCodeButtonText = computed(() => {
+      return emailCodeCooldown.value > 0 ? `${emailCodeCooldown.value}秒后重新发送` : '发送邮箱验证码'
     })
 
     const generateQrCode = async (otpAuthUrl) => {
@@ -152,17 +202,68 @@ export default defineComponent({
     }
     
     // 在组件挂载时检查是否已经登录
-    onMounted(() => {
+    onMounted(async () => {
       const token = localStorage.getItem('token')
-      if (token) {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        if (userInfo.role === 'admin' || userInfo.role === 'ADMIN' || userInfo.role === 'SUPER_ADMIN') {
-          // 如果已经是管理员登录状态，直接跳转到管理后台
-          const redirectPath = route.query.redirect || '/admin/dashboard'
-          router.replace(redirectPath)
-        }
+      if (!token) {
+        return
+      }
+
+      await store.dispatch('checkAuth')
+      if (isAdminRole(store.state.user?.role)) {
+        const redirectPath = route.query.redirect || '/admin/dashboard'
+        router.replace(redirectPath)
       }
     })
+
+    onBeforeUnmount(() => {
+      if (emailCodeTimer) {
+        clearInterval(emailCodeTimer)
+      }
+    })
+
+    const selectTwoFactorMethod = (method) => {
+      twoFactorMethod.value = method
+      twoFactorCode.value = ''
+      error.value = ''
+      infoMessage.value = method === 'email'
+        ? '发送邮箱验证码后，输入邮箱中的6位数字完成管理员登录'
+        : '请输入验证器中的6位数字完成管理员登录'
+    }
+
+    const startEmailCodeCooldown = () => {
+      emailCodeCooldown.value = 60
+      if (emailCodeTimer) {
+        clearInterval(emailCodeTimer)
+      }
+      emailCodeTimer = setInterval(() => {
+        emailCodeCooldown.value -= 1
+        if (emailCodeCooldown.value <= 0) {
+          clearInterval(emailCodeTimer)
+          emailCodeTimer = null
+        }
+      }, 1000)
+    }
+
+    const sendEmailCode = async () => {
+      if (!twoFactorToken.value) {
+        error.value = '两步验证已过期，请重新输入账号密码'
+        return
+      }
+
+      sendingEmailCode.value = true
+      error.value = ''
+      try {
+        await store.dispatch('sendAdminTwoFactorEmailCode', {
+          twoFactorToken: twoFactorToken.value
+        })
+        infoMessage.value = '邮箱验证码已发送，请查收管理员邮箱'
+        startEmailCodeCooldown()
+      } catch (err) {
+        error.value = err.message || '邮箱验证码发送失败'
+      } finally {
+        sendingEmailCode.value = false
+      }
+    }
     
     const handleLogin = async () => {
       if (!username.value || !password.value) {
@@ -171,7 +272,9 @@ export default defineComponent({
       }
 
       if ((requiresTwoFactor.value || requiresTwoFactorSetup.value) && !twoFactorCode.value) {
-        error.value = '请输入两步验证码'
+        error.value = twoFactorMethod.value === 'email' && !requiresTwoFactorSetup.value
+          ? '请输入邮箱验证码'
+          : '请输入两步验证码'
         return
       }
       
@@ -191,7 +294,8 @@ export default defineComponent({
             username: username.value,
             password: password.value,
             twoFactorCode: twoFactorCode.value,
-            twoFactorToken: twoFactorToken.value
+            twoFactorToken: twoFactorToken.value,
+            twoFactorMethod: requiresTwoFactor.value ? twoFactorMethod.value : undefined
           })
 
           if (result?.requiresTwoFactorSetup) {
@@ -210,8 +314,9 @@ export default defineComponent({
             requiresTwoFactor.value = true
             requiresTwoFactorSetup.value = false
             twoFactorToken.value = result.twoFactorToken || ''
+            twoFactorMethod.value = 'totp'
             twoFactorCode.value = ''
-            infoMessage.value = '请输入验证器中的6位数字完成管理员登录'
+            infoMessage.value = '请输入验证器中的6位数字，或切换为邮箱验证码完成管理员登录'
             return
           }
         }
@@ -236,10 +341,18 @@ export default defineComponent({
       requiresTwoFactor,
       requiresTwoFactorSetup,
       twoFactorCode,
+      twoFactorMethod,
+      twoFactorCodeLabel,
+      twoFactorCodePlaceholder,
+      sendingEmailCode,
+      emailCodeCooldown,
+      emailCodeButtonText,
       setupSecret,
       setupOtpAuthUrl,
       setupQrCode,
       submitButtonText,
+      selectTwoFactorMethod,
+      sendEmailCode,
       handleLogin
     }
   }
@@ -379,6 +492,31 @@ export default defineComponent({
   text-decoration: underline;
 }
 
+.verification-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.method-button {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-white);
+  color: var(--text-light);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.method-button.active {
+  border-color: var(--primary-color);
+  background-color: rgba(var(--primary-rgb), 0.08);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -459,6 +597,33 @@ input[type="password"]:focus {
 
 .btn-login:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: var(--bg-white);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 

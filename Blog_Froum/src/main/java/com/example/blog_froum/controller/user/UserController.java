@@ -6,6 +6,8 @@ import com.example.blog_froum.dto.user.ForgotPasswordCodeRequest;
 import com.example.blog_froum.dto.user.ForgotPasswordResetRequest;
 import com.example.blog_froum.dto.user.LoginRequest;
 import com.example.blog_froum.dto.user.LoginResponse;
+import com.example.blog_froum.dto.user.OAuthAuthorizeResponse;
+import com.example.blog_froum.dto.user.OAuthCallbackRequest;
 import com.example.blog_froum.dto.user.RegisterRequest;
 import com.example.blog_froum.dto.user.UserStatsResponse;
 import com.example.blog_froum.dto.user.UserResponse;
@@ -15,6 +17,7 @@ import com.example.blog_froum.dto.user.ProfileUpdateRequest;
 import com.example.blog_froum.service.QuestionService;
 import com.example.blog_froum.service.CaptchaService;
 import com.example.blog_froum.service.EmailVerificationService;
+import com.example.blog_froum.service.OAuthLoginService;
 import com.example.blog_froum.service.OperationLogService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.service.UserStatsService;
@@ -61,6 +64,9 @@ public class UserController {
 
     @Autowired
     private OperationLogService operationLogService;
+
+    @Autowired
+    private OAuthLoginService oAuthLoginService;
 
     /**
      * 发送注册邮箱验证码
@@ -161,6 +167,47 @@ public class UserController {
             return Result.success(message, loginResponse);
         } catch (Exception e) {
             log.error("用户登录失败，用户名/邮箱: {}, 错误: {}", request.getUsername(), e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取第三方登录授权地址
+     */
+    @GetMapping("/oauth/{provider}/authorize")
+    @ApiOperation(value = "获取第三方登录授权地址", notes = "支持google和github")
+    public Result<OAuthAuthorizeResponse> getOAuthAuthorizationUrl(
+            @ApiParam(value = "第三方登录提供方", required = true, example = "github")
+            @PathVariable String provider) {
+        try {
+            return Result.success("授权地址生成成功", oAuthLoginService.buildAuthorizationUrl(provider));
+        } catch (Exception e) {
+            log.error("生成第三方登录授权地址失败，provider: {}, 错误: {}", provider, e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 完成第三方登录
+     */
+    @PostMapping("/oauth/{provider}/callback")
+    @ApiOperation(value = "第三方登录回调", notes = "使用授权码完成登录或自动注册")
+    public Result<LoginResponse> completeOAuthLogin(
+            @ApiParam(value = "第三方登录提供方", required = true, example = "github")
+            @PathVariable String provider,
+            @ApiParam(value = "第三方登录回调信息", required = true)
+            @Valid @RequestBody OAuthCallbackRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            LoginResponse loginResponse = oAuthLoginService.completeLogin(provider, request);
+            if (loginResponse.getUser() != null) {
+                UserResponse user = loginResponse.getUser();
+                operationLogService.record(user.getId(), "USER_LOGIN", "oauth_login",
+                        provider + "第三方登录", "USER", user.getId(), user.getNickname(), httpRequest);
+            }
+            return Result.success("登录成功", loginResponse);
+        } catch (Exception e) {
+            log.error("第三方登录失败，provider: {}, 错误: {}", provider, e.getMessage());
             return Result.error(e.getMessage());
         }
     }

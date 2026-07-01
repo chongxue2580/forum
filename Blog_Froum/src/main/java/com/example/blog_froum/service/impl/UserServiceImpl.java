@@ -25,6 +25,7 @@ import com.example.blog_froum.repository.LikeRepository;
 import com.example.blog_froum.repository.OperationLogRepository;
 import com.example.blog_froum.repository.QuestionRepository;
 import com.example.blog_froum.service.TwoFactorService;
+import com.example.blog_froum.service.EmailVerificationService;
 import com.example.blog_froum.service.UserService;
 import com.example.blog_froum.utils.BaseContext;
 import com.example.blog_froum.utils.JwtUtil;
@@ -77,6 +78,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private TwoFactorService twoFactorService;
+
+    @Autowired
+    private EmailVerificationService emailVerificationService;
 
     private static final DateTimeFormatter BAN_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -414,6 +418,32 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("两步验证码错误");
         }
 
+        twoFactorService.consumeChallenge(twoFactorToken);
+        return completeLogin(user);
+    }
+
+    @Override
+    public void sendAdminTwoFactorEmailCode(String twoFactorToken) {
+        TwoFactorService.PendingChallenge challenge = getLoginChallenge(twoFactorToken);
+        User user = getExistingUser(challenge.getUserId());
+        assertCanLogin(user);
+        if (!user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+
+        emailVerificationService.sendAdminTwoFactorCode(user.getId());
+    }
+
+    @Override
+    public LoginResponse completeAdminTwoFactorEmailLogin(String twoFactorToken, String code) {
+        TwoFactorService.PendingChallenge challenge = getLoginChallenge(twoFactorToken);
+        User user = getExistingUser(challenge.getUserId());
+        assertCanLogin(user);
+        if (!user.isAdmin()) {
+            throw new RuntimeException("权限不足，非管理员账户");
+        }
+
+        emailVerificationService.verifyAdminTwoFactorCode(user.getId(), code);
         twoFactorService.consumeChallenge(twoFactorToken);
         return completeLogin(user);
     }
@@ -990,5 +1020,15 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户不存在");
         }
         return user;
+    }
+
+    private TwoFactorService.PendingChallenge getLoginChallenge(String twoFactorToken) {
+        TwoFactorService.PendingChallenge challenge = twoFactorService.getChallenge(
+                twoFactorToken,
+                TwoFactorService.ChallengeType.LOGIN);
+        if (challenge == null) {
+            throw new RuntimeException("两步验证已过期，请重新登录");
+        }
+        return challenge;
     }
 }

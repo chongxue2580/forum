@@ -51,6 +51,12 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         define("email.senderEmail", "", "发件人邮箱", false);
         define("email.enableSsl", true, "启用SSL", false);
 
+        define("oauth.frontendCallbackUrl", "", "第三方登录前端回调地址", false);
+        define("oauth.githubClientId", "", "GitHub Client ID", false);
+        define("oauth.githubClientSecret", "", "GitHub Client Secret", true);
+        define("oauth.googleClientId", "", "Google Client ID", false);
+        define("oauth.googleClientSecret", "", "Google Client Secret", true);
+
         define("security.jwtExpireDays", 7, "JWT过期天数", false);
         define("security.maxLoginAttempts", 5, "最大登录尝试次数", false);
         define("security.lockoutMinutes", 30, "锁定时间", false);

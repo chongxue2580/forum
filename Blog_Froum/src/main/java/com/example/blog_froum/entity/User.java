@@ -57,6 +57,15 @@ public class User {
     @Column(name = "two_factor_secret", length = 64)
     private String twoFactorSecret;
 
+    @Column(name = "oauth_provider", length = 20)
+    private String oauthProvider;
+
+    @Column(name = "oauth_subject", length = 128)
+    private String oauthSubject;
+
+    @Column(name = "oauth_email_verified", nullable = false)
+    private Boolean oauthEmailVerified;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "ban_type", length = 20)
     private UserBanType banType;
@@ -87,6 +96,7 @@ public class User {
         this.status = UserStatus.ACTIVE;
         this.loginCount = 0;
         this.twoFactorEnabled = false;
+        this.oauthEmailVerified = false;
         this.banType = UserBanType.NONE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();

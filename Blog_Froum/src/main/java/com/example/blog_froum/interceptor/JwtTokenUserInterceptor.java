@@ -192,6 +192,7 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
                 && ("/api/user/login".equals(requestURI)
                 || "/api/user/register".equals(requestURI)
                 || "/api/user/register/email-code".equals(requestURI)
+                || requestURI.matches("/api/user/oauth/[^/]+/callback")
                 || "/api/user/forgot-password/email-code".equals(requestURI)
                 || "/api/user/forgot-password/reset".equals(requestURI)
                 || "/api/user/profile/login".equals(requestURI)
@@ -201,7 +202,8 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
         return "GET".equals(method)
                 && ("/api/user/check-username".equals(requestURI)
-                || "/api/user/check-email".equals(requestURI));
+                || "/api/user/check-email".equals(requestURI)
+                || requestURI.matches("/api/user/oauth/[^/]+/authorize"));
     }
 
     private void resolveOptionalUserContext(HttpServletRequest request) {

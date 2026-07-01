@@ -14,6 +14,10 @@ public interface EmailVerificationService {
 
     void verifyPasswordChangeCode(Long userId, String code);
 
+    void sendAdminTwoFactorCode(Long userId);
+
+    void verifyAdminTwoFactorCode(Long userId, String code);
+
     void sendPasswordResetCode(String account);
 
     void resetPassword(String account, String code, String newPassword);

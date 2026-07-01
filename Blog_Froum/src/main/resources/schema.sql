@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INT DEFAULT 0 COMMENT '登录次数',
     two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否启用两步验证',
     two_factor_secret VARCHAR(64) COMMENT 'TOTP密钥',
+    oauth_provider VARCHAR(20) COMMENT '第三方登录提供方',
+    oauth_subject VARCHAR(128) COMMENT '第三方账号唯一ID',
+    oauth_email_verified BOOLEAN NOT NULL DEFAULT FALSE COMMENT '第三方邮箱是否已验证',
     ban_type VARCHAR(20) DEFAULT 'NONE' COMMENT '封禁类型：NONE, LOGIN, CONTENT',
     ban_reason VARCHAR(500) COMMENT '封禁理由',
     ban_expires_at TIMESTAMP COMMENT '封禁到期时间，空表示永久',
@@ -25,6 +28,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否启用两步验证';
 ALTER TABLE users ADD COLUMN two_factor_secret VARCHAR(64) COMMENT 'TOTP密钥';
+ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(20) COMMENT '第三方登录提供方';
+ALTER TABLE users ADD COLUMN oauth_subject VARCHAR(128) COMMENT '第三方账号唯一ID';
+ALTER TABLE users ADD COLUMN oauth_email_verified BOOLEAN NOT NULL DEFAULT FALSE COMMENT '第三方邮箱是否已验证';
+CREATE INDEX idx_users_oauth_provider_subject ON users (oauth_provider, oauth_subject);
 ALTER TABLE users ADD COLUMN ban_type VARCHAR(20) DEFAULT 'NONE' COMMENT '封禁类型：NONE, LOGIN, CONTENT';
 ALTER TABLE users ADD COLUMN ban_reason VARCHAR(500) COMMENT '封禁理由';
 ALTER TABLE users ADD COLUMN ban_expires_at TIMESTAMP COMMENT '封禁到期时间，空表示永久';

@@ -17,6 +17,14 @@ export function confirmAdminTwoFactorSetup(data) {
   })
 }
 
+export function sendAdminTwoFactorEmailCode(data) {
+  return request({
+    url: '/admin/2fa/email-code',
+    method: 'post',
+    data
+  })
+}
+
 export function adminLogout() {
   return request({
     url: '/admin/logout',

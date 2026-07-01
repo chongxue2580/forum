@@ -17,6 +17,9 @@
         <result column="login_count" property="loginCount"/>
         <result column="two_factor_enabled" property="twoFactorEnabled"/>
         <result column="two_factor_secret" property="twoFactorSecret"/>
+        <result column="oauth_provider" property="oauthProvider"/>
+        <result column="oauth_subject" property="oauthSubject"/>
+        <result column="oauth_email_verified" property="oauthEmailVerified"/>
         <result column="ban_type" property="banType" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
         <result column="ban_reason" property="banReason"/>
         <result column="ban_expires_at" property="banExpiresAt"/>
@@ -31,6 +34,7 @@
     <sql id="Base_Column_List">
         id, username, email, password, nickname, bio, avatar_url, role, status,
         last_login_time, login_count, two_factor_enabled, two_factor_secret,
+        oauth_provider, oauth_subject, oauth_email_verified,
         ban_type, ban_reason, ban_expires_at, banned_at, banned_by, banned_by_email,
         created_at, updated_at
     </sql>
@@ -63,14 +67,23 @@
         WHERE username = #{username} OR LOWER(email) = LOWER(#{email})
     </select>
 
+    <!-- 根据第三方账号查询用户 -->
+    <select id="findByOauthProviderAndSubject" resultMap="UserResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE oauth_provider = #{provider} AND oauth_subject = #{subject}
+    </select>
+
     <!-- 插入用户 -->
     <insert id="insert" parameterType="com.example.blog_froum.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (username, email, password, nickname, bio, avatar_url, role, status, 
                           last_login_time, login_count, two_factor_enabled, two_factor_secret,
+                          oauth_provider, oauth_subject, oauth_email_verified,
                           ban_type, ban_reason, ban_expires_at, banned_at, banned_by, banned_by_email,
                           created_at, updated_at)
         VALUES (#{username}, #{email}, #{password}, #{nickname}, #{bio}, #{avatarUrl}, 
                 #{role}, #{status}, #{lastLoginTime}, #{loginCount}, #{twoFactorEnabled}, #{twoFactorSecret},
+                #{oauthProvider}, #{oauthSubject}, #{oauthEmailVerified},
                 #{banType}, #{banReason}, #{banExpiresAt}, #{bannedAt}, #{bannedBy}, #{bannedByEmail},
                 #{createdAt}, #{updatedAt})
     </insert>
@@ -126,6 +139,17 @@
         SET two_factor_enabled = #{enabled},
             two_factor_secret = #{secret},
             updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 绑定第三方账号 -->
+    <update id="updateOauthIdentity" parameterType="com.example.blog_froum.entity.User">
+        UPDATE users
+        SET oauth_provider = #{oauthProvider},
+            oauth_subject = #{oauthSubject},
+            oauth_email_verified = #{oauthEmailVerified},
+            avatar_url = COALESCE(#{avatarUrl}, avatar_url),
+            updated_at = #{updatedAt}
         WHERE id = #{id}
     </update>
 

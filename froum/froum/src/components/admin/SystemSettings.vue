@@ -46,6 +46,13 @@ const createDefaultSettings = () => ({
     senderEmail: '',
     enableSsl: true
   },
+  oauth: {
+    frontendCallbackUrl: '',
+    githubClientId: '',
+    githubClientSecret: '',
+    googleClientId: '',
+    googleClientSecret: ''
+  },
   security: {
     jwtExpireDays: 7,
     maxLoginAttempts: 5,
@@ -346,6 +353,52 @@ onMounted(loadSettings)
               <el-button type="primary" :loading="testingEmail" @click="testEmailSettings">
                 <font-awesome-icon icon="paper-plane" /> 发送测试邮件
               </el-button>
+            </el-form-item>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane>
+          <template #label>
+            <span><font-awesome-icon :icon="['fab', 'github']" /> 第三方登录</span>
+          </template>
+
+          <div class="settings-section">
+            <h2>回调地址</h2>
+            <el-form-item label="前端回调地址">
+              <el-input
+                v-model="systemSettings.oauth.frontendCallbackUrl"
+                placeholder="默认：http://localhost:5181/oauth/callback"
+              />
+            </el-form-item>
+          </div>
+
+          <div class="settings-section">
+            <h2>GitHub 登录</h2>
+            <el-form-item label="Client ID">
+              <el-input v-model="systemSettings.oauth.githubClientId" autocomplete="off" />
+            </el-form-item>
+            <el-form-item label="Client Secret">
+              <el-input
+                v-model="systemSettings.oauth.githubClientSecret"
+                type="password"
+                show-password
+                autocomplete="new-password"
+              />
+            </el-form-item>
+          </div>
+
+          <div class="settings-section">
+            <h2>Google 登录</h2>
+            <el-form-item label="Client ID">
+              <el-input v-model="systemSettings.oauth.googleClientId" autocomplete="off" />
+            </el-form-item>
+            <el-form-item label="Client Secret">
+              <el-input
+                v-model="systemSettings.oauth.googleClientSecret"
+                type="password"
+                show-password
+                autocomplete="new-password"
+              />
             </el-form-item>
           </div>
         </el-tab-pane>
