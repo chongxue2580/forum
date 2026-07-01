@@ -135,6 +135,7 @@ import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { followApi } from '@/api/followApi';
 import FollowButton from '@/components/FollowButton.vue';
+import { resolveAvatarUrl } from '@/utils/avatar';
 
 const props = defineProps({
   userId: {
@@ -233,7 +234,6 @@ const unfollowConfirmed = async () => {
     unfollowUser.value = null;
     ElMessage.success('已取消关注');
   } catch (error) {
-    console.error('Failed to unfollow user:', error);
     ElMessage.error(error.message || '取消关注失败');
   } finally {
     isUnfollowing.value = false;
@@ -262,7 +262,7 @@ const normalizeUser = (user) => {
     id: user.id,
     username: user.username,
     name,
-    avatar: user.avatarUrl || user.avatar || '',
+    avatar: resolveAvatarUrl(user.avatarUrl || user.avatar || ''),
     bio: user.bio || '',
     followedAt: user.followedAt || user.createdAt || null,
     recentlyFollowed: isRecentlyFollowed(user.followedAt || user.createdAt),
@@ -288,7 +288,6 @@ const loadMoreFollowing = async () => {
     totalItems.value = pageData.totalElements;
     totalPages.value = pageData.totalPages;
   } catch (error) {
-    console.error('Failed to load more following:', error);
     errorMessage.value = error.message || '加载更多关注失败';
   } finally {
     isLoadingMore.value = false;
@@ -307,7 +306,6 @@ const fetchFollowing = async () => {
     totalItems.value = pageData.totalElements;
     totalPages.value = pageData.totalPages;
   } catch (error) {
-    console.error('Failed to fetch following:', error);
     errorMessage.value = error.message || '关注列表加载失败';
     following.value = [];
     totalItems.value = 0;
@@ -328,329 +326,317 @@ watch(profileUserId, () => {
 
 <style scoped>
 .user-following {
-  padding: 1.5rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
 }
 
 .section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
   margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.2rem;
+  font-weight: 840;
 }
 
 .search-box {
   position: relative;
-  width: 250px;
+  width: min(100%, 18rem);
 }
 
 .search-icon {
   position: absolute;
-  left: 0.75rem;
+  left: 0.85rem;
   top: 50%;
+  color: var(--kumo-text-subtle);
   transform: translateY(-50%);
-  color: var(--text-light);
 }
 
 .search-input {
   width: 100%;
-  padding: 0.6rem 1rem 0.6rem 2.25rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  transition: all 0.3s;
+  min-height: 2.65rem;
+  padding: 0.6rem 1rem 0.6rem 2.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-default);
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .search-input:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
 }
 
 .filter-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  overflow-x: auto;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
 }
 
 .filter-tab {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: none;
-  color: var(--text-light);
-  font-size: 0.9rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kumo-text-muted);
+  font-weight: 760;
   cursor: pointer;
-  border-radius: var(--radius);
-  transition: all 0.3s;
+  transition: var(--transition);
 }
 
-.filter-tab:hover {
-  color: var(--primary-color);
-  background-color: var(--bg-light);
-}
-
+.filter-tab:hover,
 .filter-tab.active {
-  color: var(--primary-color);
-  font-weight: 500;
-  position: relative;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
-.filter-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -0.5rem;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background-color: var(--primary-color);
-}
-
-.loading-state, .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 0;
-  color: var(--text-light);
+.loading-state,
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 0.65rem;
+  min-height: 12rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
   text-align: center;
 }
 
-.spinner, .empty-icon {
+.spinner,
+.empty-icon {
+  color: var(--kumo-bg-brand);
   font-size: 2rem;
-  margin-bottom: 1rem;
+}
+
+.empty-state h3,
+.empty-state p {
+  margin: 0;
 }
 
 .empty-state h3 {
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
-}
-
-.explore-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.6rem 1.25rem;
-  background-color: var(--primary-color);
-  color: white;
-  border-radius: var(--radius);
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.explore-btn:hover {
-  background-color: var(--primary-dark);
+  color: var(--kumo-text-default);
+  font-size: 1.1rem;
+  font-weight: 840;
 }
 
 .following-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  gap: 0.85rem;
 }
 
 .following-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  transition: all 0.3s;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .following-item:hover {
-  border-color: var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-3px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 3.6rem;
+  height: 3.6rem;
   overflow: hidden;
-  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+}
+
+.user-avatar img,
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
 }
 
 .user-avatar img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
 }
 
 .avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  color: var(--kumo-bg-brand-strong);
+  font-size: 1.25rem;
+  font-weight: 900;
 }
 
 .user-info {
-  flex: 1;
   min-width: 0;
 }
 
 .user-header {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 0.35rem;
+  justify-content: space-between;
+  gap: 0.6rem;
 }
 
 .user-name {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
+  font-size: 1rem;
+  font-weight: 820;
   text-decoration: none;
 }
 
-.user-name:hover {
-  color: var(--primary-color);
-}
-
+.user-name:hover,
 .verified-icon {
-  color: var(--primary-color);
-  font-size: 0.9rem;
+  color: var(--kumo-bg-brand-strong);
 }
 
 .follows-you {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--text-light);
-  background-color: var(--bg-light);
   padding: 0.25rem 0.5rem;
-  border-radius: var(--radius);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
 }
 
 .user-bio {
-  color: var(--text-light);
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  margin: 0.3rem 0 0.45rem;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .user-meta {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .meta-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--text-light);
-  font-size: 0.85rem;
+  color: var(--kumo-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
-.user-actions {
+.user-actions,
+.load-more {
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
-.unfollow-btn {
-  display: flex;
+.unfollow-btn,
+.load-more-btn,
+.cancel-btn,
+.confirm-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-weight: 500;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.55rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
+  font-weight: 760;
   cursor: pointer;
-  transition: all 0.3s;
-  border: 1px solid var(--border-color);
-  background-color: transparent;
-  color: var(--text-color);
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
 .unfollow-btn:hover {
-  background-color: rgba(var(--error-rgb), 0.1);
-  border-color: var(--error-color);
-  color: var(--error-color);
+  transform: translateY(-2px);
+  border-color: var(--kumo-status-danger);
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
 }
 
 .load-more {
-  display: flex;
-  justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
 }
 
 .load-more-btn {
-  padding: 0.6rem 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: transparent;
-  color: var(--text-light);
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px;
+  min-width: 8rem;
 }
 
-.load-more-btn:hover {
-  background-color: var(--bg-light);
-  color: var(--text-color);
+.load-more-btn:hover,
+.cancel-btn:hover {
+  border-color: var(--kumo-hairline-strong);
+  color: var(--kumo-bg-brand-strong);
 }
 
-/* 模态框样式 */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--kumo-bg-overlay);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .modal-content {
-  background-color: white;
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 28rem);
+  padding: 1.25rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-lg);
+  backdrop-filter: var(--kumo-blur);
+  animation: dialog-in 260ms ease both;
+}
+
+.modal-title,
+.modal-message {
+  margin: 0;
 }
 
 .modal-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin-bottom: 1rem;
+  color: var(--kumo-text-default);
+  font-size: 1.2rem;
+  font-weight: 840;
 }
 
 .modal-message {
-  color: var(--text-light);
-  margin-bottom: 1.5rem;
+  color: var(--kumo-text-muted);
+  line-height: 1.6;
 }
 
 .modal-actions {
@@ -659,79 +645,48 @@ watch(profileUserId, () => {
   gap: 0.75rem;
 }
 
-.cancel-btn, .confirm-btn {
-  padding: 0.6rem 1.25rem;
-  border-radius: var(--radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.cancel-btn {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-light);
-}
-
-.cancel-btn:hover {
-  background-color: var(--bg-light);
-  color: var(--text-color);
-}
-
 .confirm-btn {
-  background-color: var(--error-color);
-  border: 1px solid var(--error-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 80px;
+  border-color: transparent;
+  background: var(--kumo-status-danger);
+  color: var(--kumo-text-inverse);
+  min-width: 5rem;
 }
 
-.confirm-btn:hover {
-  background-color: var(--error-dark);
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 768px) {
   .section-header {
+    align-items: stretch;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
   }
-  
-  .search-box {
-    width: 100%;
-  }
-  
+
+  .search-box,
   .filter-tabs {
     width: 100%;
-    overflow-x: auto;
   }
-  
+
   .following-item {
-    flex-direction: column;
-  }
-  
-  .user-avatar {
-    margin: 0 auto;
-  }
-  
-  .user-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .user-info, .user-actions {
+    grid-template-columns: 1fr;
     text-align: center;
   }
-  
-  .user-meta {
-    justify-content: center;
+
+  .user-avatar {
+    justify-self: center;
   }
-  
-  .user-actions {
-    margin-top: 1rem;
+
+  .user-header,
+  .user-meta,
+  .modal-actions {
     justify-content: center;
   }
 }
-</style> 
+</style>

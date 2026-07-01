@@ -1,201 +1,174 @@
 <template>
   <div class="user-follows-page">
-    <div class="container">
-      <div class="page-header">
-        <h1>我的关注</h1>
-        <p class="text-muted">管理您关注的用户和问题</p>
-      </div>
+    <ui-page-hero
+      title="我的关注"
+      description="集中管理关注的用户、问题和粉丝关系，快速回到重要讨论。"
+    >
+      <template #eyebrow>
+        <span class="kumo-eyebrow">
+          <font-awesome-icon :icon="['fas', 'heart']" />
+          Following
+        </span>
+      </template>
+      <template #aside>
+        <div class="hero-count">
+          <strong>{{ activeTotal }}</strong>
+          <span>{{ activeTabLabel }}</span>
+        </div>
+      </template>
+    </ui-page-hero>
 
-      <div class="tabs">
-        <button 
-          v-for="tab in tabs" 
+    <section class="workspace">
+      <div class="kumo-tabs" aria-label="关注类型">
+        <button
+          v-for="tab in tabs"
           :key="tab.key"
+          class="kumo-tab"
+          :class="{ active: activeTab === tab.key }"
+          type="button"
           @click="activeTab = tab.key"
-          :class="['tab-btn', { active: activeTab === tab.key }]"
         >
           {{ tab.label }}
-          <span class="count" v-if="tab.count !== undefined">({{ tab.count }})</span>
+          <span v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</span>
         </button>
       </div>
 
-      <div class="tab-content">
-        <div v-if="errorMessage" class="error">
+      <div class="content-panel kumo-surface">
+        <div v-if="errorMessage" class="notice notice-error">
           <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
           {{ errorMessage }}
         </div>
 
-        <!-- 关注的用户 -->
-        <div v-if="activeTab === 'users'" class="content-list">
-          <div v-if="loading" class="loading">
-            <font-awesome-icon :icon="['fas', 'spinner']" spin />
-            加载中...
-          </div>
-          <div v-else-if="followedUsers.length === 0" class="empty">
+        <div v-if="loading" class="state-panel">
+          <font-awesome-icon :icon="['fas', 'spinner']" spin />
+          <span>加载中...</span>
+        </div>
+
+        <template v-else-if="activeTab === 'users'">
+          <div v-if="followedUsers.length === 0" class="state-panel">
             <font-awesome-icon :icon="['fas', 'user-plus']" />
-            <p>您还没有关注任何用户</p>
+            <span>您还没有关注任何用户</span>
           </div>
           <div v-else class="user-grid">
-            <div 
-              v-for="user in followedUsers" 
-              :key="user.id" 
-              class="user-card"
+            <article
+              v-for="(item, index) in followedUsers"
+              :key="item.id"
+              class="user-card kumo-surface magnetic-card stagger-item"
+              :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
             >
-              <div class="user-avatar">
-                <img :src="user.avatarUrl || user.avatar || '/assets/default-avatar.svg'" :alt="user.username" />
-              </div>
-              <div class="user-info">
-                <h3>
-                  <router-link :to="`/user/${user.id}`">
-                    {{ user.nickname || user.username }}
-                  </router-link>
-                </h3>
-                <p class="user-bio">{{ user.bio || '这个用户很懒，什么都没写' }}</p>
-                <div class="user-stats">
-                  <span>关注于: {{ formatDate(user.followedAt) }}</span>
-                </div>
-              </div>
-              <div class="user-actions">
-                <FollowButton 
-                  target-type="USER"
-                  :target-id="user.id"
-                  :initial-followed="true"
-                  size="small"
-                  @follow-changed="handleFollowChanged"
-                />
-              </div>
-            </div>
+              <router-link :to="`/user/${item.id}`" class="user-main">
+                <span class="avatar">
+                  <img :src="resolveUserAvatar(item)" :alt="item.username || '用户'">
+                </span>
+                <span>
+                  <strong>{{ item.nickname || item.username }}</strong>
+                  <small>{{ item.bio || '这个用户暂未填写简介' }}</small>
+                  <em>关注于 {{ formatDate(item.followedAt) }}</em>
+                </span>
+              </router-link>
+              <FollowButton
+                target-type="USER"
+                :target-id="item.id"
+                :initial-followed="true"
+                size="small"
+                @follow-changed="handleFollowChanged"
+              />
+            </article>
           </div>
-        </div>
+        </template>
 
-        <!-- 关注的问题 -->
-        <div v-if="activeTab === 'questions'" class="content-list">
-          <div v-if="loading" class="loading">
-            <font-awesome-icon :icon="['fas', 'spinner']" spin />
-            加载中...
-          </div>
-          <div v-else-if="followedQuestions.length === 0" class="empty">
+        <template v-else-if="activeTab === 'questions'">
+          <div v-if="followedQuestions.length === 0" class="state-panel">
             <font-awesome-icon :icon="['fas', 'question-circle']" />
-            <p>您还没有关注任何问题</p>
+            <span>您还没有关注任何问题</span>
           </div>
-          <div v-else>
-            <div 
-              v-for="question in followedQuestions" 
-              :key="question.id" 
-              class="question-item"
+          <div v-else class="question-list">
+            <article
+              v-for="(question, index) in followedQuestions"
+              :key="question.id"
+              class="question-card kumo-surface magnetic-card stagger-item"
+              :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
             >
-              <div class="question-header">
-                <h3>
-                  <router-link :to="`/question/${question.id}`">
-                    {{ question.title }}
-                  </router-link>
-                </h3>
-                <span class="date">{{ formatDate(question.followedAt) }}</span>
-              </div>
-              <p class="question-content">{{ question.content }}</p>
-              <div class="question-meta">
-                <span class="author">提问者: {{ question.author || question.authorId || '未知' }}</span>
-                <div class="question-stats">
-                  <span>
-                    <font-awesome-icon :icon="['fas', 'eye']" />
-                    {{ question.viewCount || 0 }}
-                  </span>
-                  <span>
-                    <font-awesome-icon :icon="['fas', 'comment']" />
-                    {{ question.answerCount || question.commentCount || 0 }}
-                  </span>
-                  <span>
-                    <font-awesome-icon :icon="['fas', 'heart']" />
-                    {{ question.likeCount || 0 }}
-                  </span>
+              <div class="question-copy">
+                <div class="question-header">
+                  <router-link :to="`/question/${question.id}`">{{ question.title }}</router-link>
+                  <span>{{ formatDate(question.followedAt) }}</span>
+                </div>
+                <p>{{ question.content }}</p>
+                <div class="question-meta">
+                  <span>提问者：{{ question.author || question.authorId || '未知' }}</span>
+                  <span><font-awesome-icon :icon="['fas', 'eye']" /> {{ question.viewCount || 0 }}</span>
+                  <span><font-awesome-icon :icon="['fas', 'comment']" /> {{ question.answerCount || question.commentCount || 0 }}</span>
+                  <span><font-awesome-icon :icon="['fas', 'heart']" /> {{ question.likeCount || 0 }}</span>
                 </div>
               </div>
-              <div class="question-actions">
-                <FollowButton 
-                  target-type="QUESTION"
-                  :target-id="question.id"
-                  :initial-followed="true"
-                  size="small"
-                  follow-text="关注问题"
-                  following-text="已关注"
-                  @follow-changed="handleFollowChanged"
-                />
-              </div>
-            </div>
+              <FollowButton
+                target-type="QUESTION"
+                :target-id="question.id"
+                :initial-followed="true"
+                size="small"
+                follow-text="关注问题"
+                following-text="已关注"
+                @follow-changed="handleFollowChanged"
+              />
+            </article>
           </div>
-        </div>
+        </template>
 
-        <!-- 粉丝列表 -->
-        <div v-if="activeTab === 'followers'" class="content-list">
-          <div v-if="loading" class="loading">
-            <font-awesome-icon :icon="['fas', 'spinner']" spin />
-            加载中...
-          </div>
-          <div v-else-if="followers.length === 0" class="empty">
+        <template v-else>
+          <div v-if="followers.length === 0" class="state-panel">
             <font-awesome-icon :icon="['fas', 'users']" />
-            <p>您还没有粉丝</p>
+            <span>您还没有粉丝</span>
           </div>
           <div v-else class="user-grid">
-            <div 
-              v-for="follower in followers" 
-              :key="follower.id" 
-              class="user-card"
+            <article
+              v-for="(follower, index) in followers"
+              :key="follower.id"
+              class="user-card kumo-surface magnetic-card stagger-item"
+              :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
             >
-              <div class="user-avatar">
-                <img :src="follower.avatarUrl || follower.avatar || '/assets/default-avatar.svg'" :alt="follower.username" />
-              </div>
-              <div class="user-info">
-                <h3>
-                  <router-link :to="`/user/${follower.id}`">
-                    {{ follower.nickname || follower.username }}
-                  </router-link>
-                </h3>
-                <p class="user-bio">{{ follower.bio || '这个用户很懒，什么都没写' }}</p>
-                <div class="user-stats">
-                  <span>关注于: {{ formatDate(follower.followedAt) }}</span>
-                </div>
-              </div>
-              <div class="user-actions">
-                <FollowButton 
-                  target-type="USER"
-                  :target-id="follower.id"
-                  :initial-followed="follower.isFollowing || false"
-                  size="small"
-                  @follow-changed="handleFollowChanged"
-                />
-              </div>
-            </div>
+              <router-link :to="`/user/${follower.id}`" class="user-main">
+                <span class="avatar">
+                  <img :src="resolveUserAvatar(follower)" :alt="follower.username || '用户'">
+                </span>
+                <span>
+                  <strong>{{ follower.nickname || follower.username }}</strong>
+                  <small>{{ follower.bio || '这个用户暂未填写简介' }}</small>
+                  <em>关注于 {{ formatDate(follower.followedAt) }}</em>
+                </span>
+              </router-link>
+              <FollowButton
+                target-type="USER"
+                :target-id="follower.id"
+                :initial-followed="follower.isFollowing || false"
+                size="small"
+                @follow-changed="handleFollowChanged"
+              />
+            </article>
           </div>
-        </div>
+        </template>
       </div>
 
-      <!-- 分页 -->
-      <div class="pagination" v-if="totalPages > 1">
-        <button 
-          @click="goToPage(currentPage - 1)"
-          :disabled="currentPage <= 1"
-          class="page-btn"
-        >
+      <div v-if="totalPages > 1" class="pagination kumo-surface">
+        <button class="kumo-button" type="button" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
           上一页
         </button>
-        <span class="page-info">
-          第 {{ currentPage }} 页，共 {{ totalPages }} 页
-        </span>
-        <button 
-          @click="goToPage(currentPage + 1)"
-          :disabled="currentPage >= totalPages"
-          class="page-btn"
-        >
+        <span>第 {{ currentPage }} 页，共 {{ totalPages }} 页</span>
+        <button class="kumo-button" type="button" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
           下一页
         </button>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { followApi } from '@/api/followApi'
 import FollowButton from '@/components/FollowButton.vue'
+import UiPageHero from '@/components/ui/UiPageHero.vue'
+import { resolveAvatarFrom } from '@/utils/avatar'
+import { formatDate as formatDateValue } from '@/utils/dateUtils'
 
 const activeTab = ref('users')
 const loading = ref(false)
@@ -214,31 +187,17 @@ const pagination = reactive({
 })
 
 const tabs = computed(() => [
-  { 
-    key: 'users', 
-    label: '关注的用户', 
-    count: pagination.users.total 
-  },
-  { 
-    key: 'questions', 
-    label: '关注的问题', 
-    count: pagination.questions.total 
-  },
-  { 
-    key: 'followers', 
-    label: '我的粉丝', 
-    count: pagination.followers.total 
-  }
+  { key: 'users', label: '关注的用户', count: pagination.users.total },
+  { key: 'questions', label: '关注的问题', count: pagination.questions.total },
+  { key: 'followers', label: '我的粉丝', count: pagination.followers.total }
 ])
 
-const totalPages = computed(() => {
-  return pagination[activeTab.value]?.pages || 0
-})
+const totalPages = computed(() => pagination[activeTab.value]?.pages || 0)
+const activeTotal = computed(() => pagination[activeTab.value]?.total || 0)
+const activeTabLabel = computed(() => tabs.value.find(tab => tab.key === activeTab.value)?.label || '')
 
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('zh-CN')
-}
+const formatDate = (dateString) => dateString ? formatDateValue(dateString) : '未知时间'
+const resolveUserAvatar = (user) => resolveAvatarFrom(user) || '/assets/default-avatar.svg'
 
 const unwrapPage = (response) => {
   const page = response?.data || response || {}
@@ -252,21 +211,12 @@ const unwrapPage = (response) => {
 const loadData = async () => {
   loading.value = true
   errorMessage.value = ''
-  
+
   try {
-    switch (activeTab.value) {
-      case 'users':
-        await loadFollowedUsers()
-        break
-      case 'questions':
-        await loadFollowedQuestions()
-        break
-      case 'followers':
-        await loadFollowers()
-        break
-    }
+    if (activeTab.value === 'users') await loadFollowedUsers()
+    if (activeTab.value === 'questions') await loadFollowedQuestions()
+    if (activeTab.value === 'followers') await loadFollowers()
   } catch (error) {
-    console.error('加载数据失败:', error)
     errorMessage.value = error.message || '加载数据失败'
   } finally {
     loading.value = false
@@ -274,45 +224,27 @@ const loadData = async () => {
 }
 
 const loadFollowedUsers = async () => {
-  try {
-    const response = await followApi.getUserFollowedUsers(currentPage.value - 1, pageSize)
-    const page = unwrapPage(response)
-    followedUsers.value = page.content
-    pagination.users.total = page.totalElements
-    pagination.users.pages = page.totalPages
-  } catch (error) {
-    console.error('加载关注用户失败:', error)
-    errorMessage.value = error.message || '加载关注用户失败'
-    followedUsers.value = []
-  }
+  const response = await followApi.getUserFollowedUsers(currentPage.value - 1, pageSize)
+  const page = unwrapPage(response)
+  followedUsers.value = page.content
+  pagination.users.total = page.totalElements
+  pagination.users.pages = page.totalPages
 }
 
 const loadFollowedQuestions = async () => {
-  try {
-    const response = await followApi.getUserFollowedQuestions(currentPage.value - 1, pageSize)
-    const page = unwrapPage(response)
-    followedQuestions.value = page.content
-    pagination.questions.total = page.totalElements
-    pagination.questions.pages = page.totalPages
-  } catch (error) {
-    console.error('加载关注问题失败:', error)
-    errorMessage.value = error.message || '加载关注问题失败'
-    followedQuestions.value = []
-  }
+  const response = await followApi.getUserFollowedQuestions(currentPage.value - 1, pageSize)
+  const page = unwrapPage(response)
+  followedQuestions.value = page.content
+  pagination.questions.total = page.totalElements
+  pagination.questions.pages = page.totalPages
 }
 
 const loadFollowers = async () => {
-  try {
-    const response = await followApi.getUserFollowers(currentPage.value - 1, pageSize)
-    const page = unwrapPage(response)
-    followers.value = page.content
-    pagination.followers.total = page.totalElements
-    pagination.followers.pages = page.totalPages
-  } catch (error) {
-    console.error('加载粉丝列表失败:', error)
-    errorMessage.value = error.message || '加载粉丝列表失败'
-    followers.value = []
-  }
+  const response = await followApi.getUserFollowers(currentPage.value - 1, pageSize)
+  const page = unwrapPage(response)
+  followers.value = page.content
+  pagination.followers.total = page.totalElements
+  pagination.followers.pages = page.totalPages
 }
 
 const goToPage = (page) => {
@@ -323,275 +255,242 @@ const goToPage = (page) => {
 }
 
 const handleFollowChanged = (event) => {
-  if (event.needLogin) {
-    // 处理需要登录的情况
-    return
-  }
-  
+  if (event.needLogin) return
   if (event.error) {
-    console.error('关注操作失败:', event.error)
+    errorMessage.value = event.error
     return
   }
-  
-  // 重新加载当前数据
   loadData()
 }
 
-// 监听标签切换
 watch(activeTab, () => {
   currentPage.value = 1
   loadData()
 })
 
-onMounted(() => {
-  loadData()
-})
+onMounted(loadData)
 </script>
 
 <style scoped>
 .user-follows-page {
-  min-height: 100vh;
-  background: #f8f9fa;
-  padding: 2rem 0;
+  display: grid;
+  gap: 1.25rem;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+.hero-count {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.2rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.hero-count strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: 3.4rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
-.page-header h1 {
-  color: #333;
-  margin-bottom: 0.5rem;
+.hero-count span {
+  color: var(--kumo-text-muted);
+  font-weight: 740;
 }
 
-.tabs {
-  display: flex;
+.workspace {
+  display: grid;
   gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e1e5e9;
 }
 
-.tab-btn {
-  padding: 1rem 1.5rem;
-  border: none;
-  background: none;
-  color: #6c757d;
-  font-size: 1rem;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s ease;
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  font-size: 0.78rem;
 }
 
-.tab-btn:hover {
-  color: #007bff;
+.content-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
 }
 
-.tab-btn.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
-}
-
-.count {
-  font-size: 0.875rem;
-  opacity: 0.7;
-}
-
-.content-list {
-  background: white;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.error {
+.notice {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid #dc3545;
-  border-radius: 0.5rem;
-  color: #842029;
-  background: #f8d7da;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--kumo-radius-md);
+  font-weight: 720;
 }
 
-.loading, .empty {
+.notice-error {
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
+}
+
+.state-panel {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 16rem;
+  color: var(--kumo-text-muted);
   text-align: center;
-  padding: 3rem;
-  color: #6c757d;
 }
 
-.empty .fa-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  opacity: 0.3;
+.state-panel svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2.2rem;
 }
 
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
 }
 
 .user-card {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid #e1e5e9;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
 }
 
-.user-card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.user-avatar img {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.user-info {
-  flex: 1;
-}
-
-.user-info h3 {
-  margin: 0 0 0.5rem 0;
-}
-
-.user-info h3 a {
-  color: #333;
+.user-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  color: var(--kumo-text-default);
   text-decoration: none;
 }
 
-.user-info h3 a:hover {
-  color: #007bff;
+.avatar {
+  width: 3.4rem;
+  height: 3.4rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
 }
 
-.user-bio {
-  color: #6c757d;
-  font-size: 0.875rem;
-  margin: 0 0 0.5rem 0;
-  line-height: 1.4;
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.user-stats {
-  display: flex;
+.user-main span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.user-main strong {
+  overflow: hidden;
+  font-weight: 830;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-main small,
+.user-main em {
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  font-size: 0.86rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.question-list {
+  display: grid;
   gap: 1rem;
-  font-size: 0.75rem;
-  color: #6c757d;
 }
 
-.question-item {
-  padding: 1.5rem 0;
-  border-bottom: 1px solid #e1e5e9;
-  position: relative;
+.question-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem;
 }
 
-.question-item:last-child {
-  border-bottom: none;
+.question-copy {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
 }
 
 .question-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.question-header h3 {
-  margin: 0;
-  flex: 1;
-}
-
-.question-header h3 a {
-  color: #333;
+.question-header a {
+  color: var(--kumo-text-default);
+  font-size: 1.08rem;
+  font-weight: 830;
   text-decoration: none;
 }
 
-.question-header h3 a:hover {
-  color: #007bff;
+.question-header span {
+  flex: 0 0 auto;
+  color: var(--kumo-text-subtle);
+  font-size: 0.85rem;
+  font-weight: 720;
 }
 
-.date {
-  color: #6c757d;
-  font-size: 0.875rem;
-  white-space: nowrap;
-  margin-left: 1rem;
-}
-
-.question-content {
-  color: #6c757d;
-  margin: 0.5rem 0;
-  line-height: 1.5;
+.question-copy p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .question-meta {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.question-stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
-  color: #6c757d;
-}
-
-.question-stats span {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.question-actions {
-  position: absolute;
-  top: 1rem;
-  right: 0;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  color: var(--kumo-text-muted);
+  font-size: 0.86rem;
+  font-weight: 720;
 }
 
 .pagination {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   gap: 1rem;
-  margin-top: 2rem;
+  padding: 0.85rem;
 }
 
-.page-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e1e5e9;
-  background: white;
-  color: #6c757d;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.pagination span {
+  color: var(--kumo-text-muted);
+  font-weight: 760;
 }
 
-.page-btn:hover:not(:disabled) {
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.page-btn:disabled {
-  opacity: 0.5;
+button:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.page-info {
-  color: #6c757d;
-  font-size: 0.875rem;
+@media (max-width: 680px) {
+  .question-card,
+  .question-header,
+  .pagination {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
 }
 </style>

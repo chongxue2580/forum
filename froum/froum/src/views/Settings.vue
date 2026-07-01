@@ -1,8 +1,20 @@
 <template>
   <div class="settings-page">
+    <ui-page-hero
+      title="账号设置"
+      description="管理资料、安全、隐私和登录状态，让账号配置保持清晰可控。"
+    >
+      <template #eyebrow>
+        <span class="kumo-eyebrow">
+          <font-awesome-icon :icon="['fas', 'cog']" />
+          Settings
+        </span>
+      </template>
+    </ui-page-hero>
+
     <div class="settings-container">
-      <div class="settings-sidebar">
-        <h2 class="settings-title">账号设置</h2>
+      <div class="settings-sidebar kumo-surface">
+        <h2 class="settings-title">设置导航</h2>
         <ul class="settings-menu">
           <li 
             v-for="item in menuItems" 
@@ -17,7 +29,7 @@
         </ul>
       </div>
       
-      <div class="settings-content">
+      <div class="settings-content kumo-surface">
         <!-- 个人资料设置 -->
         <div v-if="activeMenu === 'profile'" class="settings-section">
           <h2 class="section-title">个人资料</h2>
@@ -53,13 +65,13 @@
                   class="avatar-input"
                   @change="handleAvatarUpload"
                 >
-                <button type="button" class="upload-btn" :disabled="isUploadingAvatar" @click="openAvatarPicker">
+                <button type="button" class="kumo-button kumo-button--brand upload-btn" :disabled="isUploadingAvatar" @click="openAvatarPicker">
                   <font-awesome-icon :icon="['fas', 'camera']" />
                   <span>{{ isUploadingAvatar ? '上传中...' : '更换头像' }}</span>
                 </button>
                 <button 
                   type="button" 
-                  class="delete-btn"
+                  class="kumo-button delete-btn"
                   :disabled="!form.avatar"
                   @click="removeAvatar"
                 >
@@ -113,7 +125,7 @@
                 >
                 <button
                   type="button"
-                  class="code-btn"
+                  class="kumo-button code-btn"
                   :disabled="isSendingEmailCode || emailCodeCountdown > 0"
                   @click="sendEmailChangeCode"
                 >
@@ -138,7 +150,7 @@
             <div class="form-actions">
               <button 
                 type="submit" 
-                class="save-btn"
+                class="kumo-button kumo-button--brand save-btn"
                 :disabled="isSaving"
               >
                 <font-awesome-icon v-if="isSaving" :icon="['fas', 'spinner']" spin />
@@ -179,7 +191,7 @@
             </div>
 
             <div v-if="!twoFactorEnabled" class="two-factor-panel">
-              <button class="save-btn" type="button" :disabled="isTwoFactorLoading" @click="startTwoFactorSetup">
+              <button class="kumo-button kumo-button--brand save-btn" type="button" :disabled="isTwoFactorLoading" @click="startTwoFactorSetup">
                 <font-awesome-icon v-if="isTwoFactorLoading" :icon="['fas', 'spinner']" spin />
                 <span v-else>生成绑定密钥</span>
               </button>
@@ -201,7 +213,7 @@
                     placeholder="请输入6位数字"
                   >
                 </div>
-                <button class="save-btn" type="button" :disabled="isTwoFactorLoading" @click="enableTwoFactor">
+                <button class="kumo-button kumo-button--brand save-btn" type="button" :disabled="isTwoFactorLoading" @click="enableTwoFactor">
                   启用两步验证
                 </button>
               </div>
@@ -220,7 +232,7 @@
                   placeholder="请输入6位数字"
                 >
               </div>
-              <button class="delete-btn inline-action" type="button" :disabled="isTwoFactorLoading" @click="disableTwoFactor">
+              <button class="kumo-button delete-btn inline-action" type="button" :disabled="isTwoFactorLoading" @click="disableTwoFactor">
                 关闭两步验证
               </button>
             </div>
@@ -284,7 +296,7 @@
           
           <div class="form-actions">
             <button 
-              class="save-btn"
+              class="kumo-button kumo-button--brand save-btn"
               @click="savePrivacySettings"
               :disabled="isSavingPrivacy"
             >
@@ -300,7 +312,7 @@
           
           <div class="logout-container">
             <p>确定要退出当前账号吗？</p>
-            <button class="logout-btn" @click="handleLogout">
+            <button class="kumo-button logout-btn" @click="handleLogout">
               <font-awesome-icon :icon="['fas', 'sign-out-alt']" />
               <span>退出登录</span>
             </button>
@@ -316,6 +328,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import PasswordUpdate from '../components/PasswordUpdate.vue';
+import UiPageHero from '../components/ui/UiPageHero.vue';
 import { userService } from '../services/userService';
 import { userApi } from '../api/userApi';
 import { resolveAvatarUrl } from '../utils/avatar';
@@ -425,7 +438,6 @@ const loadUserData = async () => {
     const userData = await store.dispatch('fetchUserProfile', { userId });
     fillForm(userData);
   } catch (error) {
-    console.error('Failed to load user data:', error);
     errorMessage.value = error.message || '加载用户资料失败';
   } finally {
     isLoading.value = false;
@@ -483,7 +495,6 @@ const sendEmailChangeCode = async () => {
     startEmailCodeCountdown();
     successMessage.value = '验证码已发送，请查收新邮箱';
   } catch (error) {
-    console.error('Failed to send email change code:', error);
     errorMessage.value = error.message || '发送邮箱验证码失败';
   } finally {
     isSendingEmailCode.value = false;
@@ -525,7 +536,6 @@ const saveProfile = async () => {
       successMessage.value = '';
     }, 3000);
   } catch (error) {
-    console.error('Failed to save profile:', error);
     errorMessage.value = error.message || '保存个人资料失败';
   } finally {
     isSaving.value = false;
@@ -559,7 +569,6 @@ const handleAvatarUpload = async (event) => {
     form.value.avatar = avatarUrl;
     successMessage.value = '头像已上传，请保存资料使其生效';
   } catch (error) {
-    console.error('Failed to upload avatar:', error);
     errorMessage.value = error.message || '上传头像失败';
   } finally {
     isUploadingAvatar.value = false;
@@ -581,7 +590,6 @@ const savePrivacySettings = async () => {
     successMessage.value = '隐私设置已保存';
     setTimeout(() => { successMessage.value = ''; }, 3000);
   } catch (error) {
-    console.error('Failed to save privacy settings:', error);
     errorMessage.value = error.message || '隐私设置保存失败';
   } finally {
     isSavingPrivacy.value = false;
@@ -597,7 +605,7 @@ const updateStoredTwoFactorState = (enabled) => {
       store.commit('SET_USER', updated);
     }
   } catch (error) {
-    console.warn('Failed to update local two-factor state:', error);
+    return;
   }
 };
 
@@ -607,7 +615,7 @@ const loadTwoFactorStatus = async () => {
     twoFactorEnabled.value = !!response?.data?.enabled;
     updateStoredTwoFactorState(twoFactorEnabled.value);
   } catch (error) {
-    console.error('Failed to load two-factor status:', error);
+    return;
   }
 };
 
@@ -639,7 +647,6 @@ const startTwoFactorSetup = async () => {
       successMessage.value = '两步验证已开启';
     }
   } catch (error) {
-    console.error('Failed to start two-factor setup:', error);
     errorMessage.value = error.message || '生成两步验证密钥失败';
   } finally {
     isTwoFactorLoading.value = false;
@@ -664,7 +671,6 @@ const enableTwoFactor = async () => {
     updateStoredTwoFactorState(twoFactorEnabled.value);
     successMessage.value = '两步验证已启用';
   } catch (error) {
-    console.error('Failed to enable two-factor:', error);
     errorMessage.value = error.message || '启用两步验证失败';
   } finally {
     isTwoFactorLoading.value = false;
@@ -687,7 +693,6 @@ const disableTwoFactor = async () => {
     updateStoredTwoFactorState(twoFactorEnabled.value);
     successMessage.value = '两步验证已关闭';
   } catch (error) {
-    console.error('Failed to disable two-factor:', error);
     errorMessage.value = error.message || '关闭两步验证失败';
   } finally {
     isTwoFactorLoading.value = false;
@@ -700,7 +705,7 @@ const handleLogout = async () => {
     await store.dispatch('logout');
     router.push('/login');
   } catch (error) {
-    console.error('Failed to logout:', error);
+    errorMessage.value = error.message || '退出登录失败';
   }
 };
 
@@ -720,142 +725,142 @@ onUnmounted(() => {
 
 <style scoped>
 .settings-page {
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  display: grid;
+  gap: 1.25rem;
 }
 
 .settings-container {
-  display: flex;
-  gap: 2rem;
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
 
 .settings-sidebar {
-  width: 250px;
-  flex-shrink: 0;
+  position: sticky;
+  top: 6rem;
+  padding: 1rem;
 }
 
 .settings-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: var(--text-color);
+  margin: 0 0 1rem;
+  color: var(--kumo-text-default);
+  font-size: 1.2rem;
+  font-weight: 850;
 }
 
 .settings-menu {
-  list-style: none;
-  padding: 0;
+  display: grid;
+  gap: 0.35rem;
   margin: 0;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  padding: 0;
+  list-style: none;
 }
 
 .settings-menu li {
-  border-bottom: 1px solid var(--border-color);
-}
-
-.settings-menu li:last-child {
-  border-bottom: none;
-}
-
-.settings-menu li.active .menu-item {
-  background-color: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary-color);
-  font-weight: 500;
-  border-left: 3px solid var(--primary-color);
+  margin: 0;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   width: 100%;
-  padding: 1rem 1.25rem;
-  border: none;
-  background: none;
+  min-height: 2.8rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--kumo-radius-md);
+  background: transparent;
+  color: var(--kumo-text-muted);
+  font-weight: 760;
   text-align: left;
-  color: var(--text-color);
-  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.3s;
-  border-left: 3px solid transparent;
+  transition: var(--transition);
 }
 
+.settings-menu li.active .menu-item,
 .menu-item:hover {
-  background-color: var(--bg-light);
-  color: var(--primary-color);
+  border-color: var(--kumo-hairline);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .settings-content {
-  flex: 1;
   min-width: 0;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 2rem;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.settings-section {
+  display: grid;
+  gap: 1rem;
 }
 
 .section-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: var(--text-color);
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  font-weight: 870;
 }
 
 .loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 0;
-  color: var(--text-light);
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 16rem;
+  color: var(--kumo-text-muted);
 }
 
-.spinner {
+.spinner,
+.loading-state svg {
+  color: var(--kumo-bg-brand);
   font-size: 2rem;
-  margin-bottom: 1rem;
+}
+
+.success-message,
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--kumo-radius-md);
+  font-weight: 720;
 }
 
 .success-message {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: rgba(var(--success-rgb), 0.1);
-  color: var(--success-color);
-  border: 1px solid var(--success-color);
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
 .error-message {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #fff1f0;
-  color: #a8071a;
-  border: 1px solid #ff7875;
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
 }
 
-/* 头像部分 */
+.profile-form,
+.security-settings,
+.privacy-settings {
+  display: grid;
+  gap: 1rem;
+  max-width: 46rem;
+}
+
 .avatar-section {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
 .current-avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
+  width: 6rem;
+  height: 6rem;
+  flex: 0 0 auto;
   overflow: hidden;
-  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
 }
 
 .current-avatar img {
@@ -865,411 +870,276 @@ onUnmounted(() => {
 }
 
 .avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--kumo-bg-brand-strong);
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 900;
 }
 
 .avatar-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .avatar-input {
   display: none;
 }
 
-.upload-btn, .delete-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.upload-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.delete-btn {
-  background-color: transparent;
-  color: var(--error-color);
-  border: 1px solid var(--error-color);
-}
-
-.delete-btn:hover {
-  background-color: rgba(var(--error-rgb), 0.1);
-}
-
-.delete-btn:disabled {
-  background-color: transparent;
-  color: var(--text-lighter);
-  border-color: var(--text-lighter);
-  cursor: not-allowed;
-}
-
-/* 表单样式 */
-.profile-form {
-  max-width: 600px;
-}
-
 .form-group {
-  margin-bottom: 1.5rem;
+  display: grid;
+  gap: 0.45rem;
 }
 
 .form-group label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
+  font-weight: 780;
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.verification-row input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 1rem;
-  transition: all 0.3s;
+  padding: 0.78rem 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-default);
+  font: inherit;
+  transition: var(--transition);
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.verification-row input:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
 }
 
-.form-hint {
-  font-size: 0.85rem;
-  color: var(--text-light);
-  margin-top: 0.35rem;
-}
-
-.verification-row {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.verification-row input {
-  flex: 1;
-}
-
-.code-btn {
-  flex: 0 0 132px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: var(--radius);
-  background-color: var(--primary-color);
-  color: #fff;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.code-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.code-btn:disabled {
-  background-color: var(--text-lighter);
+.form-group input:disabled {
+  color: var(--kumo-text-subtle);
   cursor: not-allowed;
 }
 
-.input-with-prefix {
-  display: flex;
-  align-items: center;
+.form-hint {
+  margin: 0;
+  color: var(--kumo-text-muted);
+  font-size: 0.86rem;
 }
 
-.input-prefix {
-  background-color: var(--bg-light);
-  color: var(--text-light);
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color);
-  border-right: none;
-  border-radius: var(--radius) 0 0 var(--radius);
-  font-size: 1rem;
+.verification-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
 }
 
-.input-with-prefix input {
-  border-radius: 0 var(--radius) var(--radius) 0;
+.code-btn {
+  min-width: 8rem;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2rem;
+  margin-top: 0.5rem;
 }
 
-.save-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px;
+.save-btn,
+.upload-btn,
+.delete-btn,
+.logout-btn {
+  width: fit-content;
 }
 
-.save-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.save-btn:disabled {
-  background-color: var(--text-lighter);
-  cursor: not-allowed;
-}
-
-/* 安全设置样式 */
-.security-settings {
-  max-width: 720px;
+.delete-btn,
+.logout-btn {
+  color: var(--kumo-status-danger);
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 72px;
+  min-width: 4.5rem;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  background-color: rgba(var(--error-rgb), 0.1);
-  color: var(--error-color);
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 780;
 }
 
 .status-badge.enabled {
-  background-color: rgba(var(--success-rgb), 0.1);
-  color: var(--success-color);
-}
-
-.two-factor-panel {
-  margin-top: 1.25rem;
-  padding: 1.25rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: var(--bg-light);
-}
-
-.setup-details {
-  margin-top: 1rem;
-}
-
-.secret-box {
-  word-break: break-all;
-  background-color: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  padding: 0.75rem;
-  font-family: monospace;
-  letter-spacing: 0;
-  color: var(--text-color);
-}
-
-.qr-code {
-  display: block;
-  width: 180px;
-  height: 180px;
-  margin: 0.75rem 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: #fff;
-  padding: 0.5rem;
-}
-
-.otp-link {
-  display: inline-flex;
-  margin-top: 0.75rem;
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.otp-link:hover {
-  text-decoration: underline;
-}
-
-.code-group {
-  max-width: 260px;
-  margin-top: 1rem;
-}
-
-.inline-action {
-  display: inline-flex;
-  width: auto;
-}
-
-/* 隐私设置样式 */
-.privacy-settings {
-  margin-bottom: 2rem;
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
 .setting-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.setting-item:last-child {
-  border-bottom: none;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
 .setting-info h3 {
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  color: var(--text-color);
+  margin: 0 0 0.25rem;
+  color: var(--kumo-text-default);
+  font-size: 1rem;
+  font-weight: 820;
 }
 
 .setting-info p {
-  color: var(--text-light);
-  font-size: 0.9rem;
   margin: 0;
+  color: var(--kumo-text-muted);
+  line-height: 1.55;
 }
 
-/* 开关样式 */
+.two-factor-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+}
+
+.setup-details {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.secret-box {
+  padding: 0.75rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-default);
+  font-family: Consolas, Monaco, monospace;
+  word-break: break-all;
+}
+
+.qr-code {
+  width: 11.25rem;
+  height: 11.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+}
+
+.otp-link {
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.code-group {
+  max-width: 18rem;
+}
+
+.inline-action {
+  display: inline-flex;
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 24px;
+  width: 3.1rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
 }
 
 .toggle-switch input {
-  opacity: 0;
   width: 0;
   height: 0;
+  opacity: 0;
 }
 
 .toggle-slider {
   position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--kumo-bg-recessed);
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--text-lighter);
-  transition: .4s;
-  border-radius: 24px;
+  transition: var(--transition);
 }
 
-.toggle-slider:before {
+.toggle-slider::before {
+  content: '';
   position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
+  left: 0.25rem;
+  bottom: 0.25rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  transition: var(--transition);
 }
 
 input:checked + .toggle-slider {
-  background-color: var(--primary-color);
+  background: var(--kumo-bg-brand);
 }
 
-input:checked + .toggle-slider:before {
-  transform: translateX(26px);
+input:checked + .toggle-slider::before {
+  transform: translateX(1.55rem);
 }
 
-/* 退出登录样式 */
 .logout-container {
+  display: grid;
+  place-items: center;
+  gap: 1rem;
+  min-height: 16rem;
+  color: var(--kumo-text-muted);
   text-align: center;
-  padding: 2rem 0;
 }
 
-.logout-container p {
-  color: var(--text-light);
-  margin-bottom: 1.5rem;
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.logout-btn {
-  background-color: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.logout-btn:hover {
-  background-color: var(--error-dark);
-}
-
-@media (max-width: 768px) {
+@media (max-width: 860px) {
   .settings-container {
-    flex-direction: column;
-    gap: 1rem;
+    grid-template-columns: 1fr;
   }
-  
+
   .settings-sidebar {
-    width: 100%;
+    position: static;
   }
-  
+
   .settings-menu {
-    display: flex;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   }
-  
-  .settings-menu li {
-    border: none;
-    flex: 1;
-    min-width: 120px;
-  }
-  
-  .menu-item {
+}
+
+@media (max-width: 560px) {
+  .avatar-section,
+  .setting-item,
+  .verification-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
   }
-  
-  .avatar-section {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .current-avatar {
-    margin: 0 auto;
-  }
-  
+
   .form-actions {
-    justify-content: center;
+    justify-content: stretch;
+  }
+
+  .save-btn,
+  .upload-btn,
+  .delete-btn,
+  .logout-btn {
+    width: 100%;
   }
 }
 </style> 

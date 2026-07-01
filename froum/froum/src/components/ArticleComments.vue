@@ -70,6 +70,10 @@
                 <font-awesome-icon :icon="['fas', 'comment']" />
                 <span>回复</span>
               </button>
+              <button class="comment-report" @click="reportComment(comment)">
+                <font-awesome-icon :icon="['fas', 'flag']" />
+                <span>举报</span>
+              </button>
             </div>
 
             <!-- 子回复列表 -->
@@ -97,6 +101,10 @@
                     <button class="comment-reply" @click="toggleReply(comment, reply.author.name)">
                       <font-awesome-icon :icon="['fas', 'comment']" />
                       <span>回复</span>
+                    </button>
+                    <button class="comment-report" @click="reportComment(reply)">
+                      <font-awesome-icon :icon="['fas', 'flag']" />
+                      <span>举报</span>
                     </button>
                   </div>
                 </div>
@@ -238,7 +246,16 @@ const likeComment = (commentId) => {
   });
 };
 
-const emit = defineEmits(['add-comment', 'like-comment']);
+const reportComment = (comment) => {
+  if (!isLoggedIn.value) {
+    goToLogin();
+    return;
+  }
+
+  emit('report-comment', comment);
+};
+
+const emit = defineEmits(['add-comment', 'like-comment', 'report-comment']);
 </script>
 
 <style scoped>
@@ -434,7 +451,8 @@ const emit = defineEmits(['add-comment', 'like-comment']);
 }
 
 .comment-like,
-.comment-reply {
+.comment-reply,
+.comment-report {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -452,6 +470,11 @@ const emit = defineEmits(['add-comment', 'like-comment']);
 .comment-reply:hover {
   background-color: var(--bg-gray);
   color: var(--text-color);
+}
+
+.comment-report:hover {
+  background-color: var(--kumo-status-danger-tint);
+  color: var(--error-color);
 }
 
 .comment-like.active {

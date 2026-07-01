@@ -1,105 +1,115 @@
 <template>
-  <div class="home-container">
-    <!-- 主要内容区 -->
-    <div class="main-content">
-      <div class="welcome-banner" v-if="!route.query.search">
-        <div class="welcome-content">
-          <h1>欢迎来到科技论坛</h1>
-          <p>分享技术，交流经验，共同成长</p>
-          <div class="banner-actions">
-            <router-link to="/article/new" class="btn btn-primary">
-              <font-awesome-icon :icon="['fas', 'edit']" />
-              发布文章
-            </router-link>
-            <router-link to="/questions" class="btn btn-secondary">
+  <div class="home-view">
+    <section v-if="!searchKeyword" class="home-hero kumo-surface-strong reveal-rise">
+      <div class="hero-copy">
+        <span class="kumo-eyebrow">
+          <font-awesome-icon :icon="['fas', 'wand-magic-sparkles']" />
+          Dev Hub
+        </span>
+        <h1 class="kumo-heading">科技论坛</h1>
+        <p>连接文章、问答与实践经验，让技术讨论更清晰、更高效，也更适合长期沉淀。</p>
+        <div class="hero-actions">
+          <router-link to="/article/new" class="kumo-button kumo-button--brand">
+            <font-awesome-icon :icon="['fas', 'edit']" />
+            发布文章
+          </router-link>
+          <router-link to="/question/new" class="kumo-button">
+            <font-awesome-icon :icon="['fas', 'question-circle']" />
+            提出问题
+          </router-link>
+        </div>
+      </div>
+
+      <div class="hero-panel">
+        <div class="signal-card">
+          <span>实时讨论</span>
+          <strong>{{ articleCount + questionCount }}</strong>
+          <small>条内容正在沉淀</small>
+        </div>
+        <div class="signal-grid">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </section>
+
+    <section v-else class="search-summary kumo-surface reveal-rise">
+      <div>
+        <span class="kumo-eyebrow">
+          <font-awesome-icon :icon="['fas', 'search']" />
+          搜索结果
+        </span>
+        <h1 class="kumo-heading">{{ searchKeyword }}</h1>
+      </div>
+      <router-link to="/" class="kumo-button">
+        <font-awesome-icon :icon="['fas', 'times']" />
+        清除搜索
+      </router-link>
+    </section>
+
+    <div class="home-layout">
+      <main class="content-column">
+        <div class="content-toolbar">
+          <div class="kumo-tabs" aria-label="内容类型">
+            <button
+              class="kumo-tab"
+              :class="{ active: activeTab === 'articles' }"
+              type="button"
+              @click="switchTab('articles')"
+            >
+              <font-awesome-icon :icon="['fas', 'file-alt']" />
+              文章
+            </button>
+            <button
+              class="kumo-tab"
+              :class="{ active: activeTab === 'questions' }"
+              type="button"
+              @click="switchTab('questions')"
+            >
               <font-awesome-icon :icon="['fas', 'question-circle']" />
-              提问
-            </router-link>
+              问答
+            </button>
+          </div>
+
+          <div v-if="activeTab === 'articles'" class="kumo-tabs compact-tabs" aria-label="文章类型">
+            <button
+              class="kumo-tab"
+              :class="{ active: articleFilterType === 'all' }"
+              type="button"
+              @click="articleFilterType = 'all'"
+            >
+              最新
+            </button>
+            <button
+              class="kumo-tab"
+              :class="{ active: articleFilterType === 'hot' }"
+              type="button"
+              @click="articleFilterType = 'hot'"
+            >
+              热门
+            </button>
+            <button
+              class="kumo-tab"
+              :class="{ active: articleFilterType === 'recommended' }"
+              type="button"
+              @click="articleFilterType = 'recommended'"
+            >
+              推荐
+            </button>
           </div>
         </div>
-        <div class="welcome-image">
-          <div class="graphic-element"></div>
-        </div>
-      </div>
-      
-      <!-- 搜索结果提示 -->
-      <div class="search-results-header" v-if="route.query.search">
-        <h2>
-          <font-awesome-icon :icon="['fas', 'search']" class="search-icon" />
-          <span>{{ route.query.search }}</span> 的搜索结果
-        </h2>
-        <router-link to="/" class="clear-search">
-          <font-awesome-icon :icon="['fas', 'times']" />
-          清除搜索
-        </router-link>
-      </div>
-      
-      <!-- 内容类型选项卡 -->
-      <div class="content-tabs">
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'articles' }"
-          @click="switchTab('articles')"
-        >
-          <font-awesome-icon :icon="['fas', 'file-alt']" />
-          文章
-        </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'questions' }"
-          @click="switchTab('questions')"
-        >
-          <font-awesome-icon :icon="['fas', 'question-circle']" />
-          问答
-        </div>
-      </div>
-      
-      <!-- 加载状态 -->
-      <div v-if="isLoading" class="loading-container">
-        <div class="loading-spinner">
+
+        <div v-if="isLoading" class="loading-panel kumo-surface">
           <font-awesome-icon :icon="['fas', 'spinner']" spin />
+          <span>正在加载内容...</span>
         </div>
-        <p>正在加载内容...</p>
-      </div>
-      
-      <!-- 内容展示区域 -->
-      <div class="content-display" v-else>
-        <!-- 文章内容 -->
-        <div v-if="activeTab === 'articles'" class="articles-container">
-          <!-- 文章头部导航 -->
-          <div class="articles-header">
-            <h2 class="articles-title">最新文章</h2>
-            
-            <!-- 文章类型导航链接 -->
-            <div class="article-filter-tabs">
-              <div 
-                class="filter-tab"
-                :class="{ active: articleFilterType === 'all' }"
-                @click="articleFilterType = 'all'"
-              >
-                所有文章
-              </div>
-              <div 
-                class="filter-tab"
-                :class="{ active: articleFilterType === 'hot' }"
-                @click="articleFilterType = 'hot'"
-              >
-                热门文章
-              </div>
-              <div 
-                class="filter-tab"
-                :class="{ active: articleFilterType === 'recommended' }"
-                @click="articleFilterType = 'recommended'"
-              >
-                推荐文章
-              </div>
-            </div>
-          </div>
-          
-          <!-- 文章列表区域 -->
-          <article-list 
-            v-if="articleFilterType === 'all'"
-            :articles="articles" 
+
+        <template v-else>
+          <article-list
+            v-if="activeTab === 'articles' && articleFilterType === 'all'"
+            :articles="articles"
             :loading="isLoading"
             :show-title="false"
             :current-page="articlePage"
@@ -108,812 +118,598 @@
             :page-size="articlesPerPage"
             @page-change="handleArticlePageChange"
           />
-          
-          <article-list 
-            v-else-if="articleFilterType === 'hot'"
-            :articles="hotArticles" 
+
+          <article-list
+            v-else-if="activeTab === 'articles' && articleFilterType === 'hot'"
+            :articles="hotArticles"
             :loading="hotArticlesLoading"
             :show-title="false"
             :show-pagination="false"
           />
-          
-          <article-list 
-            v-else-if="articleFilterType === 'recommended'"
+
+          <article-list
+            v-else-if="activeTab === 'articles' && articleFilterType === 'recommended'"
             :articles="recommendedArticles"
             :loading="recommendedArticlesLoading"
             :show-title="false"
             :show-pagination="false"
           />
-        </div>
-        
-        <!-- 问答列表 -->
-        <question-list 
-          v-else-if="activeTab === 'questions'" 
-          :questions="questions"
-          :loading="isLoading"
-          :current-page="questionPage"
-          :total-pages="questionTotalPages"
-          :total-items="questionTotalItems"
-          :page-size="questionsPerPage"
-          @page-change="handleQuestionPageChange"
-        />
-      </div>
-    </div>
-    
-    <!-- 侧边栏 -->
-    <div class="sidebar">
-      <div class="stats-card sidebar-section">
-        <h3>社区数据</h3>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-value">{{ articleCount }}</div>
-            <div class="stat-label">文章</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ questionCount }}</div>
-            <div class="stat-label">问答</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ categoryCount }}</div>
-            <div class="stat-label">分类</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ tagCount }}</div>
-            <div class="stat-label">标签</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="sidebar-section">
-        <h3>热门分类</h3>
-        <category-list :categories="categories.slice(0, 4)" />
-        <router-link to="/categories" class="view-all-link">
-          查看全部分类
-          <font-awesome-icon :icon="['fas', 'arrow-right']" />
-        </router-link>
-      </div>
-      
-      <div class="sidebar-section">
-        <h3>热门标签</h3>
-        <tag-list :tags="popularTags" />
-        <router-link to="/tags" class="view-all-link">
-          查看全部标签
-          <font-awesome-icon :icon="['fas', 'arrow-right']" />
-        </router-link>
-      </div>
 
-      <div class="sidebar-section featured-authors">
-        <h3>推荐作者</h3>
-        <div v-if="featuredAuthorsLoading" class="sidebar-empty">
-          <font-awesome-icon :icon="['fas', 'spinner']" spin />
-          <span>加载中...</span>
-        </div>
-        <div v-else-if="featuredAuthorsError" class="sidebar-empty error">
-          {{ featuredAuthorsError }}
-        </div>
-        <div v-else-if="featuredAuthors.length > 0" class="authors-list">
-          <router-link 
-            v-for="author in featuredAuthors" 
-            :key="author.id" 
-            :to="{ name: 'UserProfile', params: { id: String(author.id) }}" 
-            class="author-item"
-          >
-            <div class="author-avatar">
-              <img v-if="getAuthorAvatar(author)" :src="getAuthorAvatar(author)" :alt="getAuthorName(author)" />
-              <span v-else>{{ getAuthorInitial(author) }}</span>
+          <question-list
+            v-else-if="activeTab === 'questions'"
+            :questions="questions"
+            :loading="isLoading"
+            :current-page="questionPage"
+            :total-pages="questionTotalPages"
+            :total-items="questionTotalItems"
+            :page-size="questionsPerPage"
+            @page-change="handleQuestionPageChange"
+          />
+        </template>
+      </main>
+
+      <aside class="home-sidebar">
+        <section class="stats-card kumo-surface">
+          <div class="section-heading">
+            <span class="kumo-eyebrow">社区数据</span>
+            <h2 class="kumo-heading">Overview</h2>
+          </div>
+          <div class="stats-grid">
+            <div v-for="stat in stats" :key="stat.label" class="stat-item">
+              <span class="stat-icon">
+                <font-awesome-icon :icon="['fas', stat.icon]" />
+              </span>
+              <span class="stat-meta">
+                <strong>{{ stat.value }}</strong>
+                <span>{{ stat.label }}</span>
+                <small>{{ stat.caption }}</small>
+              </span>
             </div>
-            <div class="author-info">
-              <div class="author-name">{{ getAuthorName(author) }}</div>
-              <div class="author-articles">{{ author.bio || '最近加入' }}</div>
-            </div>
-          </router-link>
-        </div>
-        <div v-else class="sidebar-empty">暂无推荐作者</div>
-      </div>
+          </div>
+        </section>
+
+        <section class="sidebar-section kumo-surface">
+          <div class="section-heading inline">
+            <h3>热门分类</h3>
+            <router-link to="/categories">全部</router-link>
+          </div>
+          <category-list :categories="categories.slice(0, 4)" />
+        </section>
+
+        <section class="sidebar-section kumo-surface">
+          <div class="section-heading inline">
+            <h3>热门标签</h3>
+            <router-link to="/tags">全部</router-link>
+          </div>
+          <tag-list :tags="popularTags.slice(0, 16)" />
+        </section>
+
+        <section class="sidebar-section kumo-surface">
+          <div class="section-heading inline">
+            <h3>推荐作者</h3>
+            <font-awesome-icon v-if="featuredAuthorsLoading" :icon="['fas', 'spinner']" spin />
+          </div>
+          <div v-if="featuredAuthorsError" class="sidebar-message error">
+            {{ featuredAuthorsError }}
+          </div>
+          <div v-else-if="featuredAuthors.length" class="authors-list">
+            <router-link
+              v-for="author in featuredAuthors"
+              :key="author.id"
+              :to="{ name: 'UserProfile', params: { id: String(author.id) } }"
+              class="author-item"
+            >
+              <span class="author-avatar">
+                <img v-if="getAuthorAvatar(author)" :src="getAuthorAvatar(author)" :alt="getAuthorName(author)">
+                <span v-else>{{ getAuthorInitial(author) }}</span>
+              </span>
+              <span>
+                <strong>{{ getAuthorName(author) }}</strong>
+                <small>{{ author.bio || '最近加入' }}</small>
+              </span>
+            </router-link>
+          </div>
+          <div v-else class="sidebar-message">暂无推荐作者</div>
+        </section>
+      </aside>
     </div>
   </div>
 </template>
 
-<script>
-import { defineComponent, ref, onMounted, computed, watch } from 'vue'
+<script setup>
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import ArticleList from '../components/ArticleList.vue'
 import CategoryList from '../components/CategoryList.vue'
 import TagList from '../components/TagList.vue'
 import QuestionList from '../components/QuestionList.vue'
-import HotArticles from '../components/HotArticles.vue'
 import { questionService } from '../services/questionService'
 import { userApi } from '../api/userApi'
 import { resolveAvatarFrom } from '../utils/avatar'
 
-export default defineComponent({
-  name: 'Home',
-  components: {
-    ArticleList,
-    CategoryList,
-    TagList,
-    QuestionList,
-    HotArticles
-  },
-  setup() {
-    const route = useRoute();
-    const store = useStore();
-    const activeTab = ref(route.query.tab || 'articles'); // 默认显示文章，支持URL参数切换
-    const questions = ref([]);
-    const isLoading = ref(true);
-    const router = useRouter();
-    
-    // 使用Vuex中的数据
-    const articles = computed(() => store.state.articles || []);
-    const categories = computed(() => store.state.categories || []);
-    const popularTags = computed(() => store.state.popularTags || []);
-    
-    // 热门文章和推荐文章的数据
-    const hotArticles = ref([]);
-    const recommendedArticles = ref([]);
-    const hotArticlesLoading = ref(false);
-    const recommendedArticlesLoading = ref(false);
-    const featuredAuthors = ref([]);
-    const featuredAuthorsLoading = ref(false);
-    const featuredAuthorsError = ref('');
-    
-    // 计算属性
-    const articleCount = computed(() => store.state.articleCount || articles.value.length);
-    const categoryCount = computed(() => categories.value.length);
-    const tagCount = computed(() => popularTags.value.length);
-    const questionCount = computed(() => questions.value.length || 0);
+const route = useRoute()
+const router = useRouter()
+const store = useStore()
 
-    // 文章分页相关
-    const articlePage = ref(1);
-    const articlesPerPage = ref(10);
-    const articleTotalPages = ref(1);
-    const articleTotalItems = ref(0);
+const activeTab = ref(route.query.tab || 'articles')
+const questions = ref([])
+const isLoading = ref(true)
+const hotArticles = ref([])
+const recommendedArticles = ref([])
+const hotArticlesLoading = ref(false)
+const recommendedArticlesLoading = ref(false)
+const featuredAuthors = ref([])
+const featuredAuthorsLoading = ref(false)
+const featuredAuthorsError = ref('')
 
-    // 问题分页相关
-    const questionPage = ref(1);
-    const questionsPerPage = ref(10);
-    const questionTotalPages = ref(1);
-    const questionTotalItems = ref(0);
+const articlePage = ref(1)
+const articlesPerPage = ref(10)
+const articleTotalPages = ref(1)
+const articleTotalItems = ref(0)
+const questionPage = ref(1)
+const questionsPerPage = ref(10)
+const questionTotalPages = ref(1)
+const questionTotalItems = ref(0)
+const articleFilterType = ref('all')
 
-    // 文章过滤相关
-    const articleFilterType = ref('all');
-    const searchKeyword = computed(() => String(route.query.search || '').trim());
+const articles = computed(() => store.state.articles || [])
+const categories = computed(() => store.state.categories || [])
+const popularTags = computed(() => store.state.popularTags || [])
+const searchKeyword = computed(() => String(route.query.search || '').trim())
+const articleCount = computed(() => store.state.articleCount || articles.value.length)
+const categoryCount = computed(() => categories.value.length)
+const tagCount = computed(() => popularTags.value.length)
+const questionCount = computed(() => questionTotalItems.value || questions.value.length || 0)
 
-    // 更新URL参数的方法
-    const updateUrlParams = (tab) => {
-      router.replace({ 
-        query: { 
-          ...route.query, 
-          tab 
-        }
-      });
-    };
-    
-    // 切换选项卡的方法
-    const switchTab = (tab) => {
-      activeTab.value = tab;
-      updateUrlParams(tab);
-    };
+const stats = computed(() => [
+  { label: '文章', value: articleCount.value, caption: '长期沉淀', icon: 'file-alt' },
+  { label: '问答', value: questionCount.value, caption: '问题协作', icon: 'question-circle' },
+  { label: '分类', value: categoryCount.value, caption: '知识导航', icon: 'folder' },
+  { label: '标签', value: tagCount.value, caption: '主题索引', icon: 'tags' }
+])
 
-    // 监听activeTab变化，如果是hot或recommended，则加载对应数据
-    watch(activeTab, async (newTab) => {
-      if (newTab === 'hot') {
-        await loadHotArticles();
-      } else if (newTab === 'recommended') {
-        await loadRecommendedArticles();
-      }
-    });
-    
-    // 监听URL参数变化
-    watch(() => route.query.tab, (newTab) => {
-      if (newTab) {
-        activeTab.value = newTab;
-      }
-    });
+const switchTab = (tab) => {
+  activeTab.value = tab
+  router.replace({
+    query: {
+      ...route.query,
+      tab
+    }
+  })
+}
 
-    watch(searchKeyword, async () => {
-      articlePage.value = 1;
-      questionPage.value = 1;
-      await loadData();
-    });
-
-    // 监听文章过滤类型变化
-    watch(articleFilterType, async (newType) => {
-      if (newType === 'hot' && (!hotArticles.value || hotArticles.value.length === 0)) {
-        await loadHotArticles();
-      } else if (newType === 'recommended' && (!recommendedArticles.value || recommendedArticles.value.length === 0)) {
-        await loadRecommendedArticles();
-      }
-    });
-
-    // 加载热门文章
-    const loadHotArticles = async () => {
-      hotArticlesLoading.value = true;
-      try {
-        const result = await store.dispatch('fetchHotArticles', { limit: 10 });
-        hotArticles.value = result?.data || [];
-      } catch (error) {
-        console.error('加载热门文章失败:', error);
-      } finally {
-        hotArticlesLoading.value = false;
-      }
-    };
-
-    // 加载推荐文章
-    const loadRecommendedArticles = async () => {
-      recommendedArticlesLoading.value = true;
-      try {
-        const result = await store.dispatch('fetchRecommendedArticles', { limit: 10 });
-        recommendedArticles.value = result?.data || [];
-      } catch (error) {
-        console.error('加载推荐文章失败:', error);
-      } finally {
-        recommendedArticlesLoading.value = false;
-      }
-    };
-
-    const loadFeaturedAuthors = async () => {
-      featuredAuthorsLoading.value = true;
-      featuredAuthorsError.value = '';
-      try {
-        const result = await userApi.getRecentUsers(4);
-        featuredAuthors.value = result?.data || result || [];
-      } catch (error) {
-        console.error('加载推荐作者失败:', error);
-        featuredAuthors.value = [];
-        featuredAuthorsError.value = error.message || '推荐作者加载失败';
-      } finally {
-        featuredAuthorsLoading.value = false;
-      }
-    };
-
-    const getAuthorName = (author) => author.nickname || author.username || '用户';
-
-    const getAuthorAvatar = (author) => resolveAvatarFrom(author);
-
-    const getAuthorInitial = (author) => getAuthorName(author).charAt(0).toUpperCase();
-
-    // 生命周期钩子
-    onMounted(async () => {
-      await loadData();
-      
-      // 预加载热门文章和推荐文章
-      Promise.all([
-        loadHotArticles(),
-        loadRecommendedArticles(),
-        loadFeaturedAuthors()
-      ]).catch(error => {
-        console.error('Error preloading sidebar data:', error);
-      });
-    });
-
-    // 方法
-    const loadData = async () => {
-      isLoading.value = true;
-      
-      try {
-        // 首先加载文章数据
-        const articlesResponse = await store.dispatch('fetchArticles', { 
-          page: articlePage.value, 
-          pageSize: articlesPerPage.value,
-          keyword: searchKeyword.value || undefined
-        });
-        
-        // 更新文章分页信息
-        if (articlesResponse) {
-          articleTotalPages.value = articlesResponse.totalPages || 1;
-          articleTotalItems.value = articlesResponse.total || 0;
-        }
-        
-        // 然后加载分类和标签
-        const promises = [
-          store.dispatch('fetchCategories'),
-          store.dispatch('fetchPopularTags')
-        ];
-        
-        await Promise.all(promises);
-        
-        // 加载问题数据
-        await loadQuestions();
-      } catch (error) {
-        console.error('Error loading data:', error);
-        
-        // 尝试单独加载每个数据源
-        try {
-          await store.dispatch('fetchArticles', { 
-            page: articlePage.value, 
-            pageSize: articlesPerPage.value,
-            keyword: searchKeyword.value || undefined
-          });
-        } catch (articlesError) {
-          console.error('Failed to load articles separately:', articlesError);
-        }
-        
-        try {
-          await store.dispatch('fetchCategories');
-        } catch (categoriesError) {
-          console.error('Failed to load categories separately:', categoriesError);
-        }
-        
-        try {
-          await store.dispatch('fetchPopularTags');
-        } catch (tagsError) {
-          console.error('Failed to load tags separately:', tagsError);
-        }
-        
-        try {
-          await loadQuestions();
-        } catch (questionsError) {
-          console.error('Failed to load questions separately:', questionsError);
-        }
-      } finally {
-        isLoading.value = false;
-      }
-    };
-    
-    // 加载问题数据
-    const loadQuestions = async () => {
-      try {
-        const questionResponse = await questionService.getQuestions({
-          page: questionPage.value,
-          pageSize: questionsPerPage.value,
-          keyword: searchKeyword.value || undefined
-        });
-
-        if (questionResponse.success) {
-          // 处理分页数据结构
-          if (questionResponse.data && questionResponse.data.content) {
-            // Spring Boot分页格式
-            questions.value = questionResponse.data.content || [];
-            questionTotalItems.value = questionResponse.data.totalElements || 0;
-            questionTotalPages.value = questionResponse.data.totalPages || 1;
-          } else if (Array.isArray(questionResponse.data)) {
-            // 简单数组格式
-            questions.value = questionResponse.data || [];
-            questionTotalItems.value = questionResponse.totalElements || questionResponse.data.length;
-            questionTotalPages.value = questionResponse.totalPages || 1;
-          } else {
-            questions.value = [];
-            questionTotalItems.value = 0;
-            questionTotalPages.value = 1;
-          }
-        } else {
-          questions.value = [];
-          questionTotalItems.value = 0;
-          questionTotalPages.value = 1;
-        }
-        
-        return questionResponse;
-      } catch (error) {
-        console.error('Error loading questions:', error);
-        return null;
-      }
-    };
-    
-    // 文章分页变化处理
-    const handleArticlePageChange = async (page) => {
-      articlePage.value = page;
-      isLoading.value = true;
-      
-      try {
-        const articlesResponse = await store.dispatch('fetchArticles', { 
-          page: articlePage.value, 
-          pageSize: articlesPerPage.value,
-          keyword: searchKeyword.value || undefined
-        });
-        
-        if (articlesResponse) {
-          articleTotalPages.value = articlesResponse.totalPages || 1;
-          articleTotalItems.value = articlesResponse.total || 0;
-        }
-      } catch (error) {
-        console.error('Error changing article page:', error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-    
-    // 问题分页变化处理
-    const handleQuestionPageChange = async (page) => {
-      questionPage.value = page;
-      isLoading.value = true;
-      
-      try {
-        await loadQuestions();
-      } catch (error) {
-        console.error('Error changing question page:', error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-    
-    return {
-      route,
-      activeTab,
-      questions,
-      articles,
-      categories,
-      popularTags,
-      articleCount,
-      categoryCount,
-      tagCount,
-      questionCount,
-      isLoading,
-      articlePage,
-      articlesPerPage,
-      articleTotalPages,
-      articleTotalItems,
-      questionPage,
-      questionsPerPage,
-      questionTotalPages,
-      questionTotalItems,
-      articleFilterType,
-      searchKeyword,
-      handleArticlePageChange,
-      handleQuestionPageChange,
-      hotArticles,
-      recommendedArticles,
-      hotArticlesLoading,
-      recommendedArticlesLoading,
-      featuredAuthors,
-      featuredAuthorsLoading,
-      featuredAuthorsError,
-      loadHotArticles,
-      loadRecommendedArticles,
-      loadFeaturedAuthors,
-      getAuthorName,
-      getAuthorAvatar,
-      getAuthorInitial,
-      switchTab
-    };
+const loadHotArticles = async () => {
+  hotArticlesLoading.value = true
+  try {
+    const result = await store.dispatch('fetchHotArticles', { limit: 10 })
+    hotArticles.value = result?.data || []
+  } catch (error) {
+    hotArticles.value = []
+  } finally {
+    hotArticlesLoading.value = false
   }
+}
+
+const loadRecommendedArticles = async () => {
+  recommendedArticlesLoading.value = true
+  try {
+    const result = await store.dispatch('fetchRecommendedArticles', { limit: 10 })
+    recommendedArticles.value = result?.data || []
+  } catch (error) {
+    recommendedArticles.value = []
+  } finally {
+    recommendedArticlesLoading.value = false
+  }
+}
+
+const loadFeaturedAuthors = async () => {
+  featuredAuthorsLoading.value = true
+  featuredAuthorsError.value = ''
+  try {
+    const result = await userApi.getRecentUsers(4)
+    featuredAuthors.value = result?.data || result || []
+  } catch (error) {
+    featuredAuthors.value = []
+    featuredAuthorsError.value = error.message || '推荐作者加载失败'
+  } finally {
+    featuredAuthorsLoading.value = false
+  }
+}
+
+const loadQuestions = async () => {
+  const questionResponse = await questionService.getQuestions({
+    page: questionPage.value,
+    pageSize: questionsPerPage.value,
+    keyword: searchKeyword.value || undefined
+  })
+
+  if (questionResponse.success) {
+    if (questionResponse.data?.content) {
+      questions.value = questionResponse.data.content || []
+      questionTotalItems.value = questionResponse.data.totalElements || 0
+      questionTotalPages.value = questionResponse.data.totalPages || 1
+    } else if (Array.isArray(questionResponse.data)) {
+      questions.value = questionResponse.data || []
+      questionTotalItems.value = questionResponse.totalElements || questionResponse.data.length
+      questionTotalPages.value = questionResponse.totalPages || 1
+    }
+  } else {
+    questions.value = []
+    questionTotalItems.value = 0
+    questionTotalPages.value = 1
+  }
+}
+
+const loadData = async () => {
+  isLoading.value = true
+
+  try {
+    const articlesResponse = await store.dispatch('fetchArticles', {
+      page: articlePage.value,
+      pageSize: articlesPerPage.value,
+      keyword: searchKeyword.value || undefined
+    })
+
+    articleTotalPages.value = articlesResponse?.totalPages || 1
+    articleTotalItems.value = articlesResponse?.total || 0
+
+    await Promise.all([
+      store.dispatch('fetchCategories'),
+      store.dispatch('fetchPopularTags'),
+      loadQuestions()
+    ])
+  } catch (error) {
+    store.commit('SET_ERROR', error?.message || '首页内容加载失败')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const handleArticlePageChange = async (page) => {
+  articlePage.value = page
+  isLoading.value = true
+
+  try {
+    const articlesResponse = await store.dispatch('fetchArticles', {
+      page: articlePage.value,
+      pageSize: articlesPerPage.value,
+      keyword: searchKeyword.value || undefined
+    })
+
+    articleTotalPages.value = articlesResponse?.totalPages || 1
+    articleTotalItems.value = articlesResponse?.total || 0
+  } catch (error) {
+    store.commit('SET_ERROR', error?.message || '文章分页加载失败')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const handleQuestionPageChange = async (page) => {
+  questionPage.value = page
+  isLoading.value = true
+  try {
+    await loadQuestions()
+  } catch (error) {
+    store.commit('SET_ERROR', error?.message || '问答分页加载失败')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const getAuthorName = (author) => author.nickname || author.username || '用户'
+const getAuthorAvatar = (author) => resolveAvatarFrom(author)
+const getAuthorInitial = (author) => getAuthorName(author).charAt(0).toUpperCase()
+
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) activeTab.value = newTab
+})
+
+watch(searchKeyword, async () => {
+  articlePage.value = 1
+  questionPage.value = 1
+  await loadData()
+})
+
+watch(articleFilterType, async (newType) => {
+  if (newType === 'hot' && hotArticles.value.length === 0) {
+    await loadHotArticles()
+  } else if (newType === 'recommended' && recommendedArticles.value.length === 0) {
+    await loadRecommendedArticles()
+  }
+})
+
+onMounted(async () => {
+  await loadData()
+  Promise.all([loadHotArticles(), loadRecommendedArticles(), loadFeaturedAuthors()])
 })
 </script>
 
 <style scoped>
-.home-container {
+.home-view {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  gap: clamp(1rem, 3vw, 1.5rem);
+}
+
+.home-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.4fr);
   gap: 1.5rem;
-}
-
-.main-content {
-  width: 100%;
-}
-
-/* 欢迎横幅 */
-.welcome-banner {
-  display: flex;
-  background: linear-gradient(135deg, var(--primary-light) 0%, #e6f7ff 100%);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  margin-bottom: 1.5rem;
+  min-height: 20rem;
+  padding: clamp(1.5rem, 4vw, 3.25rem);
   overflow: hidden;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -12rem -16rem auto;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--kumo-bg-brand-soft), transparent 66%);
+  animation: soft-pulse 8s ease-in-out infinite;
+}
+
+.hero-copy {
   position: relative;
-  box-shadow: var(--shadow);
-  border: 1px solid rgba(37, 99, 235, 0.1);
-}
-
-.welcome-content {
-  flex: 1;
-  position: relative;
-  z-index: 2;
-}
-
-.welcome-content h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-  color: var(--text-color);
-  line-height: 1.2;
-}
-
-.welcome-content p {
-  font-size: 1.1rem;
-  color: var(--text-light);
-  margin-bottom: 1.5rem;
-  max-width: 80%;
-}
-
-.banner-actions {
+  z-index: 1;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   gap: 1rem;
 }
 
-.welcome-image {
-  position: relative;
-  width: 200px;
+.hero-copy h1 {
+  max-width: 10ch;
+  margin: 0;
+  font-size: clamp(2.45rem, 6vw, 4.8rem);
+  line-height: 0.98;
+}
+
+.hero-copy p {
+  max-width: 38rem;
+  margin: 0;
+  color: var(--kumo-text-muted);
+  font-size: clamp(0.98rem, 1.5vw, 1.08rem);
+  line-height: 1.75;
+}
+
+.hero-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.4rem;
 }
 
-.graphic-element {
-  position: absolute;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0.05) 50%, transparent 70%);
-  border-radius: 50%;
-  right: -100px;
-  top: -100px;
+.hero-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 1rem;
 }
 
-.graphic-element::before {
-  content: '';
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  border: 2px dashed rgba(37, 99, 235, 0.2);
-  border-radius: 50%;
-  top: 50px;
-  left: 50px;
-  animation: rotate 20s linear infinite;
+.signal-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
-.graphic-element::after {
-  content: '';
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  background-color: rgba(37, 99, 235, 0.1);
-  border-radius: 50%;
-  top: 100px;
-  left: 100px;
-  animation: pulse 3s ease-in-out infinite;
+.signal-card span,
+.signal-card small {
+  color: var(--kumo-text-muted);
+  font-weight: 740;
 }
 
-@keyframes rotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.signal-card strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: 2.45rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
 }
 
-/* 搜索结果提示 */
-.search-results-header {
+.signal-grid span {
+  aspect-ratio: 1;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background:
+    linear-gradient(135deg, var(--kumo-bg-brand-soft), transparent),
+    var(--kumo-bg-elevated);
+}
+
+.search-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
-  padding: 1rem 1.5rem;
-  background-color: var(--bg-white);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  border-left: 4px solid var(--primary-color);
+  gap: 1rem;
+  padding: clamp(1.2rem, 3vw, 2rem);
 }
 
-.search-results-header h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 0;
+.search-summary h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.content-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.content-toolbar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.search-icon {
-  color: var(--primary-color);
+.compact-tabs .kumo-tab {
+  min-height: 2.1rem;
+  padding-inline: 0.75rem;
 }
 
-.clear-search {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-lighter);
-  font-size: 0.9rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition: var(--transition);
+.loading-panel {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 18rem;
+  color: var(--kumo-text-muted);
 }
 
-.clear-search:hover {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
-}
-
-/* 内容选项卡 */
-.content-tabs {
-  display: flex;
-  background-color: var(--bg-white);
-  border-radius: var(--radius);
-  margin-bottom: 1.5rem;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-}
-
-.tab-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--text-light);
-  transition: var(--transition);
-  border-bottom: 2px solid transparent;
-}
-
-.tab-item:hover {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
-}
-
-.tab-item.active {
-  color: var(--primary-color);
-  background-color: var(--bg-white);
-  border-bottom: 2px solid var(--primary-color);
-}
-
-/* 加载状态 */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 0;
-  color: var(--text-lighter);
-}
-
-.loading-spinner {
+.loading-panel svg {
+  color: var(--kumo-bg-brand);
   font-size: 2rem;
-  margin-bottom: 1rem;
-  color: var(--primary-color);
 }
 
-/* 侧边栏 */
-.sidebar {
-  width: 100%;
+.home-sidebar {
+  position: sticky;
+  top: 6rem;
+  display: grid;
+  gap: 1rem;
 }
 
+.stats-card,
 .sidebar-section {
-  background-color: var(--bg-white);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-  margin-bottom: 1.5rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
 }
 
-.sidebar-section h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-color);
+.section-heading {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.section-heading.inline {
   display: flex;
   align-items: center;
-  position: relative;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color);
+  justify-content: space-between;
 }
 
-.sidebar-section h3::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  width: 50px;
-  height: 2px;
-  background-color: var(--primary-color);
+.section-heading h2,
+.section-heading h3 {
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-weight: 840;
 }
 
-/* 社区数据卡片 */
-.stats-card {
-  background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-gray) 100%);
+.section-heading h2 {
+  font-size: 1.15rem;
+}
+
+.section-heading a {
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 780;
+  text-decoration: none;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
 }
 
 .stat-item {
-  text-align: center;
-  padding: 1rem;
-  border-radius: var(--radius);
-  background-color: var(--bg-white);
-  transition: var(--transition);
-  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4.3rem;
+  padding: 0.75rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-subtle);
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
 .stat-item:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--primary-light);
+  transform: translateY(-1px);
+  border-color: var(--kumo-hairline-strong);
+  background: var(--kumo-bg-elevated);
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: var(--text-light);
-}
-
-/* 查看全部链接 */
-.view-all-link {
-  display: flex;
+.stat-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.5rem;
-  border-radius: var(--radius);
-  color: var(--primary-color);
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: var(--transition);
-  background-color: var(--primary-light);
+  flex: 0 0 auto;
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
-.view-all-link:hover {
-  background-color: var(--primary-light);
-  transform: translateY(-2px);
+.stat-meta {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
 }
 
-/* 推荐作者列表 */
+.stat-item strong {
+  color: var(--kumo-text-default);
+  font-size: 1.25rem;
+  font-weight: 890;
+  line-height: 1;
+}
+
+.stat-meta > span {
+  color: var(--kumo-text-muted);
+  font-size: 0.8rem;
+  font-weight: 740;
+}
+
+.stat-item small {
+  color: var(--kumo-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 680;
+}
+
 .authors-list {
-  margin-top: 1rem;
+  display: grid;
+  gap: 0.7rem;
 }
 
 .author-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-color);
+  gap: 0.7rem;
+  color: var(--kumo-text-default);
   text-decoration: none;
-  color: var(--text-color);
-  transition: var(--transition);
-}
-
-.author-item:last-child {
-  border-bottom: none;
-}
-
-.author-item:hover {
-  background-color: var(--bg-light);
-}
-
-.author-item:hover .author-name {
-  color: var(--primary-color);
 }
 
 .author-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: var(--transition);
+  width: 2.55rem;
+  height: 2.55rem;
   overflow: hidden;
-  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 850;
 }
 
 .author-avatar img {
@@ -922,192 +718,54 @@ export default defineComponent({
   object-fit: cover;
 }
 
-.author-item:hover .author-avatar {
-  transform: scale(1.05);
-  box-shadow: 0 0 0 2px var(--primary-color);
+.author-item span:last-child {
+  display: grid;
+  min-width: 0;
 }
 
-.author-name {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.author-articles {
-  font-size: 0.8rem;
-  color: var(--text-light);
+.author-item strong {
   overflow: hidden;
+  font-weight: 820;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 210px;
 }
 
-.sidebar-empty {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  color: var(--text-light);
-  font-size: 0.9rem;
-  background: var(--bg-light);
+.author-item small {
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sidebar-empty.error {
-  color: var(--error-color);
-  border-color: rgba(var(--error-rgb), 0.3);
-  background: rgba(var(--error-rgb), 0.06);
+.sidebar-message {
+  color: var(--kumo-text-muted);
+  font-weight: 720;
 }
 
-/* 响应式设计 */
-@media (max-width: 992px) {
-  .home-container {
+.sidebar-message.error {
+  color: var(--kumo-status-danger);
+}
+
+@media (max-width: 1080px) {
+  .home-layout,
+  .home-hero {
     grid-template-columns: 1fr;
   }
-  
-  .sidebar {
-    order: 2;
-  }
-  
-  .sidebar-section {
-    margin-bottom: 1rem;
+
+  .home-sidebar {
+    position: static;
   }
 }
 
-@media (max-width: 768px) {
-  .welcome-banner {
+@media (max-width: 680px) {
+  .content-toolbar,
+  .search-summary {
+    align-items: stretch;
     flex-direction: column;
-    padding: 1.5rem;
   }
-  
-  .welcome-content h1 {
-    font-size: 1.5rem;
-  }
-  
-  .welcome-content p {
-    font-size: 1rem;
-    max-width: 100%;
-  }
-  
-  .banner-actions {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .welcome-image {
-    display: none;
-  }
-  
+
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 576px) {
-  .stat-value {
-    font-size: 1.25rem;
-  }
-  
-  .welcome-content h1 {
-    font-size: 1.25rem;
-  }
-}
-
-/* 最新文章部分 */
-.section-title {
-  display: none;
-}
-
-.article-filter-tabs {
-  display: flex;
-}
-
-.articles-container {
-  margin-top: 0;
-}
-
-.articles-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
-.articles-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0;
-  position: relative;
-  padding-left: 0.75rem;
-  border-left: 4px solid var(--primary-color);
-}
-
-.article-filter-tabs {
-  display: flex;
-}
-
-.filter-tab {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  position: relative;
-  color: var(--text-color);
-  font-size: 0.95rem;
-  transition: var(--transition);
-  margin-left: 1rem;
-}
-
-.filter-tab:hover {
-  color: var(--primary-color);
-}
-
-.filter-tab.active {
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.filter-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -0.5rem;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background-color: var(--primary-color);
-}
-
-@media (max-width: 768px) {
-  .articles-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .article-filter-tabs {
-    width: 100%;
-    justify-content: flex-start;
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.5rem;
-  }
-  
-  .filter-tab {
-    margin-left: 0;
-    margin-right: 1rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .articles-title {
-    font-size: 1.15rem;
-  }
-  
-  .filter-tab {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
-    margin-right: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

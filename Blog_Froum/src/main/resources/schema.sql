@@ -189,6 +189,27 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- 举报表
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    reporter_id BIGINT NOT NULL COMMENT '举报人ID',
+    target_type VARCHAR(20) NOT NULL COMMENT '目标类型：ARTICLE, QUESTION, COMMENT, USER',
+    target_id BIGINT NOT NULL COMMENT '目标ID',
+    target_title VARCHAR(255) COMMENT '目标标题或摘要',
+    target_owner_id BIGINT COMMENT '目标作者或所属用户ID',
+    reason VARCHAR(120) NOT NULL COMMENT '举报原因',
+    description TEXT COMMENT '举报补充说明',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING, RESOLVED, REJECTED',
+    handler_id BIGINT COMMENT '处理管理员ID',
+    handler_note TEXT COMMENT '处理备注',
+    handled_at TIMESTAMP COMMENT '处理时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_owner_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (handler_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- 操作日志表
 CREATE TABLE IF NOT EXISTS operation_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -250,6 +271,12 @@ CREATE INDEX idx_follows_target ON follows(target_type, target_id);
 
 CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_notifications_read ON notifications(is_read);
+
+CREATE INDEX idx_reports_reporter ON reports(reporter_id);
+CREATE INDEX idx_reports_target ON reports(target_type, target_id);
+CREATE INDEX idx_reports_status ON reports(status);
+CREATE INDEX idx_reports_created ON reports(created_at);
+CREATE INDEX idx_reports_pending_target ON reports(reporter_id, target_type, target_id, status);
 
 CREATE INDEX idx_operation_logs_user ON operation_logs(user_id);
 CREATE INDEX idx_operation_logs_type ON operation_logs(operation_type);

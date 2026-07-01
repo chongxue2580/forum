@@ -11,12 +11,14 @@ import {
   getAllCategories,
   getAllQuestions,
   getAllTags,
+  getAdminReports,
   getDashboardOverview,
   getDataTrends,
   getRecentActivities,
   getRecentUsers,
   getSystemStatus,
   getTodayStatistics,
+  handleAdminReport,
   rejectArticle,
   rejectCategory,
   rejectQuestion,
@@ -38,14 +40,23 @@ const router = useRouter()
 const activeTab = ref('dashboard')
 
 // 夜间模式
-const isDark = ref(localStorage.getItem('adminTheme') === 'dark')
+const initialAdminMode = localStorage.getItem('adminTheme') || localStorage.getItem('themeMode') || 'light'
+const isDark = ref(initialAdminMode === 'dark')
+
+const applyAdminTheme = () => {
+  const mode = isDark.value ? 'dark' : 'light'
+  document.documentElement.dataset.mode = mode
+  localStorage.setItem('adminTheme', mode)
+  localStorage.setItem('themeMode', mode)
+}
+
 const toggleTheme = () => {
   isDark.value = !isDark.value
-  localStorage.setItem('adminTheme', isDark.value ? 'dark' : 'light')
+  applyAdminTheme()
 }
 
 // 背景主题（用户可自选，记忆到本地）
-const bgTheme = ref(localStorage.getItem('adminBgTheme') || 'mint')
+const bgTheme = ref(localStorage.getItem('adminBgTheme') || 'ice')
 const setBgTheme = (theme) => {
   bgTheme.value = theme
   localStorage.setItem('adminBgTheme', theme)
@@ -133,13 +144,15 @@ const pendingItems = ref({
   articles: [],
   questions: [],
   categories: [],
-  tags: []
+  tags: [],
+  reports: []
 })
 const pendingTotals = ref({
   articles: 0,
   questions: 0,
   categories: 0,
-  tags: 0
+  tags: 0,
+  reports: 0
 })
 
 const roleOptions = [
@@ -185,7 +198,8 @@ const pendingTabs = computed(() => [
   { key: 'articles', label: '文章', count: pendingTotals.value.articles || stats.value.articles.pending || 0 },
   { key: 'questions', label: '问答', count: pendingTotals.value.questions || stats.value.questions.pending || 0 },
   { key: 'categories', label: '分类', count: pendingTotals.value.categories || stats.value.categories.pending || 0 },
-  { key: 'tags', label: '标签', count: pendingTotals.value.tags || stats.value.tags.pending || 0 }
+  { key: 'tags', label: '标签', count: pendingTotals.value.tags || stats.value.tags.pending || 0 },
+  { key: 'reports', label: '举报', count: pendingTotals.value.reports || 0 }
 ])
 
 const currentPendingItems = computed(() => pendingItems.value[pendingType.value] || [])
@@ -223,6 +237,16 @@ const formatDateTime = (value) => {
 
 const getAuthorName = (author) => author?.nickname || author?.username || author?.name || '未知用户'
 
+const reportTargetTypeText = (type) => {
+  const textMap = {
+    ARTICLE: '文章',
+    QUESTION: '问答',
+    COMMENT: '评论',
+    USER: '用户'
+  }
+  return textMap[type] || '内容'
+}
+
 const normalizePendingItem = (type, item) => {
   const fieldMap = {
     articles: {
@@ -244,6 +268,13 @@ const normalizePendingItem = (type, item) => {
       title: item.name,
       owner: item.createdBy?.name || '系统',
       time: item.createdAt || item.createTime
+    },
+    reports: {
+      title: item.targetTitle || `${reportTargetTypeText(item.targetType)} #${item.targetId || item.id}`,
+      owner: item.reporterName || (item.reporterId ? `用户${item.reporterId}` : '匿名用户'),
+      time: item.createdAt || item.createTime,
+      description: item.reason || item.description || '待处理举报',
+      targetType: item.targetType
     }
   }
 
@@ -253,9 +284,14 @@ const normalizePendingItem = (type, item) => {
     type,
     title: mapped.title || '未命名',
     author: mapped.owner,
-    time: formatDateTime(mapped.time)
+    time: formatDateTime(mapped.time),
+    description: mapped.description,
+    targetType: mapped.targetType
   }
 }
+
+const getPendingPrimaryActionText = (type) => type === 'reports' ? '处理' : '通过'
+const getPendingDangerActionText = (type) => type === 'reports' ? '驳回' : '拒绝'
 
 const normalizeUser = (user) => {
   const role = String(user.role || 'USER').toUpperCase()
@@ -276,8 +312,14 @@ const normalizeUser = (user) => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    '#6c8ff5', '#68c3a3', '#f1a766', '#a991f7',
-    '#ee86b7', '#ef8c8c', '#7ac7d7', '#96b86d'
+    'var(--kumo-status-info)',
+    'var(--kumo-status-success)',
+    'var(--kumo-status-warning)',
+    'var(--kumo-bg-accent)',
+    'var(--kumo-status-danger)',
+    'var(--kumo-bg-brand)',
+    'var(--kumo-bg-brand-strong)',
+    'var(--kumo-text-muted)'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -384,7 +426,7 @@ const approvalDonut = computed(() => {
     approvedPct,
     pendingPct,
     style: {
-      background: `conic-gradient(#68c3a3 0 ${approvedPct}%, #f3c46d ${approvedPct}% ${approvedPct + pendingPct}%, #ee8a9a ${approvedPct + pendingPct}% 100%)`
+      background: `conic-gradient(var(--kumo-status-success) 0 ${approvedPct}%, var(--kumo-status-warning) ${approvedPct}% ${approvedPct + pendingPct}%, var(--kumo-status-danger) ${approvedPct + pendingPct}% 100%)`
     }
   }
 })
@@ -440,8 +482,7 @@ const loadDashboardData = async () => {
     recentActivities.value = unwrapData(activitiesRes) || recentActivities.value
     dataTrends.value = unwrapData(trendsRes) || dataTrends.value
   } catch (error) {
-    console.error('加载仪表板数据失败:', error)
-    ElMessage.error('加载数据失败')
+    ElMessage.error(error.message || '加载数据失败')
   } finally {
     loading.value = false
   }
@@ -453,7 +494,6 @@ const loadRecentUserRows = async () => {
     const page = unwrapPage(await getRecentUsers({ page: 1, pageSize: 5 }))
     dashboardUsers.value = page.content.map(normalizeUser)
   } catch (error) {
-    console.error('加载最近用户失败:', error)
     dashboardUsers.value = []
   } finally {
     usersLoading.value = false
@@ -466,7 +506,8 @@ const loadPendingItems = async () => {
     articles: () => getAllArticles({ page: 1, pageSize: 5, status: 'PENDING' }),
     questions: () => getAllQuestions({ page: 1, pageSize: 5, status: 'PENDING' }),
     categories: () => getAllCategories({ page: 1, pageSize: 5, status: 'PENDING' }),
-    tags: () => getAllTags({ page: 1, pageSize: 5, status: 'PENDING' })
+    tags: () => getAllTags({ page: 1, pageSize: 5, status: 'PENDING' }),
+    reports: () => getAdminReports({ page: 1, pageSize: 5, status: 'PENDING' })
   }
 
   try {
@@ -475,7 +516,6 @@ const loadPendingItems = async () => {
         const page = unwrapPage(await loader())
         return [type, page]
       } catch (error) {
-        console.error(`加载待审核${type}失败:`, error)
         return [type, { content: [], totalElements: 0 }]
       }
     }))
@@ -495,6 +535,20 @@ const loadPendingItems = async () => {
 }
 
 const approvePendingItem = async (item) => {
+  if (item.type === 'reports') {
+    try {
+      await handleAdminReport(item.id, {
+        status: 'RESOLVED',
+        handlerNote: '管理员已处理该举报'
+      })
+      ElMessage.success('举报已标记为已处理')
+      await loadPendingItems()
+    } catch (error) {
+      ElMessage.error(error.message || '处理举报失败')
+    }
+    return
+  }
+
   const actionMap = {
     articles: approveArticle,
     questions: approveQuestion,
@@ -512,6 +566,27 @@ const approvePendingItem = async (item) => {
 }
 
 const rejectPendingItem = async (item) => {
+  if (item.type === 'reports') {
+    try {
+      const result = await ElMessageBox.prompt(`请输入驳回「${item.title}」举报的原因`, '驳回举报', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputType: 'textarea'
+      })
+      await handleAdminReport(item.id, {
+        status: 'REJECTED',
+        handlerNote: result.value || '管理员驳回该举报'
+      })
+      ElMessage.success('举报已驳回')
+      await loadPendingItems()
+    } catch (error) {
+      if (error !== 'cancel') {
+        ElMessage.error(error.message || '驳回举报失败')
+      }
+    }
+    return
+  }
+
   const actionMap = {
     articles: rejectArticle,
     questions: rejectQuestion,
@@ -547,6 +622,11 @@ const rejectPendingItem = async (item) => {
 }
 
 const openPendingManagement = (type) => {
+  if (type === 'reports') {
+    pendingType.value = 'reports'
+    activeTab.value = 'dashboard'
+    return
+  }
   activeTab.value = type
 }
 
@@ -596,6 +676,7 @@ const getActivityTypeText = (type) => {
 }
 
 onMounted(() => {
+  applyAdminTheme()
   initSidebar()
   setupResizeListener()
   loadDashboardData()
@@ -610,9 +691,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="admin-dashboard-container" :class="[{ dark: isDark }, 'bg-' + bgTheme]">
-    <div class="glass-bg-blobs" aria-hidden="true">
-      <span></span><span></span><span></span>
-    </div>
     <AdminNavBar :is-dark="isDark" :bg-theme="bgTheme" @toggle-sidebar="toggleSidebar" @toggle-theme="toggleTheme" @set-bg="setBgTheme" />
 
     <div class="admin-dashboard-shell">
@@ -815,6 +893,9 @@ onBeforeUnmount(() => {
                         <span><font-awesome-icon icon="user" /> {{ item.author }}</span>
                         <span><font-awesome-icon icon="clock" /> {{ item.time }}</span>
                       </div>
+                      <p v-if="item.description" class="item-description">
+                        <span v-if="item.targetType">{{ reportTargetTypeText(item.targetType) }}举报：</span>{{ item.description }}
+                      </p>
                     </div>
                     <div class="item-actions">
                       <button class="line-action" @click="openPendingManagement(item.type)">
@@ -823,11 +904,11 @@ onBeforeUnmount(() => {
                       </button>
                       <button class="line-action success" @click="approvePendingItem(item)">
                         <font-awesome-icon icon="check" />
-                        通过
+                        {{ getPendingPrimaryActionText(item.type) }}
                       </button>
                       <button class="line-action danger" @click="rejectPendingItem(item)">
                         <font-awesome-icon icon="times" />
-                        拒绝
+                        {{ getPendingDangerActionText(item.type) }}
                       </button>
                     </div>
                   </div>
@@ -992,49 +1073,37 @@ onBeforeUnmount(() => {
 <style scoped>
 .admin-dashboard-container {
   min-height: 100vh;
-  color: #1d1d1f;
-  background: linear-gradient(135deg, #f6f8fb 0%, #eef1f5 100%);
+  color: var(--kumo-text-default);
+  background:
+    radial-gradient(circle at 12% 10%, var(--ad-theme-one, var(--kumo-bg-brand-soft)), transparent 30rem),
+    radial-gradient(circle at 88% 84%, var(--ad-theme-two, var(--kumo-bg-accent-soft)), transparent 28rem),
+    linear-gradient(135deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
   background-attachment: fixed;
 }
 
-/* 背景主题预设（浅色，可在顶栏自选；深色模式不受影响） */
-.admin-dashboard-container:not(.dark).bg-mint {
-  background:
-    radial-gradient(circle at 12% 10%, rgba(168, 222, 214, 0.30) 0%, transparent 46%),
-    radial-gradient(circle at 88% 84%, rgba(190, 227, 222, 0.22) 0%, transparent 50%),
-    linear-gradient(135deg, #f5f9f8 0%, #eef3f2 100%);
-  background-attachment: fixed;
+.admin-dashboard-container.bg-mint {
+  --ad-theme-one: var(--kumo-bg-brand-soft);
+  --ad-theme-two: var(--kumo-status-success-tint);
 }
 
-.admin-dashboard-container:not(.dark).bg-ice {
-  background:
-    radial-gradient(circle at 10% 12%, rgba(150, 190, 255, 0.30) 0%, transparent 44%),
-    radial-gradient(circle at 90% 84%, rgba(150, 222, 232, 0.24) 0%, transparent 48%),
-    linear-gradient(135deg, #f5f8fd 0%, #eef2f8 100%);
-  background-attachment: fixed;
+.admin-dashboard-container.bg-ice {
+  --ad-theme-one: var(--kumo-bg-accent-soft);
+  --ad-theme-two: var(--kumo-status-info-tint);
 }
 
-.admin-dashboard-container:not(.dark).bg-gold {
-  background:
-    radial-gradient(circle at 12% 10%, rgba(255, 224, 175, 0.32) 0%, transparent 46%),
-    radial-gradient(circle at 88% 86%, rgba(255, 209, 196, 0.22) 0%, transparent 50%),
-    linear-gradient(135deg, #fbf8f3 0%, #f4efe7 100%);
-  background-attachment: fixed;
+.admin-dashboard-container.bg-gold {
+  --ad-theme-one: var(--kumo-bg-warm);
+  --ad-theme-two: var(--kumo-status-warning-tint);
 }
 
-.admin-dashboard-container:not(.dark).bg-violet {
-  background:
-    radial-gradient(circle at 12% 10%, rgba(199, 194, 255, 0.30) 0%, transparent 46%),
-    radial-gradient(circle at 88% 86%, rgba(226, 200, 245, 0.22) 0%, transparent 50%),
-    linear-gradient(135deg, #f7f6fd 0%, #eff0f8 100%);
-  background-attachment: fixed;
+.admin-dashboard-container.bg-violet {
+  --ad-theme-one: var(--kumo-bg-accent-soft);
+  --ad-theme-two: var(--kumo-bg-brand-soft);
 }
 
-.admin-dashboard-container:not(.dark).bg-gray {
-  background:
-    radial-gradient(circle at 14% 12%, rgba(205, 212, 224, 0.34) 0%, transparent 48%),
-    linear-gradient(135deg, #f6f7f9 0%, #eef0f3 100%);
-  background-attachment: fixed;
+.admin-dashboard-container.bg-gray {
+  --ad-theme-one: var(--kumo-bg-subtle);
+  --ad-theme-two: var(--kumo-bg-recessed);
 }
 
 .admin-dashboard-shell {
@@ -1044,74 +1113,143 @@ onBeforeUnmount(() => {
 }
 
 .admin-sidebar {
-  width: 260px;
-  height: calc(100vh - 70px);
   position: fixed;
   top: 70px;
   left: 0;
   z-index: 100;
+  width: 260px;
+  height: calc(100vh - 70px);
   overflow: hidden;
   padding: 18px 14px;
-  transition: transform 0.28s ease;
+  transition: transform var(--kumo-transition);
+}
+
+.sidebar-menu,
+.dashboard-hero,
+.dashboard-card,
+.stat-card {
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-xl);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  backdrop-filter: var(--kumo-blur);
+  -webkit-backdrop-filter: var(--kumo-blur);
 }
 
 .sidebar-menu {
-  height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-top-color: rgba(255, 255, 255, 0.95);
-  border-left-color: rgba(255, 255, 255, 0.9);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), 0 20px 50px rgba(100, 120, 160, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(60px) saturate(230%);
-  -webkit-backdrop-filter: blur(60px) saturate(230%);
+  height: 100%;
 }
 
 .sidebar-header {
   padding: 20px 18px 12px;
 }
 
-.admin-logo {
+.admin-logo,
+.sidebar-profile,
+.hero-status,
+.stat-card-top,
+.card-header,
+.axis-labels,
+.chart-legend,
+.donut-stats,
+.meter-label {
   display: flex;
   align-items: center;
+}
+
+.admin-logo,
+.sidebar-profile,
+.hero-status,
+.user-cell,
+.item-meta,
+.item-actions,
+.chart-legend,
+.donut-stats {
   gap: 12px;
+}
+
+.logo-mark,
+.stat-icon,
+.feed-icon,
+.sidebar-avatar,
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .logo-mark {
   width: 42px;
   height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 15px;
-  color: #007aff;
-  background: #edf3ff;
-  box-shadow: inset 0 0 0 1px rgba(65, 105, 216, 0.12);
+  border-radius: var(--kumo-radius-md);
+  color: var(--kumo-status-info);
+  background: var(--kumo-status-info-tint);
 }
 
 .logo-title,
-.logo-subtitle {
+.logo-subtitle,
+.sidebar-profile-meta span,
+.sidebar-profile-meta small,
+.hero-status strong,
+.hero-status small,
+.user-cell strong,
+.user-cell small,
+.donut-hole strong,
+.donut-hole small {
   display: block;
-  line-height: 1.2;
+}
+
+.logo-title,
+.sidebar-profile-meta span,
+.hero-status strong,
+.user-cell strong,
+.item-title,
+.feed-title,
+.meter-label strong,
+.system-mini-grid strong,
+.stat-label {
+  color: var(--kumo-text-default);
+  font-weight: 800;
+}
+
+.logo-subtitle,
+.sidebar-profile-meta small,
+.hero-status small,
+.dashboard-hero p,
+.stat-detail,
+.table-head,
+.user-cell small,
+.muted-text,
+.item-meta,
+.axis-labels,
+.chart-legend,
+.donut-stats,
+.meter-label,
+.system-mini-grid span,
+.feed-title span,
+.feed-item p {
+  color: var(--kumo-text-muted);
 }
 
 .logo-title {
   font-size: 1rem;
-  font-weight: 750;
-  color: #1f2937;
+  line-height: 1.2;
 }
 
-.logo-subtitle {
-  margin-top: 2px;
+.logo-subtitle,
+.sidebar-profile-meta small,
+.hero-status small,
+.axis-labels,
+.feed-title span {
   font-size: 0.72rem;
-  color: #8190a3;
 }
 
 .menu-list {
   flex: 1;
-  border-right: none;
+  border-right: 0;
   background: transparent;
   padding: 6px 10px;
 }
@@ -1119,21 +1257,23 @@ onBeforeUnmount(() => {
 .menu-list :deep(.el-menu-item) {
   height: 46px;
   margin: 4px 0;
-  border-radius: 14px;
-  color: #667085;
+  border-radius: var(--kumo-radius-md);
+  color: var(--kumo-text-muted);
   line-height: 46px;
-  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color var(--kumo-transition),
+    color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.menu-list :deep(.el-menu-item:hover) {
-  color: #007aff;
-  background: #f2f6ff;
+.menu-list :deep(.el-menu-item:hover),
+.menu-list :deep(.el-menu-item.is-active) {
+  color: var(--kumo-bg-brand-strong);
+  background: var(--kumo-bg-brand-soft);
 }
 
 .menu-list :deep(.el-menu-item.is-active) {
-  color: #0066d6;
-  background: linear-gradient(135deg, #edf4ff 0%, #f7fbff 100%);
-  box-shadow: inset 0 0 0 1px rgba(81, 116, 207, 0.14);
+  box-shadow: inset 0 0 0 1px var(--kumo-hairline-strong);
 }
 
 .menu-icon {
@@ -1141,65 +1281,63 @@ onBeforeUnmount(() => {
   margin-right: 12px;
 }
 
-.menu-text {
-  font-weight: 650;
+.menu-text,
+.chart-legend,
+.donut-stats,
+.system-mini-grid span {
+  font-weight: 700;
 }
 
-.menu-badge {
-  margin-left: auto;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
+.menu-badge,
+.pill-badge,
+.stat-chip,
+.tab-item span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  color: #d14c5c;
-  background: #ffe9ee;
+}
+
+.menu-badge {
+  min-width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 8px;
+  color: var(--kumo-status-danger);
+  background: var(--kumo-status-danger-tint);
   font-size: 0.72rem;
   font-weight: 750;
 }
 
+.sidebar-profile,
+.hero-status,
+.table-row,
+.pending-item,
+.system-mini-grid div,
+.tab-header {
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-subtle);
+}
+
 .sidebar-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   margin: 12px;
   padding: 12px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #f7fbff 0%, #ffffff 100%);
-  border: 1px solid rgba(127, 149, 176, 0.14);
+  border-radius: var(--kumo-radius-lg);
 }
 
 .sidebar-avatar,
 .user-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  color: #ffffff;
+  color: var(--kumo-text-inverse);
   font-weight: 750;
 }
 
-.sidebar-avatar {
+.sidebar-avatar,
+.user-avatar,
+.logo-mark,
+.stat-icon {
   width: 42px;
   height: 42px;
-  border-radius: 15px;
-}
-
-.sidebar-profile-meta span,
-.sidebar-profile-meta small {
-  display: block;
-}
-
-.sidebar-profile-meta span {
-  font-weight: 750;
-  color: #1f2937;
-}
-
-.sidebar-profile-meta small {
-  color: #8190a3;
-  font-size: 0.72rem;
+  border-radius: var(--kumo-radius-md);
 }
 
 .admin-content {
@@ -1207,7 +1345,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   margin-left: 260px;
   padding: 24px;
-  transition: margin-left 0.28s ease;
+  transition: margin-left var(--kumo-transition);
 }
 
 .admin-content.full-width {
@@ -1226,34 +1364,28 @@ onBeforeUnmount(() => {
 }
 
 .dashboard-center,
-.dashboard-insights {
+.dashboard-insights,
+.admin-user-table,
+.pending-list,
+.activity-feed {
   display: flex;
   flex-direction: column;
-  gap: 18px;
 }
 
-.dashboard-hero,
-.dashboard-card,
-.stat-card {
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-top-color: rgba(255, 255, 255, 0.95);
-  border-left-color: rgba(255, 255, 255, 0.9);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), 0 20px 50px rgba(100, 120, 160, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(60px) saturate(230%);
-  -webkit-backdrop-filter: blur(60px) saturate(230%);
+.dashboard-center,
+.dashboard-insights {
+  gap: 18px;
 }
 
 .dashboard-hero {
-  min-height: 132px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 132px;
   gap: 18px;
   padding: 26px 28px;
   overflow: hidden;
-  position: relative;
 }
 
 .dashboard-hero::after {
@@ -1263,7 +1395,7 @@ onBeforeUnmount(() => {
   width: 280px;
   height: 280px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(132, 169, 246, 0.22), transparent 68%);
+  background: radial-gradient(circle, var(--kumo-bg-accent-soft), transparent 68%);
   pointer-events: none;
 }
 
@@ -1271,7 +1403,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   margin-bottom: 8px;
-  color: #77869a;
+  color: var(--kumo-text-subtle);
   font-size: 0.72rem;
   font-weight: 750;
   letter-spacing: 0;
@@ -1281,53 +1413,40 @@ onBeforeUnmount(() => {
 .dashboard-hero h1,
 .card-header h2 {
   margin: 0;
-  color: #1f2937;
+  color: var(--kumo-text-default);
   letter-spacing: 0;
 }
 
 .dashboard-hero h1 {
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 820;
 }
 
 .dashboard-hero p {
   margin: 8px 0 0;
-  color: #667085;
 }
 
 .hero-status {
   min-width: 176px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 14px 16px;
-  border-radius: 18px;
-  background: #f7fbff;
-  border: 1px solid rgba(127, 149, 176, 0.12);
-}
-
-.hero-status strong,
-.hero-status small {
-  display: block;
+  border-radius: var(--kumo-radius-lg);
 }
 
 .hero-status strong {
-  color: #263246;
-  font-weight: 750;
   text-transform: capitalize;
 }
 
-.hero-status small {
-  color: #8190a3;
-  font-size: 0.75rem;
+.status-dot,
+.legend-dot {
+  display: inline-block;
+  border-radius: 999px;
 }
 
 .status-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
-  background: #68c3a3;
-  box-shadow: 0 0 0 6px rgba(104, 195, 163, 0.16);
+  background: var(--kumo-status-success);
+  box-shadow: 0 0 0 6px var(--kumo-status-success-tint);
 }
 
 .stats-cards {
@@ -1341,83 +1460,129 @@ onBeforeUnmount(() => {
   min-height: 178px;
   padding: 18px;
   overflow: hidden;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
+}
+
+.stat-card:hover,
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-md);
 }
 
 .stat-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.58;
+  opacity: 0.62;
   pointer-events: none;
 }
 
-.stat-card.blue::before {
-  background: linear-gradient(135deg, #e9f1fe 0%, rgba(255, 255, 255, 0) 62%);
+.stat-card.blue::before,
+.stat-card.lavender::before {
+  background: linear-gradient(135deg, var(--kumo-status-info-tint), transparent 64%);
 }
 
 .stat-card.mint::before {
-  background: linear-gradient(135deg, #e1f6ee 0%, rgba(255, 255, 255, 0) 62%);
-}
-
-.stat-card.lavender::before {
-  background: linear-gradient(135deg, #efeafd 0%, rgba(255, 255, 255, 0) 62%);
+  background: linear-gradient(135deg, var(--kumo-status-success-tint), transparent 64%);
 }
 
 .stat-card.pink::before {
-  background: linear-gradient(135deg, #fde9f1 0%, rgba(255, 255, 255, 0) 62%);
+  background: linear-gradient(135deg, var(--kumo-status-danger-tint), transparent 64%);
 }
 
 .stat-card > * {
   position: relative;
 }
 
-.stat-card-top {
-  display: flex;
-  align-items: center;
+.stat-card-top,
+.card-header,
+.meter-label {
   justify-content: space-between;
+}
+
+.stat-card-top {
   margin-bottom: 16px;
 }
 
-.stat-icon {
-  width: 42px;
-  height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 15px;
+.blue .stat-icon,
+.blue .sparkline polyline,
+.users-line,
+.users-dot,
+.role-user {
+  color: var(--kumo-status-info);
+  stroke: var(--kumo-status-info);
 }
 
-.blue .stat-icon {
-  color: #007aff;
-  background: #e9f1fe;
+.blue .stat-icon,
+.role-user {
+  background: var(--kumo-status-info-tint);
 }
 
-.mint .stat-icon {
-  color: #2f9c77;
-  background: #e1f6ee;
+.mint .stat-icon,
+.mint .sparkline polyline,
+.articles-line,
+.articles-dot,
+.approved-dot,
+.status-active,
+.line-action.success {
+  color: var(--kumo-status-success);
+  stroke: var(--kumo-status-success);
 }
 
-.lavender .stat-icon {
-  color: #7c5fd3;
-  background: #efeafd;
+.mint .stat-icon,
+.status-active,
+.line-action.success {
+  background: var(--kumo-status-success-tint);
 }
 
-.pink .stat-icon {
-  color: #d65d92;
-  background: #fde9f1;
+.lavender .stat-icon,
+.lavender .sparkline polyline {
+  color: var(--kumo-bg-accent);
+  stroke: var(--kumo-bg-accent);
+  background: var(--kumo-bg-accent-soft);
+}
+
+.pink .stat-icon,
+.pink .sparkline polyline,
+.rejected-dot,
+.status-disabled,
+.line-action.danger {
+  color: var(--kumo-status-danger);
+  stroke: var(--kumo-status-danger);
+}
+
+.pink .stat-icon,
+.status-disabled,
+.line-action.danger {
+  background: var(--kumo-status-danger-tint);
+}
+
+.questions-line,
+.questions-dot,
+.pending-dot,
+.role-admin {
+  color: var(--kumo-status-warning);
+  stroke: var(--kumo-status-warning);
+}
+
+.role-admin {
+  background: var(--kumo-status-warning-tint);
 }
 
 .stat-chip {
   padding: 4px 9px;
-  border-radius: 999px;
-  color: #378b70;
-  background: #eaf8f3;
+  color: var(--kumo-status-success);
+  background: var(--kumo-status-success-tint);
   font-size: 0.72rem;
   font-weight: 750;
 }
 
 .stat-value {
-  color: #172033;
+  color: var(--kumo-text-default);
   font-size: 2rem;
   font-weight: 820;
   line-height: 1;
@@ -1425,13 +1590,10 @@ onBeforeUnmount(() => {
 
 .stat-label {
   margin-top: 8px;
-  color: #1f2937;
-  font-weight: 750;
 }
 
 .stat-detail {
   margin-top: 4px;
-  color: #8190a3;
   font-size: 0.82rem;
 }
 
@@ -1443,38 +1605,23 @@ onBeforeUnmount(() => {
   height: 42px;
 }
 
-.sparkline polyline {
+.sparkline polyline,
+.chart-line {
   fill: none;
-  stroke: #68c3a3;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.blue .sparkline polyline {
-  stroke: #6c8ff5;
-}
-
-.mint .sparkline polyline {
-  stroke: #5fc7a3;
-}
-
-.lavender .sparkline polyline {
-  stroke: #a991f7;
-}
-
-.pink .sparkline polyline {
-  stroke: #ee86b7;
-}
-
 .dashboard-card {
   padding: 20px;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -1495,14 +1642,19 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid rgba(105, 126, 154, 0.2);
-  color: #506176;
-  background: #ffffff;
+  border: 1px solid var(--kumo-hairline);
+  color: var(--kumo-text-muted);
+  background: var(--kumo-bg-elevated);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .ghost-command {
@@ -1514,10 +1666,11 @@ onBeforeUnmount(() => {
 .ghost-command:hover,
 .line-action:hover,
 .line-icon-btn:hover {
-  color: #007aff;
-  border-color: rgba(65, 105, 216, 0.28);
-  background: #f7fbff;
-  box-shadow: 0 8px 22px rgba(82, 111, 154, 0.1);
+  transform: translateY(-1px);
+  color: var(--kumo-bg-brand-strong);
+  border-color: var(--kumo-hairline-strong);
+  background: var(--kumo-bg-brand-soft);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .ghost-command:disabled {
@@ -1525,9 +1678,8 @@ onBeforeUnmount(() => {
   opacity: 0.64;
 }
 
-.admin-user-table {
-  display: flex;
-  flex-direction: column;
+.admin-user-table,
+.pending-list {
   gap: 8px;
 }
 
@@ -1541,7 +1693,6 @@ onBeforeUnmount(() => {
 
 .table-head {
   padding: 0 14px 8px;
-  color: #8a98aa;
   font-size: 0.76rem;
   font-weight: 750;
 }
@@ -1549,76 +1700,39 @@ onBeforeUnmount(() => {
 .table-row {
   min-height: 66px;
   padding: 10px 14px;
-  border: 1px solid rgba(127, 149, 176, 0.12);
-  border-radius: 18px;
-  background: #fbfdff;
+  border-radius: var(--kumo-radius-lg);
 }
 
 .user-cell {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.user-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 15px;
 }
 
 .user-cell strong,
-.user-cell small {
-  display: block;
+.user-cell small,
+.item-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.user-cell strong {
-  color: #263246;
-  font-weight: 800;
-}
-
 .user-cell small,
 .muted-text {
-  color: #8190a3;
   font-size: 0.8rem;
 }
 
 .pill-badge {
   width: fit-content;
-  display: inline-flex;
-  align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 750;
   white-space: nowrap;
 }
 
-.role-user {
-  color: #007aff;
-  background: #edf3ff;
-}
-
-.role-admin {
-  color: #9a5a12;
-  background: #fff1d7;
-}
-
-.status-active {
-  color: #378b70;
-  background: #eaf8f3;
-}
-
-.status-disabled {
-  color: #c34d62;
-  background: #ffeaf0;
-}
-
-.icon-actions {
+.icon-actions,
+.item-actions {
   display: flex;
   gap: 8px;
 }
@@ -1627,7 +1741,7 @@ onBeforeUnmount(() => {
   width: 34px;
   height: 34px;
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--kumo-radius-md);
 }
 
 .tab-header {
@@ -1637,7 +1751,6 @@ onBeforeUnmount(() => {
   margin-bottom: 14px;
   overflow-x: auto;
   border-radius: 999px;
-  background: #f4f7fb;
 }
 
 .tab-item {
@@ -1646,9 +1759,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 7px;
   padding: 0 12px;
-  border: none;
+  border: 0;
   border-radius: 999px;
-  color: #667085;
+  color: var(--kumo-text-muted);
   background: transparent;
   font: inherit;
   font-size: 0.84rem;
@@ -1660,23 +1773,17 @@ onBeforeUnmount(() => {
 .tab-item span {
   min-width: 22px;
   height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--kumo-bg-elevated);
   font-size: 0.72rem;
 }
 
 .tab-item.active {
-  color: #007aff;
-  background: #ffffff;
-  box-shadow: 0 8px 18px rgba(82, 111, 154, 0.1);
+  color: var(--kumo-bg-brand-strong);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .pending-list {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
@@ -1686,37 +1793,39 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border: 1px solid rgba(127, 149, 176, 0.12);
-  border-radius: 18px;
-  background: #fbfdff;
+  border-radius: var(--kumo-radius-lg);
 }
 
 .item-info {
   min-width: 0;
 }
 
-.item-title {
-  color: #263246;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .item-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
   margin-top: 6px;
-  color: #8190a3;
   font-size: 0.8rem;
 }
 
+.item-description {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.item-description span {
+  color: var(--kumo-text-default);
+  font-weight: 750;
+}
+
 .item-actions {
-  display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
 }
 
 .line-action {
@@ -1726,15 +1835,11 @@ onBeforeUnmount(() => {
 }
 
 .line-action.success {
-  color: #378b70;
-  border-color: rgba(104, 195, 163, 0.32);
-  background: #f3fbf8;
+  border-color: var(--kumo-status-success-tint);
 }
 
 .line-action.danger {
-  color: #c34d62;
-  border-color: rgba(238, 138, 154, 0.34);
-  background: #fff5f7;
+  border-color: var(--kumo-status-danger-tint);
 }
 
 .chart-card,
@@ -1751,39 +1856,15 @@ onBeforeUnmount(() => {
 }
 
 .chart-area {
-  fill: rgba(104, 195, 163, 0.14);
+  fill: var(--kumo-status-success-tint);
 }
 
 .chart-line {
-  fill: none;
   stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.users-line {
-  stroke: #6c8ff5;
-}
-
-.articles-line {
-  stroke: #68c3a3;
-}
-
-.questions-line {
-  stroke: #f1a766;
-}
-
-.axis-labels,
-.chart-legend,
-.donut-stats {
-  display: flex;
-  align-items: center;
 }
 
 .axis-labels {
   justify-content: space-between;
-  color: #9aa6b6;
-  font-size: 0.72rem;
 }
 
 .chart-legend,
@@ -1791,9 +1872,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px 14px;
   margin-top: 14px;
-  color: #667085;
   font-size: 0.8rem;
-  font-weight: 700;
 }
 
 .chart-legend span,
@@ -1806,26 +1885,24 @@ onBeforeUnmount(() => {
 .legend-dot {
   width: 9px;
   height: 9px;
-  display: inline-block;
-  border-radius: 999px;
 }
 
 .users-dot {
-  background: #6c8ff5;
+  background: var(--kumo-status-info);
 }
 
 .articles-dot,
 .approved-dot {
-  background: #68c3a3;
+  background: var(--kumo-status-success);
 }
 
 .questions-dot,
 .pending-dot {
-  background: #f1a766;
+  background: var(--kumo-status-warning);
 }
 
 .rejected-dot {
-  background: #ee8a9a;
+  background: var(--kumo-status-danger);
 }
 
 .donut-layout {
@@ -1841,7 +1918,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(127, 149, 176, 0.08);
+  box-shadow: inset 0 0 0 1px var(--kumo-hairline);
 }
 
 .donut-hole {
@@ -1851,23 +1928,16 @@ onBeforeUnmount(() => {
   place-items: center;
   align-content: center;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(74, 96, 128, 0.12);
-}
-
-.donut-hole strong,
-.donut-hole small {
-  display: block;
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .donut-hole strong {
-  color: #1f2937;
   font-size: 1.4rem;
   font-weight: 850;
 }
 
 .donut-hole small {
-  color: #8190a3;
   font-size: 0.74rem;
 }
 
@@ -1882,16 +1952,11 @@ onBeforeUnmount(() => {
 }
 
 .meter-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #667085;
   font-size: 0.84rem;
   font-weight: 750;
 }
 
 .meter-label strong {
-  color: #1f2937;
   font-weight: 850;
 }
 
@@ -1900,14 +1965,14 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   overflow: hidden;
   border-radius: 999px;
-  background: #eef3f8;
+  background: var(--kumo-bg-recessed);
 }
 
 .meter-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #6c8ff5 0%, #68c3a3 100%);
+  background: linear-gradient(90deg, var(--kumo-status-info), var(--kumo-status-success));
 }
 
 .system-mini-grid {
@@ -1927,19 +1992,14 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 4px;
   padding: 12px;
-  border-radius: 16px;
-  background: #f7fbff;
-  border: 1px solid rgba(127, 149, 176, 0.1);
+  border-radius: var(--kumo-radius-md);
 }
 
 .system-mini-grid span {
-  color: #8190a3;
   font-size: 0.78rem;
-  font-weight: 700;
 }
 
 .system-mini-grid strong {
-  color: #1f2937;
   font-size: 1.25rem;
   font-weight: 850;
 }
@@ -1951,8 +2011,6 @@ onBeforeUnmount(() => {
 }
 
 .activity-feed {
-  display: flex;
-  flex-direction: column;
   gap: 14px;
   max-height: 436px;
   overflow: auto;
@@ -1960,10 +2018,10 @@ onBeforeUnmount(() => {
 }
 
 .feed-item {
+  position: relative;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
   gap: 12px;
-  position: relative;
 }
 
 .feed-item:not(:last-child)::after {
@@ -1973,42 +2031,38 @@ onBeforeUnmount(() => {
   left: 18px;
   bottom: -12px;
   width: 1px;
-  background: #e7edf4;
+  background: var(--kumo-hairline);
 }
 
 .feed-icon {
-  width: 38px;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  color: #007aff;
-  background: #edf3ff;
   position: relative;
   z-index: 1;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--kumo-radius-md);
+  color: var(--kumo-status-info);
+  background: var(--kumo-status-info-tint);
 }
 
 .feed-icon.success {
-  color: #378b70;
-  background: #eaf8f3;
+  color: var(--kumo-status-success);
+  background: var(--kumo-status-success-tint);
 }
 
 .feed-icon.warning {
-  color: #b56d1d;
-  background: #fff1d7;
+  color: var(--kumo-status-warning);
+  background: var(--kumo-status-warning-tint);
 }
 
 .feed-icon.info {
-  color: #2b8ba0;
-  background: #e7f7fb;
+  color: var(--kumo-status-info);
+  background: var(--kumo-status-info-tint);
 }
 
 .feed-title {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  color: #1f2937;
 }
 
 .feed-title strong {
@@ -2018,13 +2072,10 @@ onBeforeUnmount(() => {
 
 .feed-title span {
   flex: 0 0 auto;
-  color: #9aa6b6;
-  font-size: 0.72rem;
 }
 
 .feed-item p {
   margin: 4px 0 0;
-  color: #667085;
   font-size: 0.82rem;
   line-height: 1.5;
 }
@@ -2167,7 +2218,7 @@ onBeforeUnmount(() => {
   .dashboard-hero,
   .dashboard-card,
   .stat-card {
-    border-radius: 18px;
+    border-radius: var(--kumo-radius-lg);
   }
 
   .dashboard-hero {
@@ -2187,174 +2238,4 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 }
-
-/* ============================================================
-   🌙 夜间模式（仪表盘自身硬编码表面的深色覆盖）
-   ============================================================ */
-.admin-dashboard-container.dark {
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(165, 216, 255, 0.18), transparent 40%),
-    radial-gradient(circle at 80% 30%, rgba(255, 179, 209, 0.16), transparent 45%),
-    radial-gradient(circle at 40% 80%, rgba(181, 245, 236, 0.14), transparent 40%),
-    #0b0f1a;
-}
-
-/* 漂浮光斑（仅夜间显示，营造 iOS 26 液态玻璃景深） */
-.glass-bg-blobs {
-  display: none;
-}
-
-.admin-dashboard-container.dark .glass-bg-blobs {
-  display: block;
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.admin-dashboard-container.dark .glass-bg-blobs span {
-  position: absolute;
-  width: 460px;
-  height: 460px;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.5;
-  animation: adBlobFloat 12s ease-in-out infinite;
-}
-
-.admin-dashboard-container.dark .glass-bg-blobs span:nth-child(1) {
-  background: #4dabf7;
-  top: -120px;
-  left: -80px;
-}
-
-.admin-dashboard-container.dark .glass-bg-blobs span:nth-child(2) {
-  background: #f783ac;
-  bottom: -140px;
-  right: -90px;
-  animation-delay: -4s;
-}
-
-.admin-dashboard-container.dark .glass-bg-blobs span:nth-child(3) {
-  background: #63e6be;
-  top: 38%;
-  left: 55%;
-  animation-delay: -8s;
-}
-
-@keyframes adBlobFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-30px) scale(1.12); }
-}
-
-/* 内容浮于光斑之上 */
-.admin-dashboard-container.dark .admin-dashboard-shell {
-  position: relative;
-  z-index: 1;
-}
-
-.dark .dashboard-hero,
-.dark .dashboard-card,
-.dark .stat-card,
-.dark .sidebar-menu {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  border-top-color: rgba(255, 255, 255, 0.35);
-  border-left-color: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-/* 主要文字转亮 */
-.dark .dashboard-hero h1,
-.dark .card-header h2,
-.dark .stat-value,
-.dark .stat-label,
-.dark .item-title,
-.dark .feed-title strong,
-.dark .donut-hole strong,
-.dark .meter-label strong,
-.dark .system-mini-grid strong,
-.dark .hero-status strong,
-.dark .logo-title,
-.dark .user-cell strong {
-  color: #f5f5f7;
-}
-
-/* 次级文字 */
-.dark .dashboard-hero p,
-.dark .eyebrow,
-.dark .stat-detail,
-.dark .item-meta,
-.dark .feed-item p,
-.dark .muted-text,
-.dark .user-cell small,
-.dark .logo-subtitle,
-.dark .sidebar-profile-meta small,
-.dark .axis-labels,
-.dark .chart-legend,
-.dark .donut-stats,
-.dark .system-mini-grid span,
-.dark .meter-label,
-.dark .hero-status small {
-  color: #aab2c0;
-}
-
-/* 内嵌的浅色小块（hero 状态、迷你格、行卡、药丸 tab）转深色玻璃 */
-.dark .hero-status,
-.dark .system-mini-grid div,
-.dark .table-row,
-.dark .pending-item,
-.dark .sidebar-profile,
-.dark .tab-header {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark .donut-hole {
-  background: #1b222c;
-}
-
-.dark .tab-item.active {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-
-.dark .meter-track {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* 侧边栏菜单项 */
-.dark .menu-list :deep(.el-menu-item) {
-  color: #aab2c0;
-}
-
-.dark .menu-list :deep(.el-menu-item:hover) {
-  color: #3a9bff;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.dark .menu-list :deep(.el-menu-item.is-active) {
-  color: #fff;
-  background: rgba(10, 132, 255, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.3);
-}
-
-/* 线性按钮/图标按钮在深色下 */
-.dark .ghost-command,
-.dark .line-action,
-.dark .line-icon-btn {
-  color: #c7ccd6;
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.dark .ghost-command:hover,
-.dark .line-action:hover,
-.dark .line-icon-btn:hover {
-  color: #3a9bff;
-  background: rgba(255, 255, 255, 0.1);
-}
-
 </style>

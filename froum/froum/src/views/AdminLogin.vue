@@ -365,22 +365,27 @@ export default defineComponent({
   justify-content: center;
   align-items: center;
   min-height: calc(100vh - 200px);
-  padding: 2rem 1rem;
+  padding: clamp(2rem, 6vw, 4rem) 1rem;
   position: relative;
   overflow: hidden;
-  background-color: var(--bg-color);
+  background:
+    radial-gradient(circle at 18% 18%, var(--kumo-bg-brand-soft), transparent 28rem),
+    radial-gradient(circle at 84% 10%, var(--kumo-bg-accent-soft), transparent 24rem),
+    linear-gradient(180deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
 }
 
 .admin-login-card {
   width: 100%;
-  max-width: 420px;
-  background-color: var(--bg-white);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 2.5rem;
+  max-width: 28rem;
+  background: var(--kumo-bg-elevated);
+  border-radius: var(--kumo-radius-lg);
+  box-shadow: var(--kumo-shadow-lg);
+  padding: clamp(1.5rem, 5vw, 2.5rem);
   position: relative;
   z-index: 2;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--kumo-hairline);
+  backdrop-filter: var(--kumo-blur);
+  animation: reveal-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .admin-login-header {
@@ -391,13 +396,13 @@ export default defineComponent({
 .admin-login-header h1 {
   margin: 0;
   margin-bottom: 0.5rem;
-  color: var(--primary-color);
+  color: var(--kumo-text-default);
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 820;
 }
 
 .admin-login-header p {
-  color: var(--text-light);
+  color: var(--kumo-text-muted);
   margin: 0;
 }
 
@@ -405,12 +410,12 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #fff1f0;
-  border: 1px solid #ff7875;
+  background-color: var(--kumo-status-danger-tint);
+  border: 1px solid var(--kumo-status-danger);
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
-  border-radius: var(--radius);
-  color: #a8071a;
+  border-radius: var(--kumo-radius-md);
+  color: var(--kumo-status-danger);
 }
 
 .error-icon {
@@ -421,12 +426,12 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: rgba(var(--primary-rgb), 0.08);
-  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  background-color: var(--kumo-status-info-tint);
+  border: 1px solid var(--kumo-status-info);
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
-  border-radius: var(--radius);
-  color: var(--primary-color);
+  border-radius: var(--kumo-radius-md);
+  color: var(--kumo-status-info);
 }
 
 .info-icon {
@@ -434,38 +439,38 @@ export default defineComponent({
 }
 
 .setup-panel {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
   padding: 1rem;
   margin-bottom: 1.5rem;
-  background-color: var(--bg-light);
+  background-color: var(--kumo-bg-subtle);
 }
 
 .setup-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--primary-color);
+  color: var(--kumo-bg-brand-strong);
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
 .setup-panel p {
   margin: 0 0 0.75rem;
-  color: var(--text-light);
+  color: var(--kumo-text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
 }
 
 .secret-box {
   word-break: break-all;
-  background-color: var(--bg-white);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
+  background-color: var(--kumo-bg-elevated);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
   padding: 0.75rem;
   font-family: monospace;
   letter-spacing: 0;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
 }
 
 .qr-code {
@@ -473,16 +478,16 @@ export default defineComponent({
   width: 180px;
   height: 180px;
   margin: 0.75rem auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: #fff;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background-color: var(--kumo-bg-elevated);
   padding: 0.5rem;
 }
 
 .otp-link {
   display: inline-flex;
   margin-top: 0.75rem;
-  color: var(--primary-color);
+  color: var(--kumo-bg-brand-strong);
   text-decoration: none;
   font-weight: 500;
   font-size: 0.9rem;
@@ -500,10 +505,10 @@ export default defineComponent({
 }
 
 .method-button {
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-white);
-  color: var(--text-light);
-  border-radius: var(--radius);
+  border: 1px solid var(--kumo-hairline);
+  background-color: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
+  border-radius: var(--kumo-radius-md);
   padding: 0.65rem 0.75rem;
   font-size: 0.9rem;
   cursor: pointer;
@@ -511,9 +516,9 @@ export default defineComponent({
 }
 
 .method-button.active {
-  border-color: var(--primary-color);
-  background-color: rgba(var(--primary-rgb), 0.08);
-  color: var(--primary-color);
+  border-color: var(--kumo-bg-brand);
+  background-color: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
   font-weight: 600;
 }
 
@@ -525,7 +530,7 @@ label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
   font-size: 0.9rem;
 }
 
@@ -538,25 +543,26 @@ label {
 .input-icon {
   position: absolute;
   left: 1rem;
-  color: var(--text-lighter);
+  color: var(--kumo-text-subtle);
 }
 
 input[type="text"],
 input[type="password"] {
   width: 100%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
   font-size: 0.95rem;
-  transition: var(--transition);
-  background-color: var(--bg-white);
+  transition: var(--kumo-transition);
+  background-color: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus {
-  border-color: var(--primary-color);
+  border-color: var(--kumo-bg-brand);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
 }
 
 .toggle-password {
@@ -564,7 +570,7 @@ input[type="password"]:focus {
   right: 1rem;
   background: none;
   border: none;
-  color: var(--text-lighter);
+  color: var(--kumo-text-subtle);
   cursor: pointer;
   padding: 0;
   font-size: 0.9rem;
@@ -573,10 +579,10 @@ input[type="password"]:focus {
 .btn-login {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 999px;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -584,7 +590,7 @@ input[type="password"]:focus {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  transition: var(--transition);
+  transition: var(--kumo-transition);
   margin-top: 1rem;
   box-shadow: var(--shadow);
 }
@@ -604,22 +610,22 @@ input[type="password"]:focus {
   width: 100%;
   margin-top: 0.75rem;
   padding: 0.65rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: var(--bg-white);
-  color: var(--text-color);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background-color: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
   font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  transition: var(--transition);
+  transition: var(--kumo-transition);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  border-color: var(--kumo-bg-brand);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .btn-secondary:disabled {
@@ -633,17 +639,17 @@ input[type="password"]:focus {
 }
 
 .back-link a {
-  color: var(--text-light);
+  color: var(--kumo-text-muted);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  transition: var(--transition);
+  transition: var(--kumo-transition);
 }
 
 .back-link a:hover {
-  color: var(--primary-color);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .admin-login-decoration {
@@ -659,8 +665,9 @@ input[type="password"]:focus {
 .decoration-circle {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-  opacity: 0.1;
+  background: radial-gradient(circle, var(--kumo-bg-brand-soft), transparent 68%);
+  opacity: 0.72;
+  animation: soft-pulse 7s ease-in-out infinite;
 }
 
 .circle-1 {

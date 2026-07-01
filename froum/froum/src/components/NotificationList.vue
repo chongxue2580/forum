@@ -90,7 +90,6 @@ const loadNotifications = async () => {
       totalPages.value = page.totalPages
     }
   } catch (error) {
-    console.error('加载通知失败:', error)
     errorMessage.value = error.message || '加载通知失败'
     notifications.value = []
     totalItems.value = 0
@@ -138,7 +137,6 @@ const openNotification = async (notification) => {
       router.push(targetRoute)
     }
   } catch (error) {
-    console.error('处理通知失败:', error)
     ElMessage.error(error.message || '处理通知失败')
   }
 }
@@ -154,7 +152,6 @@ const markAllAsRead = async () => {
     }))
     ElMessage.success('已全部标记为已读')
   } catch (error) {
-    console.error('标记全部已读失败:', error)
     ElMessage.error(error.message || '操作失败')
   }
 }
@@ -187,47 +184,57 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="notification-list">
-    <div class="notification-toolbar">
-      <div class="filter-buttons">
+  <div class="notification-list kumo-page">
+    <section class="notification-hero kumo-surface-strong reveal-rise">
+      <div>
+        <span class="kumo-eyebrow">Notifications</span>
+        <h1 class="kumo-heading">通知中心</h1>
+        <p class="kumo-muted">集中查看审核、互动、关注与系统提醒。</p>
+      </div>
+      <button class="kumo-button kumo-button--brand" :disabled="!unreadCount" @click="markAllAsRead">
+        <font-awesome-icon :icon="['fas', 'check-double']" />
+        全部已读
+      </button>
+    </section>
+
+    <div class="notification-toolbar kumo-surface">
+      <div class="filter-buttons kumo-tabs">
         <button
           v-for="filter in filters"
           :key="filter.type"
-          class="filter-btn"
+          class="kumo-tab"
           :class="{ active: filterType === filter.type }"
           @click="filterType = filter.type"
         >
           {{ filter.label }}
         </button>
       </div>
-
-      <button class="action-btn" :disabled="!unreadCount" @click="markAllAsRead">
-        全部标记为已读
-      </button>
+      <span class="unread-pill">{{ unreadCount }} 未读</span>
     </div>
 
-    <div v-if="loading" class="state">
+    <div v-if="loading" class="state kumo-surface">
       <font-awesome-icon :icon="['fas', 'spinner']" spin />
       <span>加载中...</span>
     </div>
 
-    <div v-else-if="errorMessage" class="state error">
+    <div v-else-if="errorMessage" class="state error kumo-surface">
       <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
       <span>{{ errorMessage }}</span>
-      <button class="link-btn" @click="loadNotifications">重试</button>
+      <button class="kumo-button" @click="loadNotifications">重试</button>
     </div>
 
-    <div v-else-if="notifications.length === 0" class="state">
+    <div v-else-if="notifications.length === 0" class="state kumo-surface">
       <font-awesome-icon :icon="['fas', 'bell']" />
       <span>暂无通知</span>
     </div>
 
-    <div v-else class="notifications">
+    <div v-else class="notifications kumo-surface">
       <button
-        v-for="notification in notifications"
+        v-for="(notification, index) in notifications"
         :key="notification.id"
-        class="notification-item"
+        class="notification-item stagger-item"
         :class="{ unread: !notification.isRead }"
+        :style="{ animationDelay: `${index * 42}ms` }"
         @click="openNotification(notification)"
       >
         <span class="notification-icon">
@@ -258,61 +265,60 @@ onMounted(() => {
 
 <style scoped>
 .notification-list {
-  max-width: 860px;
+  width: min(100% - 2rem, 960px);
   margin: 0 auto;
-  padding: 20px;
+  padding: clamp(1.25rem, 4vw, 2.5rem) 0;
+}
+
+.notification-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.notification-hero h1 {
+  margin: 0.85rem 0 0;
+  font-size: clamp(2.15rem, 7vw, 4rem);
+}
+
+.notification-hero p {
+  margin: 0.75rem 0 0;
 }
 
 .notification-toolbar {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 1rem;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
+  padding: 0.65rem;
 }
 
 .filter-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.35rem;
 }
 
-.filter-btn,
-.action-btn,
-.page-btn,
-.link-btn {
-  border: 1px solid #d9d9d9;
-  background: #fff;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.unread-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: var(--kumo-status-info-tint);
+  color: var(--kumo-status-info);
+  font-size: 0.85rem;
+  font-weight: 780;
+  white-space: nowrap;
 }
 
-.filter-btn {
-  padding: 6px 16px;
-  border-radius: 16px;
-}
-
-.filter-btn.active,
-.filter-btn:hover,
-.action-btn:hover,
-.page-btn:hover:not(:disabled),
-.link-btn:hover {
-  color: #1890ff;
-  border-color: #1890ff;
-}
-
-.action-btn,
-.page-btn,
-.link-btn {
-  padding: 8px 14px;
-  border-radius: 4px;
-}
-
-.action-btn:disabled,
+.kumo-button:disabled,
 .page-btn:disabled {
-  color: #aaa;
-  border-color: #ddd;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -320,34 +326,40 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 180px;
-  color: #666;
+  gap: 0.75rem;
+  min-height: 12rem;
+  color: var(--kumo-text-muted);
 }
 
 .state.error {
-  color: #842029;
+  color: var(--kumo-status-danger);
 }
 
 .notifications {
   display: flex;
   flex-direction: column;
-  border: 1px solid #eee;
-  border-radius: 8px;
   overflow: hidden;
-  background: #fff;
 }
 
 .notification-item {
   display: flex;
-  gap: 14px;
+  gap: 0.9rem;
   width: 100%;
-  padding: 16px;
+  padding: 1rem;
   border: 0;
-  border-bottom: 1px solid #eee;
-  background: #fff;
+  border-bottom: 1px solid var(--kumo-hairline);
+  background: transparent;
+  color: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color var(--kumo-transition),
+    transform var(--kumo-transition);
+}
+
+.notification-item:hover {
+  background: var(--kumo-bg-subtle);
+  transform: translateX(4px);
 }
 
 .notification-item:last-child {
@@ -355,7 +367,7 @@ onMounted(() => {
 }
 
 .notification-item.unread {
-  background: #f6fbff;
+  background: var(--kumo-status-info-tint);
 }
 
 .notification-icon {
@@ -365,8 +377,8 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
   flex-shrink: 0;
 }
 
@@ -385,18 +397,18 @@ onMounted(() => {
 }
 
 .notification-title {
-  font-weight: 600;
-  color: #333;
+  color: var(--kumo-text-default);
+  font-weight: 760;
 }
 
 .notification-time {
-  color: #999;
+  color: var(--kumo-text-subtle);
   font-size: 13px;
   white-space: nowrap;
 }
 
 .notification-text {
-  color: #555;
+  color: var(--kumo-text-muted);
   line-height: 1.5;
 }
 
@@ -404,19 +416,41 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.page-btn {
+  min-height: 2.45rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  cursor: pointer;
+  transition: var(--kumo-transition);
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--kumo-hairline-strong);
+  color: var(--kumo-bg-brand-strong);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .page-info {
-  color: #666;
+  color: var(--kumo-text-muted);
 }
 
 @media (max-width: 640px) {
+  .notification-hero,
   .notification-toolbar,
   .notification-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .notification-hero {
+    align-items: stretch;
   }
 }
 </style>

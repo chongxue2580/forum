@@ -1,336 +1,253 @@
 <template>
-  <router-link :to="`/article/${article.id}`" class="article-card">
-    <div class="article-card-inner">
-      <!-- 文章封面图 -->
-      <div v-if="article.coverImage" class="article-cover">
-        <img :src="article.coverImage" :alt="article.title" />
+  <router-link :to="`/article/${article.id}`" class="article-card kumo-surface magnetic-card">
+    <div v-if="coverImage" class="article-cover">
+      <img :src="coverImage" :alt="article.title" loading="lazy">
+    </div>
+
+    <div class="article-body">
+      <div class="article-kicker">
+        <span class="kumo-status kumo-status--info">
+          <font-awesome-icon :icon="['fas', 'folder']" />
+          {{ categoryName }}
+        </span>
+        <span class="article-time">
+          <font-awesome-icon :icon="['fas', 'clock']" />
+          {{ formatTime(article.createdAt || article.createTime) }}
+        </span>
       </div>
-      
-      <!-- 文章内容 -->
-      <div class="article-content">
-        <div class="article-meta">
-          <div class="category-tag" v-if="categoryName">
-            <font-awesome-icon :icon="['fas', 'folder']" />
-            <span>{{ categoryName }}</span>
-          </div>
-          <div class="time">
-            <font-awesome-icon :icon="['fas', 'clock']" />
-            <span>{{ formatTime(article.createdAt || article.createTime) }}</span>
-          </div>
-        </div>
-        
-        <h2 class="article-title">{{ article.title }}</h2>
-        
-        <p class="article-summary">{{ article.summary || truncateContent }}</p>
-        
-        <div class="article-tags" v-if="article.tags && article.tags.length">
-          <div class="tag" v-for="(tag, index) in article.tags" :key="index">
-            <font-awesome-icon :icon="['fas', 'tag']" />
-            <span>{{ tag }}</span>
-          </div>
-        </div>
-        
-        <div class="article-footer">
-          <router-link :to="`/user/${article.author?.id}`" class="author" @click.stop>
-            <div class="author-avatar" v-if="article.author?.avatarUrl || article.author?.avatar">
-              <img :src="getAvatarPath(article.author.avatarUrl || article.author.avatar)" :alt="getAuthorName(article.author)" />
-            </div>
-            <div class="author-avatar" v-else>
-              <span>{{ getAuthorInitials(getAuthorName(article.author)) }}</span>
-            </div>
-            <span class="author-name">{{ getAuthorName(article.author) || '匿名' }}</span>
-          </router-link>
-          
-          <div class="article-stats">
-            <div class="stat-item">
-              <font-awesome-icon :icon="['fas', 'eye']" />
-              <span>{{ article.viewCount || article.views || 0 }}</span>
-            </div>
-            <div class="stat-item">
-              <font-awesome-icon :icon="['fas', 'thumbs-up']" />
-              <span>{{ article.likeCount || article.likes || 0 }}</span>
-            </div>
-            <div class="stat-item">
-              <font-awesome-icon :icon="['fas', 'comment']" />
-              <span>{{ article.commentCount || getCommentsCount }}</span>
-            </div>
-          </div>
+
+      <h2>{{ article.title }}</h2>
+      <p>{{ summary }}</p>
+
+      <div v-if="normalizedTags.length" class="article-tags" aria-label="文章标签">
+        <span v-for="tag in normalizedTags" :key="tag" class="article-tag">
+          #{{ tag }}
+        </span>
+      </div>
+
+      <div class="article-footer">
+        <router-link :to="`/user/${authorId}`" class="author" @click.stop>
+          <span class="author-avatar">
+            <img v-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+            <span v-else>{{ authorInitial }}</span>
+          </span>
+          <span>{{ authorName }}</span>
+        </router-link>
+
+        <div class="article-stats" aria-label="文章统计">
+          <span>
+            <font-awesome-icon :icon="['fas', 'eye']" />
+            {{ article.viewCount || article.views || 0 }}
+          </span>
+          <span>
+            <font-awesome-icon :icon="['fas', 'thumbs-up']" />
+            {{ article.likeCount || article.likes || 0 }}
+          </span>
+          <span>
+            <font-awesome-icon :icon="['fas', 'comment']" />
+            {{ commentCount }}
+          </span>
         </div>
       </div>
     </div>
   </router-link>
 </template>
 
-<script>
-import { defineComponent, computed } from 'vue'
+<script setup>
+import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { formatFriendlyTime } from '../utils/dateUtils'
+import { resolveAvatarFrom } from '../utils/avatar'
 
-export default defineComponent({
-  name: 'ArticleCard',
-  props: {
-    article: {
-      type: Object,
-      required: true,
-      default: () => ({
-        id: 0,
-        title: '加载中...',
-        summary: '',
-        content: '',
-        author: { name: '未知作者', avatar: '' },
-        createTime: '',
-        views: 0,
-        likes: 0,
-        comments: [],
-        tags: []
-      })
-    }
-  },
-  setup(props) {
-    const store = useStore();
-    
-    // 从文章内容中生成摘要
-    const truncateContent = computed(() => {
-      if (props.article.content && !props.article.summary) {
-        const content = props.article.content;
-        // 移除Markdown标记并截取
-        const plainText = content.replace(/[#*`_\[\]()]/g, '');
-        return plainText.length > 120 ? plainText.substring(0, 120) + '...' : plainText;
-      }
-      return '';
-    });
-    
-    // 获取类别名称
-    const categoryName = computed(() => {
-      const { category, categoryInfo, categoryName: articleCategoryName } = props.article;
-      if (articleCategoryName) return articleCategoryName;
-      if (categoryInfo?.name) return categoryInfo.name;
-      if (typeof category === 'string' && category.trim()) return category.trim();
-      
-      // 如果类别是对象并且有name属性
-      if (category && typeof category === 'object' && category.name) {
-        return category.name;
-      }
-      
-      // 如果类别是数字索引
-      if (typeof category === 'number') {
-        const categories = store.state.categories;
-        if (categories && categories.length > category) {
-          return categories[category].name;
-        }
-        
-        // 使用默认类别名称
-        const defaultCategories = ['前端开发', '后端开发', '移动开发', '人工智能', '开发工具'];
-        return defaultCategories[category % defaultCategories.length] || '未分类';
-      }
-      
-      return '未分类';
-    });
-    
-    // 获取评论数量
-    const getCommentsCount = computed(() => {
-      if (!props.article.comments) return 0;
-      
-      if (Array.isArray(props.article.comments)) {
-        return props.article.comments.length;
-      }
-      return props.article.comments || 0;
-    });
-    
-    // 格式化时间
-    const formatTime = (time) => formatFriendlyTime(time);
-    
-    // 获取作者名称
-    const getAuthorName = (author) => {
-      if (!author) return '匿名';
-      // 优先使用 nickname，然后是 username，最后是 name
-      return author.nickname || author.username || author.name || '匿名';
-    };
-
-    // 获取作者首字母
-    const getAuthorInitials = (name) => {
-      if (!name) return '匿';
-      return name.charAt(0).toUpperCase();
-    };
-    
-    // 确保头像路径正确
-    const getAvatarPath = (avatar) => {
-      if (!avatar) return '';
-      if (avatar.startsWith('/images/')) return avatar;
-      if (avatar.startsWith('/avatar')) {
-        return `/images/avatars${avatar}`;
-      }
-      return avatar;
-    };
-    
-    return {
-      formatTime,
-      getAuthorName,
-      getAuthorInitials,
-      getCommentsCount,
-      categoryName,
-      truncateContent,
-      getAvatarPath
-    };
+const props = defineProps({
+  article: {
+    type: Object,
+    required: true
   }
-});
+})
+
+const store = useStore()
+
+const categoryName = computed(() => {
+  const { category, categoryInfo, categoryName: directName } = props.article
+  if (directName) return directName
+  if (categoryInfo?.name) return categoryInfo.name
+  if (typeof category === 'string' && category.trim()) return category.trim()
+  if (category?.name) return category.name
+
+  if (typeof category === 'number') {
+    const categories = store.state.categories || []
+    return categories[category]?.name || '未分类'
+  }
+
+  return '未分类'
+})
+
+const coverImage = computed(() => props.article.coverImage || props.article.coverImageUrl || '')
+
+const summary = computed(() => {
+  const directSummary = props.article.summary || props.article.excerpt
+  if (directSummary) return directSummary
+
+  const content = props.article.content || ''
+  const plainText = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/[#*_`[\]()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText
+})
+
+const normalizedTags = computed(() => {
+  if (!props.article.tags) return []
+  if (Array.isArray(props.article.tags)) {
+    return props.article.tags
+      .map(tag => typeof tag === 'string' ? tag : tag?.name)
+      .filter(Boolean)
+      .slice(0, 4)
+  }
+  return String(props.article.tags)
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+})
+
+const author = computed(() => props.article.author || props.article.user || {})
+const authorId = computed(() => author.value?.id || props.article.authorId || 1)
+const authorName = computed(() => author.value?.nickname || author.value?.username || author.value?.name || '匿名')
+const authorAvatar = computed(() => resolveAvatarFrom(author.value))
+const authorInitial = computed(() => authorName.value.charAt(0).toUpperCase())
+
+const commentCount = computed(() => {
+  if (Array.isArray(props.article.comments)) return props.article.comments.length
+  return props.article.commentCount || props.article.comments || 0
+})
+
+const formatTime = (time) => formatFriendlyTime(time)
 </script>
 
 <style scoped>
 .article-card {
-  display: block;
-  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  min-height: 13rem;
   overflow: hidden;
-  transition: var(--transition);
-  color: var(--text-color);
+  color: var(--kumo-text-default);
   text-decoration: none;
 }
 
-.article-card-inner {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  background-color: var(--bg-white);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-  transition: var(--transition);
-}
-
-.article-card:hover .article-card-inner {
-  box-shadow: var(--shadow);
-  transform: translateY(-4px);
-  border-color: var(--primary-light);
-}
-
 .article-cover {
-  width: 250px;
-  height: auto;
-  flex-shrink: 0;
+  min-height: 13rem;
   overflow: hidden;
-  position: relative;
+  background:
+    linear-gradient(135deg, var(--kumo-bg-brand-soft), var(--kumo-bg-accent-soft));
 }
 
 .article-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 420ms ease;
 }
 
 .article-card:hover .article-cover img {
   transform: scale(1.05);
 }
 
-.article-content {
-  padding: 1.25rem;
+.article-body {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: 0.9rem;
+  padding: clamp(1rem, 2vw, 1.45rem);
 }
 
-.article-meta {
+.article-kicker {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
   flex-wrap: wrap;
-}
-
-.category-tag, .time {
-  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  color: var(--text-light);
-  font-size: 0.8rem;
+  gap: 0.7rem;
 }
 
-.article-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 0.75rem 0;
-  line-height: 1.3;
-  color: var(--text-color);
+.article-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--kumo-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 690;
 }
 
-.article-summary {
-  color: var(--text-light);
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin: 0 0 1rem 0;
+h2 {
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: clamp(1.15rem, 2vw, 1.48rem);
+  font-weight: 820;
+  line-height: 1.28;
+}
+
+p {
+  display: -webkit-box;
+  min-height: 3.2rem;
+  margin: 0;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .article-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-  align-items: center;
+  gap: 0.45rem;
 }
 
-.tags-label {
-  font-size: 0.8rem;
-  color: var(--text-light);
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 0.25rem 0.5rem;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  transition: var(--transition);
-}
-
-.tag:hover {
-  background-color: var(--primary-color);
-  color: white;
+.article-tag {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 720;
 }
 
 .article-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--kumo-hairline);
 }
 
 .author {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  color: var(--text-color);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.author:hover {
-  color: var(--primary-color);
-}
-
-.author:hover .author-avatar {
-  border-color: var(--primary-color);
-  transform: scale(1.05);
+  gap: 0.55rem;
+  min-width: 0;
+  color: var(--kumo-text-default);
+  font-size: 0.9rem;
+  font-weight: 760;
+  text-decoration: none;
 }
 
 .author-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 50%;
+  flex: 0 0 auto;
   overflow: hidden;
-  background-color: var(--primary-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  font-weight: 600;
-  transition: var(--transition);
-  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 840;
 }
 
 .author-avatar img {
@@ -339,53 +256,42 @@ export default defineComponent({
   object-fit: cover;
 }
 
-.author-name {
-  font-size: 0.9rem;
-  color: var(--text-color);
-  font-weight: 500;
-}
-
 .article-stats {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.article-stats span {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.3rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 730;
 }
 
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--text-lighter);
-  font-size: 0.8rem;
-}
-
-/* Featured article style (can be applied with a class) */
-.article-card.featured .article-card-inner {
-  border-left: 3px solid var(--primary-color);
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .article-card-inner {
-    flex-direction: column;
+@media (max-width: 760px) {
+  .article-card {
+    grid-template-columns: 1fr;
   }
-  
+
   .article-cover {
-    width: 100%;
-    height: 180px;
+    aspect-ratio: 16 / 9;
+    min-height: auto;
   }
-}
 
-@media (max-width: 576px) {
   .article-footer {
-    flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
+    flex-direction: column;
   }
-  
+
   .article-stats {
-    width: 100%;
     justify-content: flex-start;
   }
 }
-</style> 
+</style>

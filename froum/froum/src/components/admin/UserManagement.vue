@@ -162,8 +162,11 @@ const normalizeUser = (user) => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    '#6c8ff5', '#68c3a3', '#f1a766', '#a991f7',
-    '#ee86b7', '#ef8c8c', '#7ac7d7', '#96b86d'
+    'var(--kumo-bg-brand)',
+    'var(--kumo-bg-accent)',
+    'var(--kumo-status-success)',
+    'var(--kumo-status-warning)',
+    'var(--kumo-status-danger)'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -196,7 +199,6 @@ const loadUsers = async () => {
     users.value = page.content.map(normalizeUser)
     total.value = page.totalElements
   } catch (error) {
-    console.error('加载用户列表失败:', error)
     users.value = []
     total.value = 0
     ElMessage.error(error.message || '加载用户列表失败')
@@ -844,8 +846,8 @@ onMounted(loadUsers)
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--ad-accent, #007aff);
-  background: var(--ad-accent-weak, rgba(0, 122, 255, 0.1));
+  color: var(--ad-brand-strong);
+  background: var(--ad-brand-soft);
 }
 
 .user-info {
@@ -863,7 +865,7 @@ onMounted(loadUsers)
 .user-name {
   font-size: 1rem;
   font-weight: 750;
-  color: #263246;
+  color: var(--ad-text);
   margin-bottom: 0.5rem;
 }
 
@@ -877,7 +879,7 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: #8190a3;
+  color: var(--ad-text-muted);
   font-size: 0.82rem;
 }
 
@@ -897,12 +899,12 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: #667085;
+  color: var(--ad-text-muted);
   font-size: 0.82rem;
   padding: 0.375rem 0.75rem;
-  background: #f7fafd;
+  background: var(--ad-surface-muted);
   border-radius: 999px;
-  border: 1px solid rgba(127, 149, 176, 0.16);
+  border: 1px solid var(--ad-border);
 }
 
 .stat-label {
@@ -932,12 +934,12 @@ onMounted(loadUsers)
   padding: 12px 16px;
   margin-bottom: 14px;
   border-radius: 16px;
-  background: #f2f6ff;
-  border: 1px solid rgba(65, 105, 216, 0.18);
+  background: var(--ad-brand-soft);
+  border: 1px solid var(--ad-border);
 }
 
 .batch-count {
-  color: #4169d8;
+  color: var(--ad-brand-strong);
   font-size: 0.88rem;
   font-weight: 700;
 }
@@ -972,7 +974,7 @@ onMounted(loadUsers)
   align-items: center;
   gap: 14px;
   padding: 4px 2px 18px;
-  border-bottom: 1px solid rgba(127, 149, 176, 0.18);
+  border-bottom: 1px solid var(--ad-border);
 }
 
 .detail-profile-head .ad-card__avatar {
@@ -984,14 +986,14 @@ onMounted(loadUsers)
 
 .detail-profile-head h3 {
   margin: 0 0 4px;
-  color: #263246;
+  color: var(--ad-text);
   font-size: 1.15rem;
   line-height: 1.25;
 }
 
 .detail-profile-head p {
   margin: 0;
-  color: #8190a3;
+  color: var(--ad-text-muted);
   font-size: 0.86rem;
 }
 
@@ -1000,12 +1002,12 @@ onMounted(loadUsers)
 }
 
 .detail-section + .detail-section {
-  border-top: 1px solid rgba(127, 149, 176, 0.14);
+  border-top: 1px solid var(--ad-border);
 }
 
 .detail-section h4 {
   margin: 0 0 12px;
-  color: #263246;
+  color: var(--ad-text);
   font-size: 0.95rem;
   font-weight: 750;
 }
@@ -1020,15 +1022,15 @@ onMounted(loadUsers)
   min-width: 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #f7fafd;
-  border: 1px solid rgba(127, 149, 176, 0.14);
+  background: var(--ad-surface-muted);
+  border: 1px solid var(--ad-border);
 }
 
 .detail-info-grid span,
 .detail-stat-row span {
   display: block;
   margin-bottom: 5px;
-  color: #8190a3;
+  color: var(--ad-text-muted);
   font-size: 0.78rem;
   line-height: 1.3;
 }
@@ -1036,7 +1038,7 @@ onMounted(loadUsers)
 .detail-info-grid strong {
   display: block;
   min-width: 0;
-  color: #263246;
+  color: var(--ad-text);
   font-size: 0.9rem;
   font-weight: 650;
   line-height: 1.45;
@@ -1058,14 +1060,14 @@ onMounted(loadUsers)
   padding: 12px 8px;
   text-align: center;
   border-radius: 10px;
-  background: #f7fafd;
-  border: 1px solid rgba(127, 149, 176, 0.14);
+  background: var(--ad-surface-muted);
+  border: 1px solid var(--ad-border);
 }
 
 .detail-stat-row strong {
   display: block;
   margin-bottom: 4px;
-  color: #4169d8;
+  color: var(--ad-brand-strong);
   font-size: 1.08rem;
   line-height: 1.2;
 }
@@ -1076,7 +1078,7 @@ onMounted(loadUsers)
 }
 
 .ban-form label {
-  color: #263246;
+  color: var(--ad-text);
   font-size: 0.88rem;
   font-weight: 700;
 }
@@ -1095,9 +1097,9 @@ onMounted(loadUsers)
   min-height: 44px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(127, 149, 176, 0.22);
-  color: #46566e;
-  background: #fff;
+  border: 1px solid var(--ad-border);
+  color: var(--ad-text-muted);
+  background: var(--ad-surface);
   font-weight: 700;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
@@ -1105,9 +1107,9 @@ onMounted(loadUsers)
 
 .ban-type-option:hover,
 .ban-type-option.active {
-  color: #cf3d3d;
-  background: rgba(244, 67, 54, 0.08);
-  border-color: rgba(244, 67, 54, 0.34);
+  color: var(--ad-danger);
+  background: var(--ad-danger-soft);
+  border-color: var(--ad-danger);
 }
 
 .duration-radio-group {

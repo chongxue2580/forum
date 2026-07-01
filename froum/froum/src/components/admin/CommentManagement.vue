@@ -392,7 +392,7 @@ onMounted(refreshAll)
 
 <style scoped>
 .comment-management {
-  color: #1f2937;
+  color: var(--ad-text);
 }
 
 .header-actions,
@@ -411,7 +411,7 @@ onMounted(refreshAll)
 }
 
 .comment-text {
-  color: var(--ad-text, #1d1d1f);
+  color: var(--ad-text);
   line-height: 1.5;
   font-size: 0.92rem;
   display: -webkit-box;
@@ -422,25 +422,25 @@ onMounted(refreshAll)
 }
 
 .stat-item {
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--ad-border);
   border-radius: 22px;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.62) 100%);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  background: var(--ad-surface);
+  box-shadow: var(--ad-shadow);
   backdrop-filter: blur(20px);
 }
 
 .stat-label {
-  color: #77869a;
+  color: var(--ad-text-muted);
   font-size: 13px;
   font-weight: 700;
 }
 
 .stat-item strong {
-  color: #172033;
+  color: var(--ad-text);
   font-size: 26px;
   font-weight: 820;
 }
@@ -481,7 +481,7 @@ onMounted(refreshAll)
 }
 
 .comment-content {
-  color: #111827;
+  color: var(--ad-text);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -491,13 +491,13 @@ onMounted(refreshAll)
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  color: #64748b;
+  color: var(--ad-text-muted);
   font-size: 13px;
 }
 
 .target-id {
   margin-left: 8px;
-  color: #64748b;
+  color: var(--ad-text-muted);
 }
 
 .pagination-container {
@@ -524,14 +524,14 @@ onMounted(refreshAll)
 .filter-panel :deep(.el-input__wrapper),
 .filter-panel :deep(.el-select__wrapper) {
   border-radius: 14px;
-  background: rgba(247, 250, 253, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(127, 149, 176, 0.18);
+  background: var(--ad-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--ad-border);
 }
 
 .filter-panel :deep(.el-input__wrapper.is-focus),
 .filter-panel :deep(.el-select__wrapper.is-focused) {
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(65, 105, 216, 0.45), 0 0 0 4px rgba(65, 105, 216, 0.12);
+  background: var(--ad-surface);
+  box-shadow: inset 0 0 0 1px var(--ad-brand), 0 0 0 4px var(--kumo-focus-ring);
 }
 
 .comment-management :deep(.el-button) {
@@ -540,7 +540,7 @@ onMounted(refreshAll)
 }
 
 .comment-management :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #5b86e8 0%, #4169d8 100%);
+  background: linear-gradient(135deg, var(--ad-brand), var(--ad-brand-strong));
   border-color: transparent;
 }
 

@@ -1,108 +1,74 @@
 <template>
-  <div class="error-page">
-    <div class="error-container">
-      <div class="error-code">404</div>
-      <h1 class="error-title">页面不存在</h1>
-      <p class="error-message">
-        您访问的页面不存在或已被移除。
-      </p>
+  <div class="error-page kumo-page">
+    <section class="error-container kumo-surface-strong reveal-rise">
+      <span class="kumo-eyebrow">404</span>
+      <div class="error-code">页面未找到</div>
+      <h1 class="kumo-heading">这个页面不存在</h1>
+      <p class="kumo-muted">访问地址可能已经被移除，或当前链接不再可用。</p>
       <div class="error-actions">
-        <router-link to="/" class="btn btn-primary">
+        <router-link to="/" class="kumo-button kumo-button--brand">
           <font-awesome-icon :icon="['fas', 'home']" />
           返回首页
         </router-link>
-        <button @click="goBack" class="btn btn-secondary">
+        <button class="kumo-button" @click="goBack">
           <font-awesome-icon :icon="['fas', 'arrow-right']" class="icon-flip" />
           返回上一页
         </button>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
+const router = useRouter()
 
 const goBack = () => {
-  router.back();
-};
+  router.back()
+}
 </script>
 
 <style scoped>
 .error-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid;
   min-height: 70vh;
-  padding: 2rem;
+  place-items: center;
+  padding: clamp(1rem, 5vw, 3rem);
 }
 
 .error-container {
-  max-width: 600px;
+  width: min(100%, 42rem);
+  padding: clamp(1.5rem, 6vw, 3rem);
   text-align: center;
 }
 
 .error-code {
-  font-size: 8rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  line-height: 1;
-  margin-bottom: 1rem;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
+  color: var(--kumo-bg-brand);
+  font-size: clamp(1.15rem, 4vw, 1.5rem);
+  font-weight: 820;
 }
 
-.error-title {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: var(--text-color);
+.error-container h1 {
+  margin: 0.65rem 0 0;
+  font-size: clamp(2.25rem, 8vw, 4.5rem);
 }
 
-.error-message {
-  font-size: 1.1rem;
-  color: var(--text-light);
-  margin-bottom: 2rem;
+.error-container p {
+  max-width: 30rem;
+  margin: 1rem auto 0;
 }
 
 .error-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 1rem;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius);
-  font-weight: 500;
-  transition: var(--transition);
-  cursor: pointer;
-}
-
-.btn-primary {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover {
-  background-color: var(--primary-dark);
-}
-
-.btn-secondary {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-}
-
-.btn-secondary:hover {
-  background-color: var(--border-color);
+  gap: 0.75rem;
+  margin-top: 2rem;
 }
 
 .icon-flip {
   transform: scaleX(-1);
 }
-</style> 
+</style>

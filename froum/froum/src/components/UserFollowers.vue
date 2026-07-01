@@ -84,6 +84,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { followApi } from '@/api/followApi';
 import FollowButton from '@/components/FollowButton.vue';
+import { resolveAvatarUrl } from '@/utils/avatar';
 
 const props = defineProps({
   userId: {
@@ -142,7 +143,7 @@ const normalizeUser = (user) => {
     id: user.id,
     username: user.username,
     name,
-    avatar: user.avatarUrl || user.avatar || '',
+    avatar: resolveAvatarUrl(user.avatarUrl || user.avatar || ''),
     bio: user.bio || '',
     followedAt: user.followedAt || user.createdAt || null,
     isVerified: false
@@ -167,7 +168,6 @@ const loadMoreFollowers = async () => {
     totalItems.value = pageData.totalElements;
     totalPages.value = pageData.totalPages;
   } catch (error) {
-    console.error('Failed to load more followers:', error);
     errorMessage.value = error.message || '加载更多粉丝失败';
   } finally {
     isLoadingMore.value = false;
@@ -186,7 +186,6 @@ const fetchFollowers = async () => {
     totalItems.value = pageData.totalElements;
     totalPages.value = pageData.totalPages;
   } catch (error) {
-    console.error('Failed to fetch followers:', error);
     errorMessage.value = error.message || '粉丝加载失败';
     followers.value = [];
     totalItems.value = 0;
@@ -207,261 +206,231 @@ watch(profileUserId, () => {
 
 <style scoped>
 .user-followers {
-  padding: 1.5rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
 }
 
 .section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
   margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.2rem;
+  font-weight: 840;
 }
 
 .search-box {
   position: relative;
-  width: 250px;
+  width: min(100%, 18rem);
 }
 
 .search-icon {
   position: absolute;
-  left: 0.75rem;
+  left: 0.85rem;
   top: 50%;
+  color: var(--kumo-text-subtle);
   transform: translateY(-50%);
-  color: var(--text-light);
 }
 
 .search-input {
   width: 100%;
-  padding: 0.6rem 1rem 0.6rem 2.25rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  transition: all 0.3s;
+  min-height: 2.65rem;
+  padding: 0.6rem 1rem 0.6rem 2.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-default);
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .search-input:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
 }
 
-.loading-state, .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 0;
-  color: var(--text-light);
+.loading-state,
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 0.65rem;
+  min-height: 12rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
   text-align: center;
 }
 
-.spinner, .empty-icon {
+.spinner,
+.empty-icon {
+  color: var(--kumo-bg-brand);
   font-size: 2rem;
-  margin-bottom: 1rem;
+}
+
+.empty-state h3,
+.empty-state p {
+  margin: 0;
 }
 
 .empty-state h3 {
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
+  font-size: 1.1rem;
+  font-weight: 840;
 }
 
 .followers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  gap: 0.85rem;
 }
 
 .follower-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  transition: all 0.3s;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .follower-item:hover {
-  border-color: var(--primary-light);
-  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.1);
+  transform: translateY(-3px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .follower-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 3.6rem;
+  height: 3.6rem;
   overflow: hidden;
-  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+}
+
+.follower-avatar img,
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
 }
 
 .follower-avatar img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
 }
 
 .avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  color: var(--kumo-bg-brand-strong);
+  font-size: 1.25rem;
+  font-weight: 900;
 }
 
 .follower-info {
-  flex: 1;
   min-width: 0;
 }
 
 .follower-name {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--text-color);
-  margin-bottom: 0.35rem;
+  color: var(--kumo-text-default);
+  font-size: 1rem;
+  font-weight: 820;
   text-decoration: none;
 }
 
-.follower-name:hover {
-  color: var(--primary-color);
-}
-
+.follower-name:hover,
 .verified-icon {
-  color: var(--primary-color);
-  font-size: 0.9rem;
+  color: var(--kumo-bg-brand-strong);
 }
 
 .follower-bio {
-  color: var(--text-light);
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  margin: 0.3rem 0 0.45rem;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .follower-meta {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .meta-item {
+  color: var(--kumo-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.follower-actions,
+.load-more {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  color: var(--text-light);
-  font-size: 0.85rem;
-}
-
-.follower-actions {
-  display: flex;
-  align-items: center;
-}
-
-.follow-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: 1px solid var(--primary-color);
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.follow-btn:hover {
-  background-color: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-
-.follow-btn.following {
-  background-color: transparent;
-  color: var(--primary-color);
-}
-
-.follow-btn.following:hover {
-  background-color: rgba(var(--error-rgb), 0.1);
-  border-color: var(--error-color);
-  color: var(--error-color);
+  justify-content: center;
 }
 
 .load-more {
-  display: flex;
-  justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
 }
 
 .load-more-btn {
-  padding: 0.6rem 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background-color: transparent;
-  color: var(--text-light);
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 120px;
+  min-width: 8rem;
+  min-height: 2.55rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
+  font-weight: 760;
+  cursor: pointer;
+  transition: var(--transition);
 }
 
 .load-more-btn:hover {
-  background-color: var(--bg-light);
-  color: var(--text-color);
+  border-color: var(--kumo-hairline-strong);
+  color: var(--kumo-bg-brand-strong);
 }
 
 @media (max-width: 768px) {
   .section-header {
+    align-items: stretch;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
   }
-  
+
   .search-box {
     width: 100%;
   }
-  
+
   .follower-item {
-    flex-direction: column;
-  }
-  
-  .follower-avatar {
-    margin: 0 auto;
-  }
-  
-  .follower-info, .follower-actions {
+    grid-template-columns: 1fr;
     text-align: center;
   }
-  
+
+  .follower-avatar {
+    justify-self: center;
+  }
+
   .follower-meta {
     justify-content: center;
   }
-  
-  .follower-actions {
-    margin-top: 1rem;
-    justify-content: center;
-  }
 }
-</style> 
+</style>

@@ -1,46 +1,45 @@
 @import './base.css';
+@import './kumo-theme.css';
 
 /* 全局样式 */
 :root {
-  --primary-color: #3f51b5;
-  --primary-light: #e8eaf6;
-  --primary-dark: #303f9f;
-  --accent-color: #ff4081;
-  --accent-light: #ff80ab;
-  --accent-dark: #f50057;
-  --text-color: #212121;
-  --text-light: #757575;
-  --text-lighter: #9e9e9e;
-  --border-color: #e0e0e0;
-  --bg-color: #f5f7fa;
-  --bg-gray: #f5f5f5;
-  --bg-white: #ffffff;
+  --primary-color: var(--kumo-bg-brand);
+  --primary-light: var(--kumo-bg-brand-soft);
+  --primary-dark: var(--kumo-bg-brand-strong);
+  --accent-color: var(--kumo-bg-accent);
+  --accent-light: var(--kumo-bg-accent-soft);
+  --accent-dark: var(--kumo-bg-accent);
+  --text-color: var(--kumo-text-default);
+  --text-light: var(--kumo-text-muted);
+  --text-lighter: var(--kumo-text-subtle);
+  --border-color: var(--kumo-hairline);
+  --bg-color: var(--kumo-bg-base);
+  --bg-gray: var(--kumo-bg-subtle);
+  --bg-white: var(--kumo-bg-elevated);
   
   /* Status colors */
-  --success-color: #52c41a;
-  --warning-color: #faad14;
-  --error-color: #f5222d;
+  --success-color: var(--kumo-status-success);
+  --warning-color: var(--kumo-status-warning);
+  --error-color: var(--kumo-status-danger);
   
   /* RGB versions for opacity control */
-  --primary-rgb: 63, 81, 181;
-  --accent-rgb: 255, 64, 129;
-  --text-rgb: 33, 33, 33;
-  --success-rgb: 82, 196, 26;
-  --error-rgb: 245, 34, 45;
+  --primary-rgb: 164, 63, 95;
+  --accent-rgb: 15, 139, 141;
+  --text-rgb: 25, 25, 34;
   
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
+  --shadow-sm: var(--kumo-shadow-sm);
+  --shadow: var(--kumo-shadow-md);
+  --shadow-lg: var(--kumo-shadow-lg);
+  --radius-sm: var(--kumo-radius-sm);
+  --radius: var(--kumo-radius-md);
+  --radius-lg: var(--kumo-radius-lg);
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
   --header-height: 64px;
-  --transition: all 0.3s ease;
+  --transition: all var(--kumo-transition);
 }
 
 /* 基础重置 */
@@ -104,7 +103,7 @@ body {
 
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
+  color: var(--kumo-text-inverse);
 }
 
 .btn-primary:hover {
@@ -127,7 +126,7 @@ body {
 
 .btn-success {
   background-color: var(--success-color);
-  color: white;
+  color: var(--kumo-text-inverse);
 }
 
 .btn-success:hover {
@@ -137,7 +136,7 @@ body {
 
 .btn-danger {
   background-color: var(--error-color);
-  color: white;
+  color: var(--kumo-text-inverse);
 }
 
 .btn-danger:hover {
@@ -189,7 +188,7 @@ body {
 .form-control:focus {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
 }
 
 .form-group {
@@ -272,7 +271,7 @@ body {
 
 .tag:hover {
   background-color: var(--primary-color);
-  color: white;
+  color: var(--kumo-text-inverse);
 }
 
 .tag svg {
@@ -292,7 +291,7 @@ body {
   content: '';
   width: 40px;
   height: 40px;
-  border: 2px solid rgba(63, 81, 181, 0.2);
+  border: 2px solid var(--kumo-bg-brand-soft);
   border-top: 2px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -308,8 +307,8 @@ body {
 .error {
   text-align: center;
   padding: var(--spacing-xl);
-  color: #f44336;
-  background-color: #ffebee;
+  color: var(--kumo-status-danger);
+  background-color: var(--kumo-status-danger-tint);
   border-radius: var(--radius);
   margin: var(--spacing) 0;
 }
@@ -336,7 +335,7 @@ body {
 
 .pagination-btn.active {
   background-color: var(--primary-color);
-  color: white;
+  color: var(--kumo-text-inverse);
   border-color: var(--primary-color);
 }
 
@@ -707,7 +706,7 @@ a:hover {
 }
 
 .article-content pre {
-  background-color: #282c34;
+  background-color: var(--kumo-bg-recessed);
   border-radius: var(--radius);
   padding: 1em;
   overflow-x: auto;
@@ -725,7 +724,7 @@ a:hover {
 .article-content pre code {
   background-color: transparent;
   padding: 0;
-  color: #abb2bf;
+  color: var(--kumo-text-muted);
 }
 
 .article-content ul,
@@ -770,7 +769,7 @@ a:hover {
 
 /* 代码高亮主题样式优化 */
 .hljs {
-  background: #282c34 !important;
+  background: var(--kumo-bg-recessed) !important;
   border-radius: var(--radius) !important;
 }
 
@@ -786,17 +785,17 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: var(--kumo-hairline-strong);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: var(--kumo-text-subtle);
 }
 
 /* ===== 全局弹窗玻璃拟态美化（ElMessageBox / ElDialog / ElMessage） ===== */
 .el-overlay {
-  background-color: rgba(30, 41, 59, 0.32);
+  background-color: var(--kumo-bg-overlay);
   backdrop-filter: blur(5px);
 }
 
@@ -805,9 +804,10 @@ a:hover {
   max-width: 440px;
   padding: 26px 26px 22px;
   border-radius: 24px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(30, 41, 59, 0.22);
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-lg);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .el-message-box__header {
@@ -815,13 +815,13 @@ a:hover {
 }
 
 .el-message-box__title {
-  color: #1f2937;
+  color: var(--kumo-text-default);
   font-size: 1.05rem;
   font-weight: 800;
 }
 
 .el-message-box__message {
-  color: #506176;
+  color: var(--kumo-text-muted);
   line-height: 1.65;
 }
 
@@ -836,8 +836,8 @@ a:hover {
 .el-message-box__input .el-input__wrapper,
 .el-message-box__input .el-textarea__inner {
   border-radius: 14px;
-  background: #f7fafd;
-  box-shadow: inset 0 0 0 1px rgba(127, 149, 176, 0.22);
+  background: var(--kumo-bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--kumo-hairline);
 }
 
 .el-message-box__btns {
@@ -850,38 +850,39 @@ a:hover {
   min-height: 38px;
   padding: 0 20px;
   border-radius: 999px;
-  border: 1px solid rgba(105, 126, 154, 0.22);
-  background: #ffffff;
-  color: #506176;
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
   font-weight: 700;
 }
 
 .el-message-box__btns .el-button:hover,
 .el-dialog__footer .el-button:hover {
-  color: #4169d8;
-  border-color: rgba(65, 105, 216, 0.3);
-  background: #f7fbff;
+  color: var(--kumo-bg-brand-strong);
+  border-color: var(--kumo-hairline-strong);
+  background: var(--kumo-bg-brand-soft);
 }
 
 .el-message-box__btns .el-button--primary,
 .el-dialog__footer .el-button--primary {
   border: none;
-  background: linear-gradient(135deg, #5d82e8 0%, #4169d8 100%);
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(65, 105, 216, 0.28);
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .el-message-box__btns .el-button--primary:hover,
 .el-dialog__footer .el-button--primary:hover {
-  background: linear-gradient(135deg, #6c8ff5 0%, #4f74dd 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--kumo-bg-brand-strong), var(--kumo-bg-brand));
+  color: var(--kumo-text-inverse);
 }
 
 .el-dialog {
   border-radius: 24px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(30, 41, 59, 0.22);
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-lg);
+  backdrop-filter: var(--kumo-blur);
   overflow: hidden;
 }
 
@@ -891,13 +892,13 @@ a:hover {
 }
 
 .el-dialog__title {
-  color: #1f2937;
+  color: var(--kumo-text-default);
   font-weight: 800;
 }
 
 .el-dialog__body {
   padding: 14px 26px 20px;
-  color: #506176;
+  color: var(--kumo-text-muted);
 }
 
 .el-dialog__footer {
@@ -908,31 +909,32 @@ a:hover {
   min-height: 44px;
   padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  box-shadow: 0 14px 36px rgba(30, 41, 59, 0.18);
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .el-message .el-message__content {
   font-weight: 650;
-  color: #1f2937;
+  color: var(--kumo-text-default);
 }
 
 .el-message--success {
-  border-color: #95de64;
-  background: #f6ffed;
+  border-color: var(--kumo-status-success);
+  background: var(--kumo-status-success-tint);
 }
 
 .el-message--warning {
-  border-color: #ffd666;
-  background: #fffbe6;
+  border-color: var(--kumo-status-warning);
+  background: var(--kumo-status-warning-tint);
 }
 
 .el-message--error {
-  border-color: #ff7875;
-  background: #fff1f0;
+  border-color: var(--kumo-status-danger);
+  background: var(--kumo-status-danger-tint);
 }
 
 .el-message--error .el-message__content {
-  color: #a8071a;
+  color: var(--kumo-status-danger);
 }

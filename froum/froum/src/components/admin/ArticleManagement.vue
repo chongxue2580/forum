@@ -130,7 +130,6 @@ const loadArticles = async () => {
     tableData.value = page.content.map(normalizeArticle)
     total.value = page.totalElements
   } catch (error) {
-    console.error('加载文章列表失败:', error)
     tableData.value = []
     total.value = 0
     ElMessage.error(error.message || '加载文章列表失败')
@@ -503,24 +502,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
 }
 
 .time-info {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
 }
 
 .tag-container {
@@ -539,12 +538,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, var(--bg-white) 0%, rgba(37, 99, 235, 0.05) 100%);
+  background: var(--ad-surface-muted);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
   transition: all 0.2s ease;
 }
 

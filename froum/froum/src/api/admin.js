@@ -490,6 +490,37 @@ export function getRecentComments(params) {
   })
 }
 
+// 举报管理相关
+export function getAdminReports(params) {
+  return request({
+    url: '/admin/reports',
+    method: 'get',
+    params
+  })
+}
+
+export function getAdminReportById(id) {
+  return request({
+    url: `/admin/reports/${id}`,
+    method: 'get'
+  })
+}
+
+export function handleAdminReport(id, data) {
+  return request({
+    url: `/admin/reports/${id}/handle`,
+    method: 'put',
+    data
+  })
+}
+
+export function getReportStatistics() {
+  return request({
+    url: '/admin/reports/statistics',
+    method: 'get'
+  })
+}
+
 // 操作日志相关
 export function getOperationLogs(params) {
   return request({

@@ -232,7 +232,6 @@ const loadQuestions = async () => {
       total.value = response.data.totalElements
     }
   } catch (error) {
-    console.error('加载问答列表失败:', error)
     ElMessage.error('加载问答列表失败')
   } finally {
     loading.value = false
@@ -318,7 +317,6 @@ const approveQuestionAction = async (question) => {
     loadQuestions()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('审核通过失败:', error)
       ElMessage.error('审核通过失败')
     }
   }
@@ -336,7 +334,6 @@ const rejectQuestionAction = async (question) => {
     loadQuestions()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('审核拒绝失败:', error)
       ElMessage.error('审核拒绝失败')
     }
   }
@@ -348,7 +345,6 @@ const pinQuestionAction = async (question) => {
     ElMessage.success('设置置顶成功')
     loadQuestions()
   } catch (error) {
-    console.error('设置置顶失败:', error)
     ElMessage.error('设置置顶失败')
   }
 }
@@ -359,7 +355,6 @@ const unpinQuestionAction = async (question) => {
     ElMessage.success('取消置顶成功')
     loadQuestions()
   } catch (error) {
-    console.error('取消置顶失败:', error)
     ElMessage.error('取消置顶失败')
   }
 }
@@ -370,7 +365,6 @@ const featureQuestionAction = async (question) => {
     ElMessage.success('设置精选成功')
     loadQuestions()
   } catch (error) {
-    console.error('设置精选失败:', error)
     ElMessage.error('设置精选失败')
   }
 }
@@ -381,7 +375,6 @@ const unfeatureQuestionAction = async (question) => {
     ElMessage.success('取消精选成功')
     loadQuestions()
   } catch (error) {
-    console.error('取消精选失败:', error)
     ElMessage.error('取消精选失败')
   }
 }
@@ -399,7 +392,6 @@ const deleteQuestionAction = async (question) => {
     loadQuestions()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除问答失败:', error)
       ElMessage.error('删除问答失败')
     }
   }
@@ -443,7 +435,7 @@ const formatDate = (dateString) => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ad-text);
 }
 
 .header-actions {
@@ -471,7 +463,7 @@ const formatDate = (dateString) => {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--ad-text-muted);
 }
 
 .pagination-container {
@@ -489,15 +481,15 @@ const formatDate = (dateString) => {
 
 .question-content h4 {
   margin-bottom: 10px;
-  color: #333;
+  color: var(--ad-text);
 }
 
 .content-preview {
   max-height: 300px;
   overflow-y: auto;
   padding: 15px;
-  background: #f8f9fa;
+  background: var(--ad-surface-muted);
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--ad-border);
 }
 </style>

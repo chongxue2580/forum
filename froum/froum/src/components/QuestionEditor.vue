@@ -251,7 +251,6 @@ export default defineComponent({
         insertText(`![${file.name}](${url})\n`)
         ElMessage.success('图片已插入')
       } catch (error) {
-        console.error('图片上传失败:', error)
         ElMessage.error(error.message || '图片上传失败')
       } finally {
         isUploadingImage.value = false
@@ -291,7 +290,6 @@ export default defineComponent({
         const response = await tagService.getAllTags()
         availableTags.value = unwrapList(response)
       } catch (error) {
-        console.error('加载标签失败:', error)
         ElMessage.error(error.message || '加载标签失败')
       }
     }
@@ -314,7 +312,6 @@ export default defineComponent({
             tags: selectedTags
           }
         } catch (error) {
-          console.error('加载问题数据失败:', error)
           ElMessage.error(error.message || '加载问题数据失败')
         }
       }
@@ -419,7 +416,6 @@ export default defineComponent({
           }
         }
       } catch (error) {
-        console.error('提交问题失败:', error)
         ElMessage.error(error.message || '提交失败，请稍后重试')
       } finally {
         isSubmitting.value = false
@@ -455,105 +451,161 @@ export default defineComponent({
 
 <style scoped>
 .question-editor {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.editor-form {
-  max-width: 850px;
+  display: grid;
+  gap: 1.25rem;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
 .editor-header {
-  margin-bottom: 24px;
+  display: grid;
+  gap: 0.8rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--kumo-hairline-strong);
+  border-radius: var(--kumo-radius-xl);
+  background:
+    linear-gradient(135deg, var(--kumo-bg-elevated), var(--kumo-bg-subtle));
+  box-shadow: var(--kumo-shadow-md);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .editor-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text-color);
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 900;
+  line-height: 1.05;
 }
 
 .description {
-  color: var(--text-light);
-  font-size: 16px;
+  max-width: 42rem;
+  margin: 0;
+  color: var(--kumo-text-muted);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.login-notice {
+  margin-top: 0.4rem;
+}
+
+.user-info {
+  width: fit-content;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 760;
 }
 
 .editor-form {
-  background: white;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 30px;
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.8rem);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-xl);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .form-group {
-  margin-bottom: 24px;
+  display: grid;
+  gap: 0.6rem;
 }
 
 .form-group label {
-  display: block;
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: var(--text-color);
+  color: var(--kumo-text-default);
+  font-weight: 840;
 }
 
-.form-group input[type="text"] {
+.form-group input[type='text'],
+.form-group textarea,
+#tag-input {
+  color: var(--kumo-text-default);
+  font: inherit;
+}
+
+.form-group input[type='text'],
+.form-group textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 16px;
-  transition: all 0.3s;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-base);
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.form-group input[type="text"]:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+.form-group input[type='text'] {
+  min-height: 3rem;
+  border-radius: var(--kumo-radius-md);
+  font-size: 1.05rem;
+  font-weight: 720;
+}
+
+.form-group input[type='text']:focus,
+.form-group textarea:focus,
+.tags-input-container:focus-within {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
+  outline: none;
+}
+
+.input-counter,
+.markdown-hint,
+.tags-hint {
+  color: var(--kumo-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 690;
 }
 
 .input-counter {
   text-align: right;
-  font-size: 12px;
-  color: var(--text-lighter);
-  margin-top: 4px;
 }
 
 .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 8px;
-  background-color: var(--bg-gray);
-  border: 1px solid var(--border-color);
-  border-bottom: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid var(--kumo-hairline);
+  border-bottom: 0;
+  border-radius: var(--kumo-radius-md) var(--kumo-radius-md) 0 0;
+  background: var(--kumo-bg-subtle);
 }
 
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: var(--text-light);
+.toolbar-btn,
+.close-preview {
+  display: inline-grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
-.toolbar-btn:hover {
-  background-color: var(--bg-white);
-  color: var(--primary-color);
+.toolbar-btn:hover,
+.close-preview:hover {
+  transform: translateY(-2px);
+  border-color: var(--kumo-bg-brand);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .toolbar-btn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
 }
 
 .hidden-file-input {
@@ -561,287 +613,198 @@ export default defineComponent({
 }
 
 .form-group textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  font-size: 16px;
-  font-family: inherit;
+  min-height: 18rem;
+  border-radius: 0 0 var(--kumo-radius-md) var(--kumo-radius-md);
+  font-size: 1rem;
+  line-height: 1.65;
   resize: vertical;
-  transition: all 0.3s;
-}
-
-.form-group textarea:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-}
-
-.markdown-hint {
-  font-size: 12px;
-  color: var(--text-lighter);
-  margin-top: 8px;
 }
 
 .tags-input-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  transition: all 0.3s;
+  gap: 0.55rem;
+  padding: 0.6rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.tags-input-container:focus-within {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+.tag-item,
+.tag-option,
+.tag-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.62rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.84rem;
+  font-weight: 760;
 }
 
 .tag-item {
-  display: flex;
-  align-items: center;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 4px 8px;
-  border-radius: 16px;
-  font-size: 14px;
-}
-
-.tag-text {
-  margin-right: 4px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .tag-remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  background: none;
-  border: none;
-  color: var(--primary-color);
+  display: inline-grid;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s;
 }
 
 .tag-remove:hover {
-  opacity: 1;
+  color: var(--kumo-status-danger);
 }
 
 #tag-input {
   flex: 1;
-  min-width: 120px;
-  border: none;
+  min-width: 10rem;
+  border: 0;
+  background: transparent;
   outline: none;
-  padding: 4px 0;
-  font-size: 14px;
 }
 
-.tag-options {
+.tag-options,
+.tags-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 0.5rem;
 }
 
 .tag-option {
-  border: 1px solid var(--border-color);
-  background: #fff;
-  color: var(--text-light);
-  border-radius: 16px;
-  padding: 4px 10px;
-  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    border-color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    color var(--kumo-transition);
 }
 
 .tag-option:hover,
 .tag-option.selected {
-  border-color: var(--primary-color);
-  background: var(--primary-light);
-  color: var(--primary-color);
-}
-
-.tags-hint {
-  font-size: 12px;
-  color: var(--text-lighter);
-  margin-top: 8px;
+  border-color: var(--kumo-bg-brand);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .preview-section {
-  margin-top: 30px;
-  margin-bottom: 30px;
-  background: var(--bg-gray);
-  border-radius: var(--radius);
-  border: 1px solid var(--border-color);
   overflow: hidden;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
 .preview-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: white;
-  border-bottom: 1px solid var(--border-color);
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+}
+
+.preview-header h2,
+.preview-content h1 {
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-weight: 840;
 }
 
 .preview-header h2 {
-  font-size: 18px;
-  font-weight: 500;
-  margin: 0;
-  color: var(--text-color);
-}
-
-.close-preview {
-  background: none;
-  border: none;
-  color: var(--text-lighter);
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s;
-}
-
-.close-preview:hover {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
+  font-size: 1.05rem;
 }
 
 .preview-content {
-  padding: 20px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .preview-content h1 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: var(--text-color);
-}
-
-.tags-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.tag-preview {
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 4px 8px;
-  border-radius: 16px;
-  font-size: 14px;
+  font-size: 1.45rem;
 }
 
 .content-preview {
-  background: white;
-  padding: 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  min-height: 200px;
+  min-height: 12rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
-  margin-top: 30px;
+  gap: 0.75rem;
 }
 
-.btn-preview {
-  display: flex;
+.btn-preview,
+.btn-submit {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background-color: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-color);
-  font-size: 14px;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.68rem 1.05rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  font-weight: 780;
   cursor: pointer;
-  transition: all 0.3s;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.btn-preview:hover {
-  background-color: var(--bg-gray);
+.btn-preview:hover,
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .btn-submit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 24px;
-  background-color: var(--primary-color);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: white;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-submit:hover {
-  background-color: var(--primary-dark);
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
 }
 
 .btn-submit:disabled {
-  background-color: #d9d9d9;
+  background: var(--kumo-bg-recessed);
+  color: var(--kumo-text-subtle);
   cursor: not-allowed;
-}
-
-@media (max-width: 1024px) {
-  .question-editor {
-    padding: 1rem;
-  }
-
-  .editor-form {
-    max-width: 100%;
-  }
+  transform: none;
 }
 
 @media (max-width: 768px) {
-  .question-editor {
-    padding: 0.5rem;
-  }
-
-  .editor-form {
-    padding: 1rem;
-    max-width: 100%;
-  }
-
   .form-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .btn-preview, .btn-submit {
+  .btn-preview,
+  .btn-submit {
     width: 100%;
-    justify-content: center;
   }
 }
-
-/* 登录提示和用户信息样式 */
-.login-notice {
-  margin-top: 16px;
-}
-
-.user-info {
-  margin-top: 16px;
-  padding: 12px;
-  background-color: #f0f9ff;
-  border-radius: 6px;
-  border-left: 4px solid #3b82f6;
-}
-
-.current-user {
-  color: #1e40af;
-  font-weight: 500;
-}
-</style> 
+</style>

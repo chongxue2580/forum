@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ArticleList from '../components/ArticleList.vue'
+import UiPageHero from '../components/ui/UiPageHero.vue'
 import { articleService } from '../services/articleService'
 import { questionService } from '../services/questionService'
 import { tagService } from '../services/tagService'
@@ -127,37 +128,47 @@ onMounted(loadData)
 
 <template>
   <div class="tag-detail-container">
-    <div v-if="loading" class="state-panel">
+    <div v-if="loading" class="state-panel kumo-surface">
       <font-awesome-icon :icon="['fas', 'spinner']" spin />
       <span>加载标签内容...</span>
     </div>
 
     <template v-else>
-      <header class="tag-header">
-        <div>
-          <h1>
+      <ui-page-hero
+        :title="tag?.name || `标签 #${tagId}`"
+        :description="tag?.description || '浏览该标签下的文章与问答内容。'"
+      >
+        <template #eyebrow>
+          <span class="kumo-eyebrow">
             <font-awesome-icon :icon="['fas', 'tag']" />
-            {{ tag?.name || `标签 #${tagId}` }}
-          </h1>
-          <p v-if="tag?.description">{{ tag.description }}</p>
-        </div>
-        <router-link to="/tags" class="back-link">全部标签</router-link>
-      </header>
+            Tag
+          </span>
+        </template>
+        <template #actions>
+          <router-link to="/tags" class="kumo-button">全部标签</router-link>
+        </template>
+        <template #aside>
+          <div class="hero-count">
+            <strong>{{ articleTotal + questionTotal }}</strong>
+            <span>关联内容</span>
+          </div>
+        </template>
+      </ui-page-hero>
 
-      <div class="toolbar">
-        <div class="tabs">
-          <button :class="{ active: activeTab === 'articles' }" @click="switchTab('articles')">
-            文章 {{ articleTotal }}
+      <div class="toolbar kumo-surface">
+        <div class="kumo-tabs" aria-label="内容类型">
+          <button class="kumo-tab" :class="{ active: activeTab === 'articles' }" type="button" @click="switchTab('articles')">
+            文章 <span>{{ articleTotal }}</span>
           </button>
-          <button :class="{ active: activeTab === 'questions' }" @click="switchTab('questions')">
-            问答 {{ questionTotal }}
+          <button class="kumo-tab" :class="{ active: activeTab === 'questions' }" type="button" @click="switchTab('questions')">
+            问答 <span>{{ questionTotal }}</span>
           </button>
         </div>
-        <div class="sorts">
-          <button :class="{ active: sortBy === 'newest' }" @click="changeSort('newest')">最新</button>
-          <button :class="{ active: sortBy === 'hottest' }" @click="changeSort('hottest')">热门</button>
-          <button :class="{ active: sortBy === 'mostComments' }" @click="changeSort('mostComments')">评论</button>
-          <button :class="{ active: sortBy === 'mostLiked' }" @click="changeSort('mostLiked')">点赞</button>
+        <div class="kumo-tabs" aria-label="排序方式">
+          <button class="kumo-tab" :class="{ active: sortBy === 'newest' }" type="button" @click="changeSort('newest')">最新</button>
+          <button class="kumo-tab" :class="{ active: sortBy === 'hottest' }" type="button" @click="changeSort('hottest')">热门</button>
+          <button class="kumo-tab" :class="{ active: sortBy === 'mostComments' }" type="button" @click="changeSort('mostComments')">评论</button>
+          <button class="kumo-tab" :class="{ active: sortBy === 'mostLiked' }" type="button" @click="changeSort('mostLiked')">点赞</button>
         </div>
       </div>
 
@@ -172,32 +183,33 @@ onMounted(loadData)
           :page-size="pageSize"
           @page-change="handleArticlePageChange"
         />
-        <div v-if="!articlesLoading && articles.length === 0" class="state-panel">该标签下暂无文章</div>
+        <div v-if="!articlesLoading && articles.length === 0" class="state-panel kumo-surface">该标签下暂无文章</div>
       </section>
 
       <section v-else class="content-section">
-        <div v-if="questionsLoading" class="state-panel">
+        <div v-if="questionsLoading" class="state-panel kumo-surface">
           <font-awesome-icon :icon="['fas', 'spinner']" spin />
           <span>加载问答...</span>
         </div>
-        <div v-else-if="questions.length === 0" class="state-panel">该标签下暂无问答</div>
+        <div v-else-if="questions.length === 0" class="state-panel kumo-surface">该标签下暂无问答</div>
         <div v-else class="question-list">
           <article
-            v-for="question in questions"
+            v-for="(question, index) in questions"
             :key="question.id"
-            class="question-item"
+            class="question-item kumo-surface magnetic-card stagger-item"
+            :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
             @click="navigateToQuestion(question.id)"
           >
             <div class="question-stats">
-              <strong>{{ question.answerCount }}</strong>
+              <strong>{{ question.answerCount || 0 }}</strong>
               <span>回答</span>
             </div>
             <div class="question-main">
               <h2>
-                <span v-if="question.solved" class="solved-badge">已解决</span>
+                <span v-if="question.solved" class="kumo-status kumo-status--success">已解决</span>
                 {{ question.title }}
               </h2>
-              <p>{{ question.summary }}</p>
+              <p>{{ question.summary || question.content }}</p>
               <div class="question-meta">
                 <span>{{ question.author?.name || '匿名用户' }}</span>
                 <span>{{ formatQuestionTime(question.createTime) }}</span>
@@ -206,10 +218,10 @@ onMounted(loadData)
           </article>
         </div>
 
-        <div v-if="questionTotalPages > 1" class="pager">
-          <button :disabled="questionPage === 1" @click="handleQuestionPageChange(questionPage - 1)">上一页</button>
+        <div v-if="questionTotalPages > 1" class="pager kumo-surface">
+          <button class="kumo-button" type="button" :disabled="questionPage === 1" @click="handleQuestionPageChange(questionPage - 1)">上一页</button>
           <span>{{ questionPage }} / {{ questionTotalPages }}</span>
-          <button :disabled="questionPage === questionTotalPages" @click="handleQuestionPageChange(questionPage + 1)">下一页</button>
+          <button class="kumo-button" type="button" :disabled="questionPage === questionTotalPages" @click="handleQuestionPageChange(questionPage + 1)">下一页</button>
         </div>
       </section>
     </template>
@@ -218,174 +230,146 @@ onMounted(loadData)
 
 <style scoped>
 .tag-detail-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px;
+  display: grid;
+  gap: 1.25rem;
 }
 
-.tag-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 20px 0;
-  border-bottom: 1px solid #e5e7eb;
+.hero-count {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.2rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
-.tag-header h1 {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #111827;
-  font-size: 28px;
+.hero-count strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: 3.4rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
-.tag-header p {
-  margin: 8px 0 0;
-  color: #64748b;
-}
-
-.back-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 600;
+.hero-count span {
+  color: var(--kumo-text-muted);
+  font-weight: 740;
 }
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
   align-items: center;
-  padding: 18px 0;
-  flex-wrap: wrap;
-}
-
-.tabs,
-.sorts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tabs button,
-.sorts button,
-.pager button {
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
-  border-radius: 6px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.tabs button.active,
-.sorts button.active {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  background: rgba(var(--primary-rgb), 0.08);
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .content-section {
-  min-height: 300px;
+  display: grid;
+  gap: 1rem;
+  min-height: 18rem;
 }
 
 .state-panel {
-  min-height: 180px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: #64748b;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  min-height: 18rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
+  text-align: center;
+}
+
+.state-panel > svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2.2rem;
 }
 
 .question-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  gap: 1rem;
 }
 
 .question-item {
   display: grid;
-  grid-template-columns: 80px 1fr;
-  gap: 16px;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
   cursor: pointer;
 }
 
 .question-stats {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  padding: 0.8rem;
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-weight: 740;
 }
 
 .question-stats strong {
-  color: #111827;
-  font-size: 22px;
+  color: var(--kumo-text-default);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.question-main {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
 }
 
 .question-main h2 {
-  margin: 0 0 8px;
-  color: #111827;
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.18rem;
+  font-weight: 840;
 }
 
 .question-main p {
-  margin: 0 0 10px;
-  color: #64748b;
-  line-height: 1.5;
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.question-meta {
+.question-meta,
+.pager {
   display: flex;
-  gap: 12px;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.solved-badge {
-  display: inline-flex;
-  margin-right: 8px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 12px;
+  align-items: center;
+  gap: 1rem;
+  color: var(--kumo-text-muted);
+  font-size: 0.88rem;
+  font-weight: 720;
 }
 
 .pager {
-  display: flex;
   justify-content: center;
-  gap: 12px;
-  align-items: center;
-  padding: 18px 0;
+  padding: 0.85rem;
 }
 
-.pager button:disabled {
+button:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
-  opacity: 0.5;
 }
 
-@media (max-width: 720px) {
-  .tag-header,
-  .toolbar {
+@media (max-width: 760px) {
+  .toolbar,
+  .pager {
+    align-items: stretch;
     flex-direction: column;
   }
 
   .question-item {
     grid-template-columns: 1fr;
-  }
-
-  .question-stats {
-    align-items: flex-start;
   }
 }
 </style>

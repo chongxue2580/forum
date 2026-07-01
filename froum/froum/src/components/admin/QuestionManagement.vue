@@ -101,10 +101,11 @@ const filteredQuestions = computed(() => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    '#1677ff', '#52c41a', '#faad14', '#722ed1',
-    '#eb2f96', '#f5222d', '#fa8c16', '#13c2c2',
-    '#2f54eb', '#597ef7', '#36cfc9', '#73d13d',
-    '#ffa940', '#ff4d4f', '#9254de', '#ff7a45'
+    'var(--kumo-bg-brand)',
+    'var(--kumo-bg-accent)',
+    'var(--kumo-status-success)',
+    'var(--kumo-status-warning)',
+    'var(--kumo-status-danger)'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -132,7 +133,6 @@ const loadQuestions = async () => {
     questions.value = page.content.map(normalizeQuestion)
     total.value = page.totalElements
   } catch (error) {
-    console.error('加载问答列表失败:', error)
     questions.value = []
     total.value = 0
     ElMessage.error(error.message || '加载问答列表失败')
@@ -397,7 +397,7 @@ onMounted(loadQuestions)
 /* 问答管理特定样式 */
 .question-desc {
   margin: 0;
-  color: var(--ad-text-muted, #5b6478);
+  color: var(--ad-text-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -418,14 +418,14 @@ onMounted(loadQuestions)
   margin: 0 0 4px 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ad-text);
   line-height: 1.4;
 }
 
 .admin-cell-desc {
   margin: 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ad-text-muted);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -453,7 +453,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ad-text-muted);
 }
 
 .admin-time-info {
@@ -461,7 +461,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ad-text-soft);
 }
 
 .admin-tags {
@@ -481,7 +481,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ad-text-muted);
 }
 
 .admin-table-actions {

@@ -183,6 +183,11 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 举报相关接口都需要认证
+        if (requestURI.startsWith("/api/reports")) {
+            return true;
+        }
+
         // 其他路径默认需要认证（如果被拦截器拦截到的话）
         return true;
     }

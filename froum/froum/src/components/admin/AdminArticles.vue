@@ -224,7 +224,6 @@ const loadArticles = async () => {
       total.value = response.data.totalElements
     }
   } catch (error) {
-    console.error('加载文章列表失败:', error)
     ElMessage.error('加载文章列表失败')
   } finally {
     loading.value = false
@@ -309,7 +308,6 @@ const approveArticleAction = async (article) => {
     loadArticles()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('审核通过失败:', error)
       ElMessage.error('审核通过失败')
     }
   }
@@ -327,7 +325,6 @@ const rejectArticleAction = async (article) => {
     loadArticles()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('审核拒绝失败:', error)
       ElMessage.error('审核拒绝失败')
     }
   }
@@ -339,7 +336,6 @@ const pinArticleAction = async (article) => {
     ElMessage.success('设置置顶成功')
     loadArticles()
   } catch (error) {
-    console.error('设置置顶失败:', error)
     ElMessage.error('设置置顶失败')
   }
 }
@@ -350,7 +346,6 @@ const unpinArticleAction = async (article) => {
     ElMessage.success('取消置顶成功')
     loadArticles()
   } catch (error) {
-    console.error('取消置顶失败:', error)
     ElMessage.error('取消置顶失败')
   }
 }
@@ -361,7 +356,6 @@ const featureArticleAction = async (article) => {
     ElMessage.success('设置精选成功')
     loadArticles()
   } catch (error) {
-    console.error('设置精选失败:', error)
     ElMessage.error('设置精选失败')
   }
 }
@@ -372,7 +366,6 @@ const unfeatureArticleAction = async (article) => {
     ElMessage.success('取消精选成功')
     loadArticles()
   } catch (error) {
-    console.error('取消精选失败:', error)
     ElMessage.error('取消精选失败')
   }
 }
@@ -390,7 +383,6 @@ const deleteArticleAction = async (article) => {
     loadArticles()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除文章失败:', error)
       ElMessage.error('删除文章失败')
     }
   }
@@ -433,7 +425,7 @@ const formatDate = (dateString) => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ad-text);
 }
 
 .header-actions {
@@ -461,7 +453,7 @@ const formatDate = (dateString) => {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--ad-text-muted);
 }
 
 .pagination-container {
@@ -479,14 +471,14 @@ const formatDate = (dateString) => {
 
 .article-content h4 {
   margin-bottom: 10px;
-  color: #333;
+  color: var(--ad-text);
 }
 
 .article-summary {
   padding: 10px;
-  background: #f8f9fa;
+  background: var(--ad-surface-muted);
   border-radius: 4px;
-  color: #666;
+  color: var(--ad-text-muted);
   line-height: 1.6;
 }
 
@@ -494,8 +486,8 @@ const formatDate = (dateString) => {
   max-height: 300px;
   overflow-y: auto;
   padding: 15px;
-  background: #f8f9fa;
+  background: var(--ad-surface-muted);
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--ad-border);
 }
 </style>

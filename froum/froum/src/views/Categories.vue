@@ -1,273 +1,192 @@
 <template>
-  <div class="categories-container">
-    <div class="categories-header">
-      <div class="header-content">
-        <h1>分类浏览</h1>
-        <p class="header-description">
-          根据不同的技术领域和主题分类浏览文章，找到您感兴趣的内容
-        </p>
-      </div>
-      <div class="header-actions">
-        <router-link to="/" class="btn btn-secondary">
+  <div class="categories-view">
+    <ui-page-hero
+      title="分类浏览"
+      description="按技术领域浏览内容，把文章从信息流重新整理成可探索的知识地图。"
+    >
+      <template #eyebrow>
+        <span class="kumo-eyebrow">
+          <font-awesome-icon :icon="['fas', 'th-large']" />
+          Categories
+        </span>
+      </template>
+      <template #actions>
+        <router-link to="/" class="kumo-button">
           <font-awesome-icon :icon="['fas', 'home']" />
           返回首页
         </router-link>
-      </div>
-    </div>
+      </template>
+      <template #aside>
+        <div class="hero-count">
+          <strong>{{ categories.length }}</strong>
+          <span>个分类</span>
+        </div>
+      </template>
+    </ui-page-hero>
 
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner">
-        <font-awesome-icon :icon="['fas', 'spinner']" spin />
-      </div>
-      <p>正在加载分类...</p>
-    </div>
-    
-    <div v-else>
-      <div class="search-section" v-if="categories.length > 0">
-        <div class="search-input-container">
-          <font-awesome-icon :icon="['fas', 'search']" class="search-icon" />
-          <input 
-            type="text" 
-            class="search-input"
+    <section class="category-panel kumo-surface">
+      <div v-if="categories.length > 0" class="search-row">
+        <div class="search-input">
+          <font-awesome-icon :icon="['fas', 'search']" />
+          <input
             v-model="searchQuery"
-            placeholder="搜索分类..."
-          />
-          <button 
-            v-if="searchQuery" 
-            class="clear-search-button"
-            @click="searchQuery = ''"
+            type="search"
+            placeholder="搜索分类名称或描述"
+            aria-label="搜索分类"
           >
+          <button v-if="searchQuery" type="button" aria-label="清除搜索" @click="searchQuery = ''">
             <font-awesome-icon :icon="['fas', 'times']" />
           </button>
         </div>
       </div>
-      
-      <category-list :categories="filteredCategories" />
-      
-      <div v-if="filteredCategories.length === 0 && categories.length > 0" class="no-results">
-        <div class="empty-state">
-          <font-awesome-icon :icon="['fas', 'search']" class="empty-icon" />
-          <p>未找到匹配 "{{ searchQuery }}" 的分类</p>
-          <button class="btn btn-secondary" @click="searchQuery = ''">
-            清除搜索
-          </button>
-        </div>
+
+      <div v-if="loading" class="state-panel">
+        <font-awesome-icon :icon="['fas', 'spinner']" spin />
+        <span>正在加载分类...</span>
       </div>
-    </div>
+
+      <template v-else>
+        <category-list v-if="filteredCategories.length" :categories="filteredCategories" />
+        <div v-else class="state-panel">
+          <font-awesome-icon :icon="['fas', 'search']" />
+          <h2>未找到匹配分类</h2>
+          <p>{{ searchQuery }}</p>
+          <button class="kumo-button" type="button" @click="searchQuery = ''">清除搜索</button>
+        </div>
+      </template>
+    </section>
   </div>
 </template>
 
-<script>
-import { defineComponent, ref, computed } from 'vue'
+<script setup>
+import { computed, onMounted, ref } from 'vue'
 import { useStore } from 'vuex'
 import CategoryList from '../components/CategoryList.vue'
+import UiPageHero from '../components/ui/UiPageHero.vue'
 
-export default defineComponent({
-  name: 'CategoriesView',
-  components: {
-    CategoryList
-  },
-  setup() {
-    const store = useStore()
-    const loading = ref(true)
-    const searchQuery = ref('')
-    
-    const categories = computed(() => store.state.categories)
-    
-    const filteredCategories = computed(() => {
-      if (!searchQuery.value) {
-        return categories.value
-      }
-      
-      const query = searchQuery.value.toLowerCase()
-      return categories.value.filter(category => 
-        category.name.toLowerCase().includes(query) ||
-        category.description?.toLowerCase().includes(query) ||
-        category.subcategories?.some(sub => sub.name.toLowerCase().includes(query))
-      )
-    })
-    
-    const loadCategories = async () => {
-      try {
-        loading.value = true
-        if (categories.value.length === 0) {
-          await store.dispatch('fetchCategories')
-        }
-      } catch (error) {
-        console.error('加载分类失败:', error)
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    loadCategories()
-    
-    return {
-      categories,
-      filteredCategories,
-      searchQuery,
-      loading
-    }
-  }
+const store = useStore()
+const loading = ref(true)
+const searchQuery = ref('')
+
+const categories = computed(() => store.state.categories || [])
+
+const filteredCategories = computed(() => {
+  if (!searchQuery.value) return categories.value
+
+  const query = searchQuery.value.toLowerCase()
+  return categories.value.filter(category =>
+    category.name?.toLowerCase().includes(query) ||
+    category.description?.toLowerCase().includes(query) ||
+    category.subcategories?.some(sub => sub.name?.toLowerCase().includes(query))
+  )
 })
+
+const loadCategories = async () => {
+  loading.value = true
+  try {
+    if (categories.value.length === 0) {
+      await store.dispatch('fetchCategories')
+    }
+  } catch (error) {
+    store.commit('SET_ERROR', error?.message || '分类加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadCategories)
 </script>
 
 <style scoped>
-.categories-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.categories-view {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero-count {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.2rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+}
+
+.hero-count strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: 3.4rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.hero-count span {
+  color: var(--kumo-text-muted);
+  font-weight: 740;
+}
+
+.category-panel {
+  display: grid;
+  gap: 1rem;
   padding: 1rem;
 }
 
-.categories-header {
+.search-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.header-content h1 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-color);
-  font-size: 1.75rem;
-}
-
-.header-description {
-  margin: 0;
-  color: var(--text-light);
-  font-size: 1rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn {
-  padding: 0.625rem 1.25rem;
-  border-radius: 20px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  text-decoration: none;
-}
-
-.btn-secondary {
-  background-color: #f5f5f5;
-  color: var(--text-color);
-  border: none;
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background-color: #e0e0e0;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 0;
-}
-
-.loading-spinner {
-  font-size: 2rem;
-  color: var(--primary-color);
-  margin-bottom: 1rem;
-}
-
-.search-section {
-  margin-bottom: 1.5rem;
-}
-
-.search-input-container {
-  position: relative;
-  max-width: 500px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-light);
+  justify-content: flex-start;
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.75rem 2.5rem;
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  font-size: 1rem;
-  transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-}
-
-.clear-search-button {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-light);
-  padding: 0.25rem;
-  border-radius: 50%;
-}
-
-.clear-search-button:hover {
-  background-color: #f0f0f0;
-  color: var(--text-color);
-}
-
-.no-results {
-  padding: 3rem 0;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  text-align: center;
+  gap: 0.65rem;
+  width: min(100%, 34rem);
+  min-height: 2.95rem;
+  padding: 0 0.45rem 0 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-subtle);
+}
+
+.search-input input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kumo-text-default);
+  outline: none;
+}
+
+.search-input button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  cursor: pointer;
+}
+
+.state-panel {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  min-height: 14rem;
   padding: 2rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  color: var(--kumo-text-muted);
+  text-align: center;
 }
 
-.empty-icon {
-  font-size: 2.5rem;
-  color: var(--text-light);
-  margin-bottom: 1rem;
-  opacity: 0.5;
+.state-panel svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2rem;
 }
 
-.empty-state p {
-  margin: 0.5rem 0 1.5rem;
-  color: var(--text-color);
-  font-size: 1rem;
+.state-panel h2,
+.state-panel p {
+  margin: 0;
 }
-
-@media (max-width: 768px) {
-  .categories-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .header-actions {
-    margin-top: 1rem;
-  }
-}
-</style> 
+</style>

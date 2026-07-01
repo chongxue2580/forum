@@ -102,7 +102,8 @@ import {
   faUserPlus,
   faUserShield,
   faUserSlash,
-  faUsers
+  faUsers,
+  faWandMagicSparkles
 } from '@fortawesome/free-solid-svg-icons'
 import {
   faBell as farBell,
@@ -226,6 +227,7 @@ library.add(
   faUserShield,
   faUserSlash,
   faUsers,
+  faWandMagicSparkles,
   farBell,
   farCheckCircle,
   farComment,

@@ -1,71 +1,58 @@
 <template>
   <div class="tag-list">
-    <div v-if="tags.length === 0" class="no-tags">
-      <div class="empty-state">
-        <font-awesome-icon :icon="['fas', 'tags']" class="empty-icon" />
-        <p>暂无标签内容</p>
-      </div>
+    <div v-if="tags.length === 0" class="empty-state kumo-surface">
+      <font-awesome-icon :icon="['fas', 'tags']" />
+      <p>暂无标签内容</p>
     </div>
-    
+
     <div v-else class="tag-cloud">
-      <router-link 
-        v-for="tag in tags" 
-        :key="tag.id" 
+      <router-link
+        v-for="(tag, index) in tags"
+        :key="tag.id || tag.name"
         :to="`/tag/${tag.id}`"
-        class="tag-item"
-        :style="getTagStyle(tag.count)"
-        :class="getTagClass(tag.count)"
+        class="tag-item magnetic-card stagger-item"
+        :class="getTagClass(tag.count || tag.articleCount || 0)"
+        :style="{
+          '--tag-size': getTagSize(tag.count || tag.articleCount || 0),
+          animationDelay: `${Math.min(index, 18) * 32}ms`
+        }"
       >
-        <font-awesome-icon :icon="['fas', 'tag']" class="tag-icon" />
-        <span class="tag-name">{{ tag.name }}</span>
-        <span class="tag-count">{{ tag.count }}</span>
+        <font-awesome-icon :icon="['fas', 'hashtag']" />
+        <span>{{ tag.name }}</span>
+        <strong>{{ tag.count || tag.articleCount || 0 }}</strong>
       </router-link>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'TagList',
-  props: {
-    tags: {
-      type: Array,
-      default: () => []
-    }
-  },
-  methods: {
-    getTagStyle(count) {
-      // 根据文章数量调整标签大小
-      if (!this.tags || this.tags.length === 0) return {};
-      
-      const maxCount = Math.max(...this.tags.map(t => t.count));
-      const minCount = Math.min(...this.tags.map(t => t.count));
-      const range = maxCount - minCount || 1;
-      const fontSize = 0.75 + ((count - minCount) / range) * 0.5;
-      const fontWeight = 400 + Math.floor((count - minCount) / range * 200);
-      
-      return {
-        fontSize: `${fontSize}rem`,
-        fontWeight: fontWeight
-      };
-    },
-    getTagClass(count) {
-      if (!this.tags || this.tags.length === 0) return 'tag-normal';
-      
-      const maxCount = Math.max(...this.tags.map(t => t.count));
-      const minCount = Math.min(...this.tags.map(t => t.count));
-      const range = maxCount - minCount || 1;
-      const level = Math.floor(((count - minCount) / range) * 3);
-      
-      switch(level) {
-        case 0: return 'tag-low';
-        case 1: return 'tag-medium';
-        case 2: 
-        case 3: return 'tag-high';
-        default: return 'tag-normal';
-      }
-    }
+<script setup>
+const props = defineProps({
+  tags: {
+    type: Array,
+    default: () => []
   }
+})
+
+const getRange = () => {
+  const counts = props.tags.map(tag => tag.count || tag.articleCount || 0)
+  return {
+    min: Math.min(...counts, 0),
+    max: Math.max(...counts, 1)
+  }
+}
+
+const getTagSize = (count) => {
+  const { min, max } = getRange()
+  const ratio = (count - min) / (max - min || 1)
+  return `${0.85 + ratio * 0.28}rem`
+}
+
+const getTagClass = (count) => {
+  const { min, max } = getRange()
+  const ratio = (count - min) / (max - min || 1)
+  if (ratio > 0.66) return 'tag-hot'
+  if (ratio > 0.33) return 'tag-warm'
+  return 'tag-calm'
 }
 </script>
 
@@ -74,136 +61,81 @@ export default {
   width: 100%;
 }
 
-.no-tags {
-  padding: 1.5rem 0;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 2rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.empty-icon {
-  font-size: 2.5rem;
-  color: var(--text-light);
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-state p {
-  margin: 0.5rem 0;
-  color: var(--text-color);
-  font-size: 1rem;
-}
-
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
   align-items: center;
-  padding: 0.5rem;
+  gap: 0.75rem;
 }
 
 .tag-item {
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: hidden;
+  gap: 0.45rem;
+  min-height: 2.45rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  font-size: var(--tag-size);
+  font-weight: 760;
+  text-decoration: none;
+  box-shadow: var(--kumo-shadow-sm);
 }
 
-.tag-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-  opacity: 0;
-  transition: opacity 0.25s ease;
+.tag-item svg {
+  color: var(--kumo-bg-brand);
+  font-size: 0.8em;
 }
 
-.tag-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.tag-item strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-weight: 850;
 }
 
-.tag-item:hover::before {
-  opacity: 1;
+.tag-calm strong {
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
 }
 
-.tag-icon {
-  font-size: 0.75em;
-  opacity: 0.7;
+.tag-warm {
+  background: var(--kumo-bg-warm);
 }
 
-.tag-name {
-  line-height: 1.2;
+.tag-warm strong {
+  background: var(--kumo-status-warning-tint);
+  color: var(--kumo-status-warning);
 }
 
-.tag-count {
-  background-color: rgba(255, 255, 255, 0.25);
-  font-size: 0.75em;
-  padding: 0.1rem 0.4rem;
-  border-radius: 10px;
-  transition: background-color 0.25s ease;
-  min-width: 1.5rem;
+.tag-hot {
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+}
+
+.tag-hot strong {
+  background: var(--kumo-bg-brand);
+  color: var(--kumo-text-inverse);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 10rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
   text-align: center;
 }
 
-.tag-item:hover .tag-count {
-  background-color: rgba(255, 255, 255, 0.4);
+.empty-state svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2rem;
 }
-
-/* 标签样式变体 */
-.tag-low {
-  background-color: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary-color);
-}
-
-.tag-medium {
-  background-color: rgba(var(--primary-rgb), 0.2);
-  color: var(--primary-dark);
-}
-
-.tag-high {
-  background-color: rgba(var(--primary-rgb), 0.3);
-  color: var(--primary-dark);
-}
-
-.tag-low:hover {
-  background-color: rgba(var(--primary-rgb), 0.2);
-}
-
-.tag-medium:hover {
-  background-color: rgba(var(--primary-rgb), 0.3);
-}
-
-.tag-high:hover {
-  background-color: rgba(var(--primary-rgb), 0.4);
-}
-
-@media (max-width: 768px) {
-  .tag-cloud {
-    gap: 0.5rem;
-  }
-  
-  .tag-item {
-    padding: 0.35rem 0.75rem;
-  }
-}
-</style> 
+</style>

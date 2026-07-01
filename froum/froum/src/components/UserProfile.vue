@@ -7,6 +7,7 @@ import UserFollowers from './UserFollowers.vue'
 import UserFollowing from './UserFollowing.vue'
 import UserQuestions from './UserQuestions.vue'
 import UserAnswers from './UserAnswers.vue'
+import { avatarInitial, resolveAvatarUrl } from '../utils/avatar'
 
 const store = useStore()
 const route = useRoute()
@@ -212,7 +213,7 @@ const getUserData = async () => {
       id: userData.id || userId.value,
       name: userData.nickname || userData.username || userData.name || '用户',
       email: userData.email || '',
-      avatar: userData.avatarUrl || userData.avatar || '',
+      avatar: resolveAvatarUrl(userData.avatarUrl || userData.avatar || ''),
       bio: userData.bio || '这个人很懒，什么都没写',
       joinTime: userData.createdAt || userData.joinTime || null,
       articles: userData.articles || [],
@@ -226,7 +227,6 @@ const getUserData = async () => {
     await getUserContent();
 
   } catch (error) {
-    console.error('Failed to fetch user data:', error);
     loadError.value = error.message || '获取用户资料失败';
     user.value = null;
   } finally {
@@ -253,7 +253,6 @@ const getUserContent = async (tabsToLoad = contentTabKeys) => {
         setContentItems(tab, normalizePageContent(response));
         contentLoaded.value[tab] = true;
       } catch (error) {
-        console.error(`Failed to fetch user ${tab}:`, error);
         setContentItems(tab, []);
         contentErrors.value[tab] = error.message || `${contentLabels[tab]}加载失败`;
         contentLoaded.value[tab] = true;
@@ -293,12 +292,11 @@ const saveProfile = async () => {
       name: updatedUser.nickname || updatedUser.name || editForm.value.name,
       bio: updatedUser.bio ?? editForm.value.bio,
       email: updatedUser.email ?? editForm.value.email,
-      avatar: updatedUser.avatarUrl || updatedUser.avatar || user.value.avatar
+      avatar: resolveAvatarUrl(updatedUser.avatarUrl || updatedUser.avatar || user.value.avatar)
     }
     isEditing.value = false
     ElMessage.success('个人资料已更新')
   } catch (error) {
-    console.error('Failed to save profile:', error)
     ElMessage.error(error.message || '保存个人资料失败')
   }
 }
@@ -350,8 +348,8 @@ const followUser = async () => {
               { key: 'following', name: '关注', count: user.value.stats?.following || 0 }
             ];
           }
-        } catch (error) {
-          console.error('刷新关注统计失败:', error);
+        } catch {
+          // 关注状态已更新，统计刷新失败不阻塞主操作。
         }
       }
 
@@ -360,7 +358,6 @@ const followUser = async () => {
       ElMessage.error(result?.message || '关注操作失败');
     }
   } catch (error) {
-    console.error('关注操作失败:', error);
     ElMessage.error(error.message || '关注操作失败')
   } finally {
     isFollowLoading.value = false;
@@ -403,8 +400,7 @@ const formatDate = (dateValue) => {
     }
 
     return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
-  } catch (error) {
-    console.error('Date formatting error:', error, 'for date:', dateValue)
+  } catch {
     return '日期格式错误'
   }
 }
@@ -423,8 +419,7 @@ const sendMessage = () => {
 
 // 获取作者首字母
 const getAuthorInitials = (name) => {
-  if (!name) return '匿';
-  return name.charAt(0);
+  return avatarInitial(name || '匿');
 };
 
 const formatWebsite = (url) => {
@@ -436,28 +431,28 @@ const formatWebsite = (url) => {
 <template>
   <div class="user-profile">
     <!-- 加载状态 -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
+    <div v-if="isLoading" class="loading-state kumo-surface">
+      <font-awesome-icon :icon="['fas', 'spinner']" spin class="spinner-icon" />
       <p>加载用户资料中...</p>
     </div>
     
     <!-- 错误状态 -->
-    <div v-else-if="loadError" class="error-state">
+    <div v-else-if="loadError" class="error-state kumo-surface">
       <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="error-icon" />
       <h3>加载用户资料失败</h3>
       <p>{{ loadError }}</p>
-      <button class="retry-btn" @click="getUserData">重试</button>
+      <button class="retry-btn kumo-button" @click="getUserData">重试</button>
     </div>
     
     <template v-else-if="user">
       <!-- 是否为当前用户的标记 -->
-      <div v-if="isCurrentUser" class="current-user-banner">
+      <div v-if="isCurrentUser" class="current-user-banner kumo-surface">
         <font-awesome-icon :icon="['fas', 'user-check']" />
         <span>这是您的个人主页</span>
       </div>
 
       <!-- 个人资料卡片 -->
-      <div class="profile-card" :class="{ 'is-current-user': isCurrentUser }">
+      <div class="profile-card kumo-surface-strong" :class="{ 'is-current-user': isCurrentUser }">
         <div class="profile-header">
           <div class="profile-avatar">
             <img v-if="user?.avatar" :src="user.avatar" :alt="user?.name">
@@ -468,21 +463,21 @@ const formatWebsite = (url) => {
               <h1 class="user-name">{{ user?.name || '用户' }}</h1>
               <div class="action-buttons">
                 <template v-if="isCurrentUser">
-                  <button class="action-btn" @click="goToSettings">
+                  <button class="action-btn kumo-button" @click="goToSettings">
                     <font-awesome-icon :icon="['fas', 'cog']" />
                     <span>设置</span>
                   </button>
-                  <button class="action-btn" @click="startEdit">
+                  <button class="action-btn kumo-button" @click="startEdit">
                     <font-awesome-icon :icon="['fas', 'edit']" />
                     <span>编辑资料</span>
                   </button>
                 </template>
                 <template v-else>
-                  <button class="follow-btn" @click="followUser" :class="{ following: user.isFollowing, loading: isFollowLoading }">
+                  <button class="follow-btn kumo-button" @click="followUser" :class="{ following: user.isFollowing, loading: isFollowLoading }">
                     <font-awesome-icon :icon="['fas', user.isFollowing ? 'user-check' : 'user-plus']" />
                     <span>{{ user.isFollowing ? '已关注' : '关注' }}</span>
                   </button>
-                  <button class="action-btn" @click="sendMessage">
+                  <button class="action-btn kumo-button" @click="sendMessage">
                     <font-awesome-icon :icon="['fas', 'envelope']" />
                     <span>私信</span>
                   </button>
@@ -534,7 +529,7 @@ const formatWebsite = (url) => {
       </div>
       
       <!-- 编辑表单 -->
-      <div v-if="isEditing" class="edit-form">
+      <div v-if="isEditing" class="edit-form kumo-surface">
         <h3>编辑个人资料</h3>
         <div class="form-group">
           <label for="name">昵称</label>
@@ -549,18 +544,18 @@ const formatWebsite = (url) => {
           <input type="email" id="email" v-model="editForm.email">
         </div>
         <div class="form-actions">
-          <button class="cancel-btn" @click="cancelEdit">取消</button>
-          <button class="save-btn" @click="saveProfile">保存</button>
+          <button class="cancel-btn kumo-button" @click="cancelEdit">取消</button>
+          <button class="save-btn kumo-button kumo-button--brand" @click="saveProfile">保存</button>
         </div>
       </div>
       
       <!-- 内容标签页 -->
-      <div v-else class="content-tabs">
-        <div class="tabs-header">
+      <div v-else class="content-tabs kumo-surface">
+        <div class="tabs-header kumo-tabs">
           <button 
             v-for="tab in tabs" 
             :key="tab.key" 
-            class="tab-button" 
+            class="tab-button kumo-tab"
             :class="{ active: activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
@@ -579,10 +574,10 @@ const formatWebsite = (url) => {
               <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
               <h3>文章加载失败</h3>
               <p>{{ contentErrors.articles }}</p>
-              <button class="retry-btn" @click="retryContent('articles')">重新加载</button>
+              <button class="retry-btn kumo-button" @click="retryContent('articles')">重新加载</button>
             </div>
             <div v-else-if="userArticles && userArticles.length" class="article-list">
-              <div v-for="article in userArticles" :key="article.id" class="article-item">
+              <div v-for="(article, index) in userArticles" :key="article.id" class="article-item kumo-surface magnetic-card stagger-item" :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }">
                 <div class="article-header">
                   <router-link :to="`/article/${article.id}`" class="article-title">{{ article.title }}</router-link>
                   <span
@@ -634,10 +629,10 @@ const formatWebsite = (url) => {
               <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
               <h3>问答加载失败</h3>
               <p>{{ contentErrors.questions }}</p>
-              <button class="retry-btn" @click="retryContent('questions')">重新加载</button>
+              <button class="retry-btn kumo-button" @click="retryContent('questions')">重新加载</button>
             </div>
             <div v-else-if="userQuestions && userQuestions.length" class="question-list">
-              <div v-for="question in userQuestions" :key="question.id" class="question-item">
+              <div v-for="(question, index) in userQuestions" :key="question.id" class="question-item kumo-surface magnetic-card stagger-item" :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }">
                 <div class="question-header">
                   <router-link :to="`/question/${question.id}`" class="question-title">{{ question.title }}</router-link>
                   <span class="question-time">{{ formatDate(question.createdAt) }}</span>
@@ -678,10 +673,10 @@ const formatWebsite = (url) => {
               <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="empty-icon" />
               <h3>回答加载失败</h3>
               <p>{{ contentErrors.answers }}</p>
-              <button class="retry-btn" @click="retryContent('answers')">重新加载</button>
+              <button class="retry-btn kumo-button" @click="retryContent('answers')">重新加载</button>
             </div>
             <div v-else-if="userAnswers && userAnswers.length" class="answer-list">
-              <div v-for="answer in userAnswers" :key="answer.id" class="answer-item">
+              <div v-for="(answer, index) in userAnswers" :key="answer.id" class="answer-item kumo-surface magnetic-card stagger-item" :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }">
                 <div class="answer-header">
                   <span class="answer-title">回答了问题</span>
                   <span class="answer-time">{{ formatDate(answer.createdAt) }}</span>
@@ -718,783 +713,468 @@ const formatWebsite = (url) => {
     </template>
 
     <!-- 用户数据为空时的默认状态 -->
-    <div v-else class="empty-state">
+    <div v-else class="empty-state kumo-surface">
       <font-awesome-icon :icon="['fas', 'user-slash']" class="empty-icon" />
       <h3>用户信息不可用</h3>
       <p>无法加载用户资料，请稍后再试</p>
-      <button class="retry-btn" @click="getUserData">重新加载</button>
+      <button class="retry-btn kumo-button" @click="getUserData">重新加载</button>
     </div>
   </div>
 </template>
 
 <style scoped>
 .user-profile {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+  display: grid;
+  gap: 1.25rem;
 }
 
-.loading-state, .error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
+.loading-state,
+.error-state,
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 16rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
   text-align: center;
 }
 
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top: 4px solid var(--primary-color);
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
+.spinner-icon,
+.empty-icon,
 .error-icon {
-  font-size: 3rem;
-  color: #ff5252;
-  margin-bottom: 1rem;
+  color: var(--kumo-bg-brand);
+  font-size: 2.4rem;
 }
 
-.retry-btn {
-  margin-top: 1rem;
-  padding: 0.5rem 1.5rem;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+.error-icon,
+.content-error-state .empty-icon {
+  color: var(--kumo-status-danger);
 }
 
-.retry-btn:hover {
-  background-color: var(--primary-dark);
+.loading-state p,
+.error-state p,
+.empty-state p,
+.empty-state h3 {
+  margin: 0;
+}
+
+.empty-state h3,
+.error-state h3 {
+  color: var(--kumo-text-default);
+  font-size: 1.1rem;
+  font-weight: 840;
 }
 
 .current-user-banner {
-  background-color: #e3f2fd;
-  color: #1976d2;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  width: fit-content;
+  gap: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 780;
 }
 
 .profile-card {
-  background-color: white;
-  border-radius: 0.8rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
 }
 
 .profile-card.is-current-user {
-  border-left: 4px solid var(--primary-color);
+  border-color: var(--kumo-bg-brand);
 }
 
 .profile-header {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.4rem;
+  align-items: start;
 }
 
 .profile-avatar {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
+  width: clamp(5.8rem, 13vw, 8rem);
+  height: clamp(5.8rem, 13vw, 8rem);
   overflow: hidden;
-  flex-shrink: 0;
+  border: 1px solid var(--kumo-hairline-strong);
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.profile-avatar img,
+.default-avatar {
+  width: 100%;
+  height: 100%;
 }
 
 .profile-avatar img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
 }
 
 .default-avatar {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--primary-color);
-  color: white;
-  font-size: 3rem;
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
+  font-size: 2.8rem;
+  font-weight: 900;
 }
 
 .profile-info {
-  flex: 1;
+  min-width: 0;
 }
 
 .info-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 0.8rem;
 }
 
 .user-name {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #333;
   margin: 0;
+  color: var(--kumo-text-default);
+  font-size: clamp(1.8rem, 5vw, 3.4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0;
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.75rem;
-}
-
-.action-btn, .follow-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: none;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
 }
 
 .follow-btn {
-  min-width: 104px;
+  min-width: 6.5rem;
 }
 
-.action-btn {
-  background-color: #f0f2f5;
-  color: #666;
-}
-
-.action-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.follow-btn {
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 500;
-}
-
-.follow-btn:hover {
-  background-color: var(--primary-dark);
+.follow-btn:not(.following) {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
 }
 
 .follow-btn.following {
-  background-color: #f0f2f5;
-  color: #666;
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
 .follow-btn.following:hover {
-  background-color: #ff5252;
-  color: white;
+  border-color: var(--kumo-status-danger);
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
 }
 
 .follow-btn.loading {
-  opacity: 0.7;
   cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .user-bio {
-  color: #666;
+  max-width: 48rem;
   margin: 0 0 1rem;
-  line-height: 1.6;
+  color: var(--kumo-text-muted);
+  line-height: 1.72;
 }
 
 .user-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.65rem;
 }
 
 .meta-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.meta-item a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-.meta-item a:hover {
-  text-decoration: underline;
+  gap: 0.45rem;
+  padding: 0.34rem 0.65rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .user-stats {
-  display: flex;
-  border-top: 1px solid #eee;
-  padding-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--kumo-hairline);
 }
 
 .user-stats .stat-item {
-  flex: 1;
-  text-align: center;
-  padding: 0 0.5rem;
-  border-right: 1px solid #eee;
-}
-
-.user-stats .stat-item:last-child {
-  border-right: none;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  min-height: 5rem;
+  padding: 0.8rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
 }
 
 .stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 0.25rem;
+  color: var(--kumo-bg-brand-strong);
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  font-weight: 900;
+  line-height: 1;
 }
 
 .stat-label {
-  color: #999;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 760;
 }
 
 .edit-form {
-  background-color: white;
-  border-radius: 0.8rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  display: grid;
+  gap: 1.1rem;
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
 }
 
 .edit-form h3 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: #333;
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.25rem;
+  font-weight: 840;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  display: grid;
+  gap: 0.45rem;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #666;
-  font-weight: 500;
+  color: var(--kumo-text-muted);
+  font-weight: 780;
 }
 
-.form-group input, .form-group textarea {
+.form-group input,
+.form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-default);
+  font: inherit;
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.form-group input:focus, .form-group textarea:focus {
-  border-color: var(--primary-color);
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
   outline: none;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.cancel-btn, .save-btn {
-  padding: 0.5rem 1.5rem;
-  border-radius: 0.5rem;
-  border: none;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancel-btn {
-  background-color: #f0f2f5;
-  color: #666;
-}
-
-.cancel-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.save-btn {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.save-btn:hover {
-  background-color: var(--primary-dark);
+  gap: 0.75rem;
 }
 
 .content-tabs {
-  background-color: white;
-  border-radius: 0.8rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .tabs-header {
-  display: flex;
-  border-bottom: 1px solid #eee;
+  width: fit-content;
+  max-width: 100%;
   overflow-x: auto;
 }
 
-.tab-button {
-  padding: 1rem 1.5rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #666;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.tab-button:hover {
-  color: var(--primary-color);
-}
-
-.tab-button.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
-}
-
 .tab-count {
-  display: inline-block;
-  background-color: #f0f2f5;
-  color: #666;
-  border-radius: 50%;
-  padding: 0.1rem 0.5rem;
-  font-size: 0.8rem;
-  margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-recessed);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 820;
 }
 
 .tab-button.active .tab-count {
-  background-color: var(--primary-color);
-  color: white;
+  background: var(--kumo-bg-brand);
+  color: var(--kumo-text-inverse);
 }
 
 .tab-content {
-  padding: 2rem;
-  min-height: 300px;
+  min-height: 18rem;
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  color: #999;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem;
-  color: var(--text-color);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.empty-state p {
-  margin: 0;
-  color: var(--text-light);
-  line-height: 1.6;
-}
-
-.content-error-state .empty-icon {
-  color: #ff5252;
-  opacity: 1;
-}
-
-.content-error-state .retry-btn {
-  margin-top: 1rem;
-}
-
-.article-list {
-  display: flex;
-  flex-direction: column;
+.article-list,
+.question-list,
+.answer-list {
+  display: grid;
   gap: 1rem;
 }
 
-.article-item {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.25rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid var(--border-color);
+.article-item,
+.question-item,
+.answer-item {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
 }
 
-.article-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-light);
-}
-
-.article-header {
+.article-header,
+.question-header,
+.answer-header,
+.article-footer,
+.question-footer,
+.answer-footer {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.75rem;
+  justify-content: space-between;
+  gap: 0.9rem;
 }
 
-.article-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-color);
+.article-title,
+.question-title,
+.answer-title {
+  color: var(--kumo-text-default);
+  font-size: 1.08rem;
+  font-weight: 840;
+  line-height: 1.35;
   text-decoration: none;
-  flex: 1;
-  margin-right: 1rem;
-  line-height: 1.4;
 }
 
-.article-title:hover {
-  color: var(--primary-color);
+.article-title:hover,
+.question-title:hover {
+  color: var(--kumo-bg-brand-strong);
 }
 
-.article-time {
-  font-size: 0.85rem;
-  color: var(--text-light);
+.article-time,
+.question-time,
+.answer-time {
+  flex: 0 0 auto;
+  color: var(--kumo-text-subtle);
+  font-size: 0.84rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .article-status {
-  flex-shrink: 0;
-  margin-right: 0.625rem;
-  padding: 0.1rem 0.6rem;
+  flex: 0 0 auto;
+  padding: 0.22rem 0.58rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 820;
   white-space: nowrap;
-  align-self: center;
 }
 
-.article-status.status-pending {
-  color: #9a5a12;
-  background: #fff1d7;
+.article-status.status-pending,
+.article-status.status-draft {
+  background: var(--kumo-status-warning-tint);
+  color: var(--kumo-status-warning);
 }
 
 .article-status.status-rejected {
-  color: #c34d62;
-  background: #ffeaf0;
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
 }
 
-.article-status.status-draft {
-  color: #506176;
-  background: #eef2f7;
-}
-
-.article-content {
-  color: var(--text-light);
-  margin-bottom: 1rem;
-  line-height: 1.5;
-  font-size: 0.95rem;
-}
-
-.article-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.article-content,
+.question-content,
+.answer-content {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .article-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 0.25rem 0.5rem;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  transition: var(--transition);
+  gap: 0.28rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.76rem;
+  font-weight: 760;
 }
 
-.tag:hover {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.article-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--text-lighter);
-  font-size: 0.85rem;
-}
-
-/* 问答列表样式 - 和文章保持一致 */
-.question-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.question-item {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.25rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid var(--border-color);
-}
-
-.question-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-light);
-}
-
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-  gap: 1rem;
-}
-
-.question-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-decoration: none;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.question-title:hover {
-  color: var(--primary);
-}
-
-.question-time {
-  color: var(--text-lighter);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-
-.question-content {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.question-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.question-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-/* 回答列表样式 - 和文章、问答保持一致 */
-.answer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.answer-item {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.25rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid var(--border-color);
-}
-
-.answer-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-light);
-}
-
-.answer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-  gap: 1rem;
-}
-
-.answer-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.4;
-  flex: 1;
-}
-
-.answer-time {
-  color: var(--text-lighter);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-
-.answer-content {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.answer-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
+.article-stats,
+.question-stats,
 .answer-stats {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-@media (max-width: 768px) {
-  .profile-header {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1rem;
+.article-stats .stat-item,
+.question-stats .stat-item,
+.answer-stats .stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--kumo-text-subtle);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+@media (max-width: 780px) {
+  .profile-header,
+  .user-stats {
+    grid-template-columns: 1fr;
   }
-  
+
+  .profile-header,
   .info-header {
-    flex-direction: column;
-    align-items: center;
+    text-align: center;
   }
-  
+
+  .info-header,
+  .article-header,
+  .question-header,
+  .answer-header,
+  .article-footer,
+  .question-footer,
+  .answer-footer,
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-avatar {
+    justify-self: center;
+  }
+
+  .action-buttons,
   .user-meta {
     justify-content: center;
   }
-  
-  .user-stats {
-    flex-wrap: wrap;
-  }
-  
-  .user-stats .stat-item {
-    flex-basis: 33.333%;
-    padding: 0.75rem 0;
-    border-right: none;
-    border-bottom: 1px solid #eee;
-  }
-  
+
   .tabs-header {
-    justify-content: flex-start;
-  }
-  
-  .article-header {
-    flex-direction: column;
-  }
-  
-  .article-time {
-    margin-top: 0.5rem;
-  }
-  
-  .article-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .article-stats {
-    margin-top: 0.5rem;
     width: 100%;
-    justify-content: space-between;
-  }
-
-  .question-header {
-    flex-direction: column;
-  }
-
-  .question-time {
-    margin-top: 0.5rem;
-  }
-
-  .question-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .question-stats {
-    margin-top: 0.5rem;
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .answer-header {
-    flex-direction: column;
-  }
-
-  .answer-time {
-    margin-top: 0.5rem;
-  }
-
-  .answer-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .answer-stats {
-    margin-top: 0.5rem;
-    width: 100%;
-    justify-content: space-between;
   }
 }
-
-@media (max-width: 576px) {
-  .action-buttons {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .user-stats .stat-item {
-    flex-basis: 50%;
-  }
-  
-  .tab-button {
-    padding: 0.75rem 1rem;
-  }
-}
-</style> 
+</style>

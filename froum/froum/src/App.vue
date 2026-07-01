@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { notificationService } from './services/notificationService'
@@ -11,56 +11,47 @@ const store = useStore()
 
 const searchQuery = ref('')
 const showUserMenu = ref(false)
+const mobileMenuOpen = ref(false)
 const unreadNotificationCount = ref(0)
+const themeMode = ref(localStorage.getItem('themeMode') || 'light')
 
-// 从Vuex获取状态
+const navLinks = [
+  { to: '/', label: '首页', icon: ['fas', 'home'], exact: true },
+  { to: '/articles', label: '文章', icon: ['fas', 'file-alt'] },
+  { to: '/questions', label: '问答', icon: ['fas', 'question-circle'] },
+  { to: '/categories', label: '分类', icon: ['fas', 'th-large'] },
+  { to: '/tags', label: '标签', icon: ['fas', 'tags'] }
+]
+
 const isAuthenticated = computed(() => store.state.isAuthenticated)
 const user = computed(() => store.state.user)
 const error = computed(() => store.state.error)
-
-// 判断是否为管理员
-const isAdmin = computed(() => {
-  const role = user.value?.role
-  return role === 'admin' || role === 'ADMIN' || role === 'SUPER_ADMIN'
-})
-
-// 顶栏头像（统一解析，兼容 avatarUrl/avatar 字段与 /uploads 路径）
 const userAvatarUrl = computed(() => resolveAvatarFrom(user.value))
-
-// 判断是否在管理端页面
 const isAdminPage = computed(() => route.path.startsWith('/admin'))
 
-onMounted(async () => {
-  // 初始化应用状态
-  await initializeApp()
-  await loadUnreadNotificationCount()
-
-  // 监听点击事件，关闭用户菜单
-  document.addEventListener('click', closeUserMenu)
-  // 消息中心读取消息后刷新顶栏未读红点
-  window.addEventListener('notifications-updated', loadUnreadNotificationCount)
+const isAdmin = computed(() => {
+  const role = user.value?.role
+  return ['admin', 'ADMIN', 'SUPER_ADMIN'].includes(role)
 })
 
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeUserMenu)
-  window.removeEventListener('notifications-updated', loadUnreadNotificationCount)
-})
+const themeIcon = computed(() => themeMode.value === 'dark' ? ['fas', 'sun'] : ['fas', 'moon'])
+const themeLabel = computed(() => themeMode.value === 'dark' ? '切换浅色模式' : '切换深色模式')
 
-watch(isAuthenticated, (authenticated) => {
-  if (authenticated) {
-    loadUnreadNotificationCount()
-  } else {
-    unreadNotificationCount.value = 0
-  }
-})
+const setThemeMode = (mode) => {
+  themeMode.value = mode
+  document.documentElement.dataset.mode = mode
+  localStorage.setItem('themeMode', mode)
+}
 
-// 初始化应用
+const toggleThemeMode = () => {
+  setThemeMode(themeMode.value === 'dark' ? 'light' : 'dark')
+}
+
 const initializeApp = async () => {
   try {
-    // 检查并恢复用户登录状态
     await store.dispatch('checkAuth')
-  } catch (error) {
-    console.error('应用初始化失败:', error)
+  } catch (err) {
+    store.commit('SET_ERROR', err?.message || '应用初始化失败，请刷新页面重试')
   }
 }
 
@@ -72,70 +63,58 @@ const loadUnreadNotificationCount = async () => {
 
   try {
     unreadNotificationCount.value = await notificationService.getUnreadCount()
-  } catch (error) {
+  } catch (err) {
     unreadNotificationCount.value = 0
   }
 }
 
 const handleSearch = () => {
-  if (!searchQuery.value.trim()) return
+  const keyword = searchQuery.value.trim()
+  if (!keyword) return
+
+  mobileMenuOpen.value = false
   router.push({
     name: 'Home',
-    query: { search: searchQuery.value.trim() }
+    query: { search: keyword }
   })
 }
 
-const toggleUserMenu = (e) => {
-  e.stopPropagation()
+const toggleUserMenu = (event) => {
+  event.stopPropagation()
   showUserMenu.value = !showUserMenu.value
 }
 
-const navigateToUserProfile = (e) => {
-  e.stopPropagation()
-
-  if (user.value?.id) {
-    // 关闭用户菜单
+const closeMenus = (event) => {
+  if (!event.target.closest('.user-menu')) {
     showUserMenu.value = false
-
-    // 确保ID是字符串类型并且有效
-    const userId = String(user.value.id);
-
-    // 使用Vue Router进行单页面应用路由跳转
-    router.push(`/user/${userId}`).catch(err => {
-      console.error('Navigation error:', err);
-      // 如果路由跳转失败，回退到直接URL跳转
-      window.location.href = `/user/${userId}`;
-    });
-  } else {
-    console.error('无法导航到个人中心：用户ID不存在')
-    // 尝试从localStorage恢复用户信息
-    const userInfoJson = localStorage.getItem('userInfo')
-    if (userInfoJson) {
-      try {
-        const userInfo = JSON.parse(userInfoJson)
-        if (userInfo.id) {
-          router.push(`/user/${userInfo.id}`)
-        }
-      } catch (e) {
-        console.error('解析localStorage用户信息失败:', e)
-      }
-    }
+  }
+  if (!event.target.closest('.site-nav') && !event.target.closest('.mobile-menu-button')) {
+    mobileMenuOpen.value = false
   }
 }
 
-const closeUserMenu = (e) => {
-  // 检查点击事件是否在用户菜单外部
-  if (!e.target.closest('.user-menu')) {
-    showUserMenu.value = false
+const navigateToUserProfile = (event) => {
+  event.stopPropagation()
+
+  const cachedUser = user.value || JSON.parse(localStorage.getItem('userInfo') || 'null')
+  if (!cachedUser?.id) {
+    store.commit('SET_ERROR', '无法打开个人主页：当前用户信息缺失')
+    return
   }
+
+  showUserMenu.value = false
+  mobileMenuOpen.value = false
+  router.push(`/user/${cachedUser.id}`)
 }
 
 const getUserInitials = () => {
-  if (!user.value?.username) return '用';
-  return user.value.username.substring(0, 1).toUpperCase();
+  if (!user.value?.username) return '用'
+  return user.value.username.substring(0, 1).toUpperCase()
 }
 
 const logout = () => {
+  showUserMenu.value = false
+  mobileMenuOpen.value = false
   store.dispatch('logout')
   router.push('/login')
 }
@@ -144,100 +123,146 @@ const clearError = () => {
   store.dispatch('clearError')
 }
 
-// 导航到管理后台
 const goToAdmin = () => {
+  showUserMenu.value = false
   router.push('/admin/dashboard')
 }
+
+onMounted(async () => {
+  setThemeMode(themeMode.value)
+  await initializeApp()
+  await loadUnreadNotificationCount()
+
+  document.addEventListener('click', closeMenus)
+  window.addEventListener('notifications-updated', loadUnreadNotificationCount)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeMenus)
+  window.removeEventListener('notifications-updated', loadUnreadNotificationCount)
+})
+
+watch(isAuthenticated, (authenticated) => {
+  if (authenticated) {
+    loadUnreadNotificationCount()
+  } else {
+    unreadNotificationCount.value = 0
+  }
+})
+
+watch(() => route.fullPath, () => {
+  showUserMenu.value = false
+  mobileMenuOpen.value = false
+})
 </script>
 
 <template>
-  <div class="app-container">
-    <!-- 顶部导航栏 - 只在非管理端页面显示 -->
-    <header class="header" v-if="!isAdminPage">
+  <div class="app-container kumo-page">
+    <header v-if="!isAdminPage" class="site-header kumo-shell">
       <div class="header-container">
-        <nav class="nav">
-          <router-link to="/" class="logo">
-            <div class="logo-icon">TF</div>
-            <span class="logo-text">科技论坛</span>
+        <router-link to="/" class="brand-mark" aria-label="科技论坛首页">
+          <span class="brand-icon">TF</span>
+          <span class="brand-copy">
+            <strong>科技论坛</strong>
+            <small>Tech Forum</small>
+          </span>
+        </router-link>
+
+        <form class="global-search" role="search" @submit.prevent="handleSearch">
+          <font-awesome-icon :icon="['fas', 'search']" />
+          <input
+            v-model="searchQuery"
+            type="search"
+            placeholder="搜索文章、问题或标签"
+            aria-label="搜索文章、问题或标签"
+          >
+          <button type="submit" aria-label="搜索">
+            <font-awesome-icon :icon="['fas', 'arrow-right']" />
+          </button>
+        </form>
+
+        <button
+          class="mobile-menu-button kumo-button kumo-button--icon"
+          type="button"
+          :aria-expanded="mobileMenuOpen"
+          aria-label="打开导航菜单"
+          @click.stop="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <font-awesome-icon :icon="['fas', 'bars']" />
+        </button>
+
+        <nav class="site-nav" :class="{ open: mobileMenuOpen }" aria-label="主导航">
+          <router-link
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="nav-link"
+            :class="{ active: link.exact ? route.path === link.to : route.path.startsWith(link.to) }"
+          >
+            <font-awesome-icon :icon="link.icon" />
+            <span>{{ link.label }}</span>
           </router-link>
-          
-          <div class="search-box">
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              placeholder="搜索文章、问题或标签..." 
-              @keyup.enter="handleSearch"
-            />
-            <button class="search-btn" @click="handleSearch" aria-label="搜索">
-              <font-awesome-icon :icon="['fas', 'search']" />
-            </button>
-          </div>
-          
-          <div class="nav-links">
-            <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">
-              <font-awesome-icon :icon="['fas', 'home']" />
-              <span>首页</span>
+        </nav>
+
+        <div class="header-actions">
+          <button
+            class="theme-toggle kumo-button kumo-button--icon"
+            type="button"
+            :aria-label="themeLabel"
+            :title="themeLabel"
+            @click="toggleThemeMode"
+          >
+            <font-awesome-icon :icon="themeIcon" />
+          </button>
+
+          <template v-if="!isAuthenticated">
+            <router-link to="/login" class="kumo-button auth-link">
+              <font-awesome-icon :icon="['fas', 'sign-in-alt']" />
+              <span>登录</span>
             </router-link>
-            <router-link to="/categories" class="nav-link" :class="{ active: route.path === '/categories' }">
-              <font-awesome-icon :icon="['fas', 'th-large']" />
-              <span>分类</span>
+            <router-link to="/register" class="kumo-button kumo-button--brand auth-link">
+              <font-awesome-icon :icon="['fas', 'user-plus']" />
+              <span>注册</span>
             </router-link>
-            <router-link to="/tags" class="nav-link" :class="{ active: route.path === '/tags' }">
-              <font-awesome-icon :icon="['fas', 'tags']" />
-              <span>标签</span>
+          </template>
+
+          <template v-else>
+            <router-link to="/article/new" class="kumo-button kumo-button--brand create-link">
+              <font-awesome-icon :icon="['fas', 'edit']" />
+              <span>发布</span>
             </router-link>
-            <router-link to="/questions" class="nav-link" :class="{ active: route.path === '/questions' }">
-              <font-awesome-icon :icon="['fas', 'question-circle']" />
-              <span>问答</span>
+
+            <router-link to="/messages" class="notification-link kumo-button kumo-button--icon" aria-label="消息中心">
+              <font-awesome-icon :icon="['fas', 'bell']" />
+              <span v-if="unreadNotificationCount > 0" class="notification-badge">
+                {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+              </span>
             </router-link>
-            
-            <template v-if="!isAuthenticated">
-              <router-link to="/login" class="nav-link login-link">
-                <font-awesome-icon :icon="['fas', 'sign-in-alt']" />
-                <span>登录</span>
-              </router-link>
-              <router-link to="/register" class="btn-register">
-                <font-awesome-icon :icon="['fas', 'user-plus']" />
-                <span>注册</span>
-              </router-link>
-            </template>
-            <template v-else>
-              <router-link to="/article/new" class="btn-post">
-                <font-awesome-icon :icon="['fas', 'edit']" />
-                <span>发布文章</span>
-              </router-link>
-              
-              <router-link to="/messages" class="notification-icon">
-                <div class="icon-wrapper">
-                  <font-awesome-icon :icon="['fas', 'bell']" />
-                  <span v-if="unreadNotificationCount > 0" class="notification-badge">
-                    {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
-                  </span>
-                </div>
-              </router-link>
-              
-              <div class="user-menu">
-                <div class="avatar" @click="navigateToUserProfile" :class="{ 'admin-avatar': isAdmin }">
-                  <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user?.username || '用户'" />
+
+            <div class="user-menu">
+              <button
+                class="user-trigger"
+                type="button"
+                :aria-expanded="showUserMenu"
+                @click.stop="toggleUserMenu"
+              >
+                <span class="avatar" :class="{ 'admin-avatar': isAdmin }" @click.stop="navigateToUserProfile">
+                  <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user?.username || '用户'">
                   <span v-else>{{ getUserInitials() }}</span>
-                  <div v-if="isAdmin" class="admin-badge" title="管理员">
+                  <span v-if="isAdmin" class="admin-badge" title="管理员">
                     <font-awesome-icon :icon="['fas', 'shield-alt']" />
-                  </div>
-                </div>
-                <span class="username" @click="navigateToUserProfile">
-                  {{ user?.username || '用户' }}
-                  <span v-if="isAdmin" class="admin-tag">管理员</span>
+                  </span>
                 </span>
-                <div class="dropdown-trigger" @click.stop="toggleUserMenu">
-                  <font-awesome-icon :icon="['fas', showUserMenu ? 'chevron-up' : 'chevron-down']" class="dropdown-icon" />
-                </div>
-                
-                <div class="user-menu-dropdown" v-show="showUserMenu">
-                  <router-link
-                    :to="'/user/' + (user?.id || '1')"
-                    class="menu-item"
-                    @click="showUserMenu = false"
-                  >
+                <span class="user-name">
+                  {{ user?.username || '用户' }}
+                  <small v-if="isAdmin">Admin</small>
+                </span>
+                <font-awesome-icon :icon="['fas', showUserMenu ? 'chevron-up' : 'chevron-down']" />
+              </button>
+
+              <transition name="menu-pop">
+                <div v-if="showUserMenu" class="user-menu-dropdown kumo-surface">
+                  <router-link :to="'/user/' + (user?.id || '1')" class="menu-item">
                     <font-awesome-icon :icon="['fas', 'user']" />
                     <span>个人主页</span>
                   </router-link>
@@ -249,830 +274,573 @@ const goToAdmin = () => {
                     <font-awesome-icon :icon="['fas', 'cog']" />
                     <span>设置</span>
                   </router-link>
-                  
-                  <!-- 管理员专属选项 -->
-                  <template v-if="isAdmin">
-                    <div class="menu-divider"></div>
-                    <a href="#" class="menu-item admin-menu-item" @click.prevent="goToAdmin">
-                      <font-awesome-icon :icon="['fas', 'shield-alt']" />
-                      <span>管理后台</span>
-                    </a>
-                  </template>
-                  
-                  <div class="menu-divider"></div>
-                  <a href="#" class="menu-item" @click.prevent="logout">
+                  <button v-if="isAdmin" type="button" class="menu-item admin-menu-item" @click="goToAdmin">
+                    <font-awesome-icon :icon="['fas', 'shield-alt']" />
+                    <span>管理后台</span>
+                  </button>
+                  <button type="button" class="menu-item" @click="logout">
                     <font-awesome-icon :icon="['fas', 'sign-out-alt']" />
-                    <span>退出</span>
-                  </a>
+                    <span>退出登录</span>
+                  </button>
                 </div>
-              </div>
-            </template>
-          </div>
-        </nav>
+              </transition>
+            </div>
+          </template>
+        </div>
       </div>
     </header>
 
-    <!-- 全局错误提示 -->
-    <div class="global-error" v-if="error">
-      <div class="error-content">
-        <font-awesome-icon :icon="['fas', 'exclamation-triangle']" class="error-icon" />
+    <transition name="error-slide">
+      <div v-if="error" class="global-error kumo-surface" role="alert">
+        <font-awesome-icon :icon="['fas', 'exclamation-triangle']" />
         <span>{{ error }}</span>
-        <button @click="clearError" class="close-btn" aria-label="关闭">
+        <button type="button" aria-label="关闭错误提示" @click="clearError">
           <font-awesome-icon :icon="['fas', 'times']" />
         </button>
       </div>
-    </div>
+    </transition>
 
-    <!-- 主要内容区 -->
     <main class="main" :class="{ 'admin-main': isAdminPage }">
-      <div class="container" v-if="!isAdminPage">
+      <div v-if="!isAdminPage" class="main-container">
         <router-view v-slot="{ Component }">
-          <component :is="Component" :key="$route.fullPath" />
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" :key="route.fullPath" />
+          </transition>
         </router-view>
       </div>
-      <!-- 管理端页面不使用container限制 -->
       <router-view v-else v-slot="{ Component }">
-        <component :is="Component" :key="$route.fullPath" />
+        <component :is="Component" :key="route.fullPath" />
       </router-view>
     </main>
 
-    <!-- 管理员快捷工具栏 -->
-    <div class="admin-toolbar" v-if="isAdmin && !route.path.includes('/admin')">
-      <div class="admin-toolbar-content">
-        <div class="admin-toolbar-title">
-          <font-awesome-icon :icon="['fas', 'shield-alt']" />
-          <span>管理员工具</span>
-        </div>
-        <div class="admin-toolbar-actions">
-          <button class="admin-action-btn" @click="goToAdmin">
-            <font-awesome-icon :icon="['fas', 'tachometer-alt']" />
-            <span>管理后台</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <aside v-if="isAdmin && !isAdminPage" class="admin-toolbar kumo-surface">
+      <span>
+        <font-awesome-icon :icon="['fas', 'shield-alt']" />
+        管理员模式
+      </span>
+      <button type="button" class="kumo-button kumo-button--brand" @click="goToAdmin">
+        <font-awesome-icon :icon="['fas', 'tachometer-alt']" />
+        后台
+      </button>
+    </aside>
 
-    <!-- 页脚 - 只在非管理端页面显示 -->
-    <footer class="footer" v-if="!isAdminPage">
-      <div class="container">
-        <div class="footer-content">
-          <div class="footer-section">
-            <h3>关于我们</h3>
-            <p>科技论坛是一个面向开发者的技术社区，致力于分享前沿技术和最佳实践。</p>
-            <div class="social-links">
-              <a href="#" class="social-link" aria-label="GitHub">
-                <font-awesome-icon :icon="['fab', 'github']" />
-              </a>
-              <a href="#" class="social-link" aria-label="Twitter">
-                <font-awesome-icon :icon="['fab', 'twitter']" />
-              </a>
-              <a href="#" class="social-link" aria-label="微信">
-                <font-awesome-icon :icon="['fab', 'weixin']" />
-              </a>
-            </div>
-          </div>
-          <div class="footer-section">
-            <h3>快速链接</h3>
-            <ul class="footer-links">
-              <li><router-link to="/">首页</router-link></li>
-              <li><router-link to="/categories">分类</router-link></li>
-              <li><router-link to="/tags">标签</router-link></li>
-              <li><router-link to="/questions">问答</router-link></li>
-            </ul>
-          </div>
-          <div class="footer-section">
-            <h3>联系我们</h3>
-            <p><font-awesome-icon :icon="['fas', 'envelope']" /> contact@techforum.com</p>
-            <p><font-awesome-icon :icon="['fas', 'phone']" /> +86 123 4567 8901</p>
-            <p><font-awesome-icon :icon="['fas', 'map-marker-alt']" /> 北京市海淀区中关村</p>
+    <footer v-if="!isAdminPage" class="site-footer">
+      <div class="footer-container">
+        <div class="footer-brand">
+          <span class="brand-icon">TF</span>
+          <div>
+            <strong>科技论坛</strong>
+            <p>面向开发者的技术交流、问题协作和知识沉淀空间。</p>
           </div>
         </div>
-        <div class="footer-bottom">
-          <p>&copy; {{ new Date().getFullYear() }} 科技论坛. 保留所有权利.</p>
+        <div class="footer-links">
+          <router-link to="/articles">文章</router-link>
+          <router-link to="/questions">问答</router-link>
+          <router-link to="/categories">分类</router-link>
+          <router-link to="/tags">标签</router-link>
+        </div>
+        <div class="footer-social">
+          <a href="#" aria-label="GitHub"><font-awesome-icon :icon="['fab', 'github']" /></a>
+          <a href="#" aria-label="Twitter"><font-awesome-icon :icon="['fab', 'twitter']" /></a>
+          <a href="#" aria-label="Weixin"><font-awesome-icon :icon="['fab', 'weixin']" /></a>
         </div>
       </div>
     </footer>
   </div>
 </template>
 
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-:root {
-  /* 主题色 - 更现代的蓝色调 */
-  --primary-color: #2563eb;
-  --primary-light: #dbeafe;
-  --primary-dark: #1e40af;
-  --accent-color: #06b6d4;
-  
-  /* 成功/警告/错误颜色 */
-  --success-color: #10b981;
-  --success-rgb: 16, 185, 129;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --error-rgb: 239, 68, 68;
-  
-  /* 文本颜色 */
-  --text-color: #1f2937;
-  --text-light: #4b5563;
-  --text-lighter: #9ca3af;
-  
-  /* 背景颜色 */
-  --bg-color: #f9fafb;
-  --bg-gray: #f3f4f6;
-  --bg-white: #ffffff;
-  
-  /* 边框颜色 */
-  --border-color: #e5e7eb;
-  
-  /* 阴影 */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  
-  /* 圆角 */
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  
-  /* 过渡效果 */
-  --transition: all 0.3s ease;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  line-height: 1.6;
-  overflow-x: hidden;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
+<style scoped>
 .app-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  width: 100%;
 }
 
-/* 顶部导航栏 */
-.header {
-  background-color: var(--bg-white);
-  box-shadow: var(--shadow);
+.site-header {
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid var(--border-color);
+  border-width: 0 0 1px;
+  border-radius: 0;
 }
 
 .header-container {
-  max-width: 1200px;
+  display: grid;
+  grid-template-columns: auto minmax(16rem, 28rem) 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  width: min(100% - 2rem, 1320px);
+  min-height: 4.7rem;
   margin: 0 auto;
-  padding: 0 1rem;
-  width: 100%;
 }
 
-.nav {
-  display: flex;
+.brand-mark {
+  display: inline-flex;
   align-items: center;
-  height: 64px;
-  flex-wrap: nowrap;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  margin-right: 2rem;
-  font-weight: 600;
-  color: var(--primary-color);
+  gap: 0.75rem;
+  color: var(--kumo-text-default);
   text-decoration: none;
-  white-space: nowrap;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
-  border-radius: var(--radius-sm);
-  display: flex;
+.brand-icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 0.5rem;
-  font-weight: 700;
-  font-size: 16px;
-  box-shadow: var(--shadow-sm);
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 1rem;
+  background:
+    linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
+  color: var(--kumo-text-inverse);
+  font-weight: 900;
+  box-shadow: var(--kumo-shadow-sm);
 }
 
-.logo-text {
-  font-size: 18px;
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
-.search-box {
-  flex: 1;
-  max-width: 460px;
-  position: relative;
-  margin-right: 1.5rem;
+.brand-copy strong {
+  font-size: 1rem;
+  font-weight: 850;
 }
 
-.search-box input {
+.brand-copy small {
+  color: var(--kumo-text-subtle);
+  font-size: 0.74rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.global-search {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.9rem;
+  padding: 0 0.4rem 0 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-subtle);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.global-search input {
   width: 100%;
-  padding: 0.6rem 1rem;
-  padding-right: 2.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 14px;
-  transition: var(--transition);
-  background-color: var(--bg-gray);
-}
-
-.search-box input:focus {
-  border-color: var(--primary-color);
-  background-color: var(--bg-white);
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kumo-text-default);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
-.search-btn {
-  position: absolute;
-  right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-lighter);
+.global-search button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
   cursor: pointer;
+}
+
+.site-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  transition: var(--transition);
-}
-
-.search-btn:hover {
-  color: var(--primary-color);
-  background-color: var(--primary-light);
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  gap: 0.5rem;
-  overflow-x: auto;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.nav-links::-webkit-scrollbar {
-  display: none;
+  gap: 0.25rem;
 }
 
 .nav-link {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0.5rem 0.75rem;
-  color: var(--text-light);
-  font-size: 14px;
-  border-radius: var(--radius);
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.78rem;
+  border-radius: 999px;
+  color: var(--kumo-text-muted);
+  font-size: 0.92rem;
+  font-weight: 760;
+  text-decoration: none;
   transition: var(--transition);
-  white-space: nowrap;
 }
 
-.nav-link svg {
-  font-size: 16px;
+.nav-link:hover,
+.nav-link.active {
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
-.nav-link.active,
-.nav-link:hover {
-  color: var(--primary-color);
-  background-color: var(--primary-light);
-}
-
-.login-link {
-  border: 1px solid transparent;
-}
-
-.login-link:hover {
-  border-color: var(--primary-color);
-}
-
-.btn-register, .btn-post {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 500;
-  transition: var(--transition);
-  white-space: nowrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
 }
 
-.btn-register:hover, .btn-post:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  filter: brightness(1.1);
+.mobile-menu-button {
+  display: none;
 }
 
-.notification-icon {
+.auth-link,
+.create-link {
+  min-height: 2.55rem;
+  padding-inline: 0.9rem;
+}
+
+.notification-link {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  transition: var(--transition);
-}
-
-.notification-icon:hover {
-  background-color: var(--bg-gray);
-}
-
-.icon-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-light);
 }
 
 .notification-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  background-color: var(--error-color);
-  color: white;
-  font-size: 10px;
-  font-weight: 600;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
+  top: -0.25rem;
+  right: -0.25rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border: 2px solid var(--kumo-bg-base);
+  border-radius: 999px;
+  background: var(--kumo-status-danger);
+  color: var(--kumo-text-inverse);
+  font-size: 0.64rem;
+  font-weight: 850;
 }
 
 .user-menu {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   position: relative;
-  margin-left: 1rem;
+}
+
+.user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
+  padding: 0.22rem 0.55rem 0.22rem 0.22rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  cursor: pointer;
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: var(--primary-light);
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  color: var(--primary-color);
-  position: relative;
-  cursor: pointer;
+  width: 2.2rem;
+  height: 2.2rem;
   overflow: hidden;
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 850;
 }
 
 .avatar img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
 }
 
-.username {
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
+.admin-avatar {
+  box-shadow: 0 0 0 2px var(--kumo-bg-accent);
 }
 
-.dropdown-trigger {
-  display: flex;
+.admin-badge {
+  position: absolute;
+  right: -0.1rem;
+  bottom: -0.1rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: var(--transition);
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-accent);
+  color: var(--kumo-text-inverse);
+  font-size: 0.55rem;
 }
 
-.dropdown-trigger:hover {
-  background-color: var(--primary-light);
-  color: var(--primary-color);
+.user-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 7rem;
+  overflow: hidden;
+  color: var(--kumo-text-default);
+  font-size: 0.86rem;
+  font-weight: 790;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.dropdown-icon {
-  font-size: 0.8rem;
-  opacity: 0.8;
+.user-name small {
+  color: var(--kumo-bg-accent);
+  font-size: 0.62rem;
+  font-weight: 820;
+  text-transform: uppercase;
 }
 
 .user-menu-dropdown {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: calc(100% + 0.6rem);
   right: 0;
-  background-color: var(--bg-white);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  width: 180px;
-  z-index: 100;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
+  display: grid;
+  gap: 0.25rem;
+  min-width: 13rem;
+  padding: 0.5rem;
+  z-index: 120;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  color: var(--text-color);
-  transition: var(--transition);
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.62rem 0.75rem;
+  border: 0;
+  border-radius: 0.8rem;
+  background: transparent;
+  color: var(--kumo-text-muted);
+  font-weight: 720;
+  text-align: left;
   text-decoration: none;
   cursor: pointer;
-  position: relative;
-  z-index: 20;
+  transition: var(--transition);
 }
 
 .menu-item:hover {
-  background-color: var(--bg-gray);
-  color: var(--primary-color);
-}
-
-.menu-item svg {
-  color: var(--text-light);
-  width: 16px;
-}
-
-.menu-divider {
-  height: 1px;
-  background-color: var(--border-color);
-  margin: 0.5rem 0;
-}
-
-/* 全局错误提示 */
-.global-error {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: auto;
-  max-width: 90%;
-}
-
-.error-content {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background-color: #fff1f0;
-  border: 1px solid #ff7875;
-  border-radius: var(--radius);
-  color: #a8071a;
-  box-shadow: 0 12px 30px rgba(168, 7, 26, 0.18);
-}
-
-.error-icon {
-  font-size: 1.2rem;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--text-lighter);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  transition: var(--transition);
-  margin-left: 0.5rem;
-}
-
-.close-btn:hover {
-  background-color: rgba(var(--error-rgb), 0.1);
-  color: var(--error-color);
-}
-
-/* 主要内容区 */
-.main {
-  flex: 1;
-  padding: 2rem 0;
-}
-
-/* 管理端主要内容区 */
-.admin-main {
-  padding: 0;
-  width: 100%;
-  min-height: 100vh;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  width: 100%;
-}
-
-/* 页脚 */
-.footer {
-  background-color: var(--bg-white);
-  border-top: 1px solid var(--border-color);
-  padding: 3rem 0 1.5rem;
-  margin-top: 2rem;
-}
-
-.footer-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.footer-section h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-color);
-  position: relative;
-  padding-bottom: 0.5rem;
-}
-
-.footer-section h3::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 40px;
-  height: 2px;
-  background-color: var(--primary-color);
-}
-
-.footer-section p {
-  color: var(--text-light);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.social-links {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.social-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: var(--bg-gray);
-  color: var(--text-light);
-  transition: var(--transition);
-}
-
-.social-link:hover {
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  transform: translateY(-2px);
-}
-
-.footer-links {
-  list-style: none;
-  padding: 0;
-}
-
-.footer-links li {
-  margin-bottom: 0.75rem;
-}
-
-.footer-links a {
-  color: var(--text-light);
-  transition: var(--transition);
-  display: inline-block;
-}
-
-.footer-links a:hover {
-  color: var(--primary-color);
-  transform: translateX(5px);
-}
-
-.footer-bottom {
-  border-top: 1px solid var(--border-color);
-  padding-top: 1.5rem;
-  text-align: center;
-  color: var(--text-lighter);
-  font-size: 14px;
-}
-
-/* 响应式设计 */
-@media (max-width: 992px) {
-  .search-box {
-    max-width: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .nav {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 1rem 0;
-  }
-  
-  .logo {
-    margin-right: 1rem;
-  }
-  
-  .search-box {
-    order: 3;
-    width: 100%;
-    max-width: none;
-    margin: 1rem 0;
-  }
-  
-  .nav-links {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    width: 100%;
-    padding-bottom: 0.5rem;
-    margin-top: 0.5rem;
-    justify-content: flex-start;
-  }
-
-  .user-menu {
-    margin-left: auto;
-  }
-  
-  .footer-content {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 576px) {
-  .nav-link span {
-    font-size: 12px;
-  }
-  
-  .username {
-    max-width: 60px;
-  }
-  
-  .btn-register, .btn-post {
-    padding: 0.4rem 0.75rem;
-    font-size: 12px;
-  }
-}
-
-/* 动画效果 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* 管理员相关样式 */
-.admin-avatar {
-  position: relative;
-  border: 2px solid #5e72e4 !important;
-}
-
-.admin-badge {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  background-color: #5e72e4;
-  color: white;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  border: 2px solid white;
-}
-
-.admin-tag {
-  display: inline-block;
-  background-color: #5e72e4;
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  margin-left: 5px;
-  vertical-align: middle;
-  font-weight: 600;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .admin-menu-item {
-  color: #5e72e4 !important;
-  font-weight: 600;
+  color: var(--kumo-bg-accent);
 }
 
-.admin-menu-item:hover {
-  background-color: rgba(94, 114, 228, 0.1) !important;
+.global-error {
+  position: fixed;
+  top: 5.5rem;
+  left: 50%;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(92vw, 42rem);
+  padding: 0.8rem 1rem;
+  color: var(--kumo-status-danger);
+  transform: translateX(-50%);
+}
+
+.global-error button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
+  cursor: pointer;
+}
+
+.main {
+  flex: 1;
+  padding: clamp(1rem, 3vw, 2rem) 0 3rem;
+}
+
+.admin-main {
+  min-height: 100vh;
+  padding: 0;
+}
+
+.main-container,
+.footer-container {
+  width: min(100% - 2rem, 1320px);
+  margin: 0 auto;
 }
 
 .admin-toolbar {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-  animation: slide-up 0.3s ease;
-}
-
-@keyframes slide-up {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.admin-toolbar-content {
-  background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-  border-radius: 12px;
-  padding: 12px 15px;
-  box-shadow: 0 5px 15px rgba(94, 114, 228, 0.3);
-  color: white;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 80;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 0.8rem;
+  padding: 0.6rem;
 }
 
-.admin-toolbar-title {
+.admin-toolbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-left: 0.45rem;
+  color: var(--kumo-text-muted);
+  font-weight: 760;
+}
+
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--kumo-hairline);
+  background: color-mix(in srgb, var(--kumo-bg-base) 72%, transparent);
+}
+
+.footer-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.footer-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 14px;
+  gap: 0.85rem;
 }
 
-.admin-toolbar-actions {
-  display: flex;
-  gap: 10px;
+.footer-brand strong {
+  color: var(--kumo-text-default);
+  font-weight: 850;
 }
 
-.admin-action-btn {
-  background-color: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
+.footer-brand p {
+  max-width: 36rem;
+  margin: 0.15rem 0 0;
+  color: var(--kumo-text-muted);
+}
+
+.footer-links,
+.footer-social {
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: background-color 0.3s ease;
+  gap: 0.8rem;
 }
 
-.admin-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+.footer-links a,
+.footer-social a {
+  color: var(--kumo-text-muted);
+  font-weight: 740;
+  text-decoration: none;
 }
 
-@media (max-width: 768px) {
-  .admin-toolbar {
-    bottom: 10px;
-    right: 10px;
+.footer-links a:hover,
+.footer-social a:hover {
+  color: var(--kumo-bg-brand-strong);
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active,
+.menu-pop-enter-active,
+.menu-pop-leave-active,
+.error-slide-enter-active,
+.error-slide-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.menu-pop-enter-from,
+.menu-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+.error-slide-enter-from,
+.error-slide-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -10px);
+}
+
+@media (max-width: 1180px) {
+  .header-container {
+    grid-template-columns: auto minmax(12rem, 1fr) auto auto;
   }
-  
-  .admin-toolbar-title span {
+
+  .site-nav {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 1rem;
+    right: 1rem;
     display: none;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 0.55rem;
+    border: 1px solid var(--kumo-hairline);
+    border-radius: var(--kumo-radius-lg);
+    background: var(--kumo-bg-elevated);
+    box-shadow: var(--kumo-shadow-md);
+    backdrop-filter: var(--kumo-blur);
+  }
+
+  .site-nav.open {
+    display: grid;
+  }
+
+  .nav-link {
+    justify-content: center;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-container {
+    grid-template-columns: auto auto 1fr auto;
+    gap: 0.65rem;
+    min-height: auto;
+    padding: 0.75rem 0;
+  }
+
+  .brand-copy,
+  .auth-link span,
+  .create-link span,
+  .user-name {
+    display: none;
+  }
+
+  .global-search {
+    order: 5;
+    grid-column: 1 / -1;
+  }
+
+  .site-nav.open {
+    grid-template-columns: 1fr;
+  }
+
+  .header-actions {
+    gap: 0.35rem;
+  }
+
+  .footer-container {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-links,
+  .footer-social {
+    flex-wrap: wrap;
   }
 }
 </style>

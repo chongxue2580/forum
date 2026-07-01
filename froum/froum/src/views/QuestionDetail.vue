@@ -1,163 +1,143 @@
 <template>
   <div class="question-detail-container">
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner">
-        <font-awesome-icon :icon="['fas', 'spinner']" spin size="2x" />
-      </div>
-      <p>加载问题内容中...</p>
+    <div v-if="loading" class="state-panel kumo-surface">
+      <font-awesome-icon :icon="['fas', 'spinner']" spin />
+      <span>加载问题内容中...</span>
     </div>
-    
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-container">
-      <div class="error-icon">
-        <font-awesome-icon :icon="['fas', 'exclamation-circle']" size="2x" />
-      </div>
-      <p>{{ error }}</p>
-      <button class="btn btn-primary" @click="loadQuestion">重试</button>
+
+    <div v-else-if="error" class="state-panel kumo-surface state-panel--error">
+      <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
+      <span>{{ error }}</span>
+      <button class="kumo-button" type="button" @click="loadQuestion">
+        <font-awesome-icon :icon="['fas', 'redo']" />
+        重试
+      </button>
     </div>
-    
-    <!-- 问题内容 -->
-    <div v-else-if="question" class="question-content">
-      <div class="question-header">
-        <h1 class="question-title">{{ question.title }}</h1>
-        
-        <div class="question-meta">
-          <div class="meta-item">
-            <font-awesome-icon :icon="['fas', 'clock']" />
-            提问于 {{ formattedDate }}
-          </div>
-          <div class="meta-item">
-            <font-awesome-icon :icon="['fas', 'eye']" />
-            {{ question.viewCount }} 次查看
-          </div>
-          <div class="meta-item">
-            <font-awesome-icon :icon="['fas', 'comment-alt']" />
-            {{ question.answerCount }} 个回答
-          </div>
-        </div>
-        
-        <div class="question-actions">
-          <button 
-            v-if="!isFollowing" 
-            class="action-btn follow-btn" 
-            @click="followQuestion"
+
+    <template v-else-if="question">
+      <ui-page-hero :title="question.title" :description="questionSummary">
+        <template #eyebrow>
+          <span class="kumo-eyebrow">
+            <font-awesome-icon :icon="['fas', 'question-circle']" />
+            Question
+          </span>
+          <span v-if="questionSolved" class="kumo-status kumo-status--success">
+            <font-awesome-icon :icon="['fas', 'check-circle']" />
+            已解决
+          </span>
+        </template>
+
+        <template #actions>
+          <button
+            class="kumo-button"
+            :class="{ 'kumo-button--brand': !isFollowing, 'is-following': isFollowing }"
+            type="button"
+            @click="isFollowing ? unfollowQuestion() : followQuestion()"
           >
-            <font-awesome-icon :icon="['far', 'star']" />
-            关注问题
+            <font-awesome-icon :icon="[isFollowing ? 'fas' : 'far', 'star']" />
+            {{ isFollowing ? '已关注' : '关注问题' }}
           </button>
-          <button 
-            v-else 
-            class="action-btn following-btn" 
-            @click="unfollowQuestion"
-          >
-            <font-awesome-icon :icon="['fas', 'star']" />
-            已关注
+          <button v-if="isAuthor" class="kumo-button" type="button" @click="editQuestion">
+            <font-awesome-icon :icon="['fas', 'edit']" />
+            编辑
           </button>
-          
-          <div v-if="isAuthor" class="author-actions">
-            <button class="action-btn edit-btn" @click="editQuestion">
-              <font-awesome-icon :icon="['fas', 'edit']" />
-              编辑
-            </button>
-            <button class="action-btn delete-btn" @click="showDeleteModal = true">
-              <font-awesome-icon :icon="['fas', 'trash-alt']" />
-              删除
-            </button>
+          <button v-if="isAuthor" class="kumo-button danger-action" type="button" @click="showDeleteModal = true">
+            <font-awesome-icon :icon="['fas', 'trash-alt']" />
+            删除
+          </button>
+        </template>
+
+        <template #aside>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <strong>{{ viewCount }}</strong>
+              <span>查看</span>
+            </div>
+            <div class="hero-metric">
+              <strong>{{ answerCount }}</strong>
+              <span>回答</span>
+            </div>
+            <div class="hero-metric">
+              <strong>{{ followCount }}</strong>
+              <span>关注</span>
+            </div>
           </div>
+        </template>
+      </ui-page-hero>
+
+      <section class="question-meta-panel kumo-surface">
+        <div class="author-strip">
+          <span class="author-avatar">
+            <img v-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+            <span v-else>{{ authorInitials }}</span>
+          </span>
+          <span class="author-copy">
+            <strong>{{ authorName }}</strong>
+            <small>
+              <font-awesome-icon :icon="['fas', 'clock']" />
+              提问于 {{ formattedDate }}
+            </small>
+          </span>
         </div>
-      </div>
-      
-      <div class="question-body">
-        <div class="question-main">
-          <!-- 投票控制 -->
-          <div class="vote-controls">
-            <button 
-              class="vote-btn up" 
+
+        <div class="question-tags">
+          <span v-for="tag in questionTags" :key="tag" class="tag-chip">
+            <font-awesome-icon :icon="['fas', 'tag']" />
+            {{ tag }}
+          </span>
+        </div>
+      </section>
+
+      <main class="question-layout">
+        <article class="question-panel kumo-surface">
+          <aside class="vote-card">
+            <button
+              class="vote-button"
               :class="{ active: userVote === 'up' }"
-              @click="vote('up')"
+              type="button"
               title="这个问题有用且清晰"
+              @click="vote('up')"
             >
               <font-awesome-icon :icon="['fas', 'caret-up']" />
             </button>
-            
-            <div class="vote-count" :class="{ 
-              positive: question.voteCount > 0, 
-              negative: question.voteCount < 0 
-            }">
-              {{ question.voteCount }}
-            </div>
-            
-          </div>
-          
-          <!-- 问题内容 -->
-          <div class="question-content-body">
+            <strong :class="{ positive: voteCount > 0, negative: voteCount < 0 }">{{ voteCount }}</strong>
+            <span>赞同</span>
+          </aside>
+
+          <div class="question-main">
             <div class="markdown-content" v-html="formattedContent"></div>
-            
-            <div class="content-footer">
-              <!-- 标签 -->
-              <div class="question-tags">
-                <div 
-                  v-for="tag in question.tags" 
-                  :key="tag.id || tag" 
-                  class="tag"
-                >
-                  {{ tag.name || tag }}
-                </div>
-              </div>
-              
-              <!-- 作者信息 -->
-              <div class="author-info">
-                <div class="author-avatar" :title="question.author.name">
-                  {{ authorInitials }}
-                </div>
-                <div class="author-name">{{ question.author.name }}</div>
-              </div>
-            </div>
           </div>
-        </div>
-        
-        <!-- 问题状态标识 -->
-        <div 
-          v-if="question.isSolved" 
-          class="status-badge solved"
-          title="此问题已有满意答案"
-        >
-          <font-awesome-icon :icon="['fas', 'check-circle']" />
-          已解决
-        </div>
+        </article>
+
+        <section class="answers-panel kumo-surface">
+          <answer-list
+            :question-id="questionId"
+            :question-author-id="questionAuthor.id"
+            :initial-answers="question.answers"
+            :initial-best-answer-id="question.bestAnswerId"
+            @answers-updated="handleAnswersUpdated"
+          />
+        </section>
+      </main>
+
+      <div v-if="showDeleteModal" class="dialog-backdrop" @click.self="showDeleteModal = false">
+        <section class="delete-dialog kumo-surface" role="dialog" aria-modal="true" aria-labelledby="delete-question-title">
+          <div class="dialog-heading">
+            <span class="kumo-eyebrow">
+              <font-awesome-icon :icon="['fas', 'trash-alt']" />
+              Delete
+            </span>
+            <h2 id="delete-question-title" class="kumo-heading">确认删除</h2>
+            <p class="kumo-muted">确定要删除这个问题吗？此操作无法撤销。</p>
+          </div>
+
+          <div class="dialog-actions">
+            <button class="kumo-button" type="button" @click="showDeleteModal = false">取消</button>
+            <button class="kumo-button delete-button" type="button" @click="deleteQuestion">删除</button>
+          </div>
+        </section>
       </div>
-      
-      <!-- 回答列表 -->
-      <answer-list
-        :question-id="questionId"
-        :question-author-id="question.author.id"
-        :initial-answers="question.answers"
-        :initial-best-answer-id="question.bestAnswerId"
-        @answers-updated="handleAnswersUpdated"
-      />
-    </div>
-    
-    <!-- 删除确认模态框 -->
-    <div class="modal-backdrop" v-if="showDeleteModal" @click.self="showDeleteModal = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>确认删除</h3>
-          <button class="close-btn" @click="showDeleteModal = false">
-            <font-awesome-icon :icon="['fas', 'times']" />
-          </button>
-        </div>
-        
-        <div class="modal-body">
-          <p>确定要删除这个问题吗？此操作无法撤销。</p>
-        </div>
-        
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="showDeleteModal = false">取消</button>
-          <button class="btn btn-danger" @click="deleteQuestion">删除</button>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -168,8 +148,10 @@ import { useStore } from 'vuex'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import AnswerList from '@/components/AnswerList.vue'
+import UiPageHero from '@/components/ui/UiPageHero.vue'
 import { questionService } from '../services/questionService'
 import { formatDateTime, getTimeField } from '../utils/dateUtils'
+import { avatarInitial, resolveAvatarFrom } from '../utils/avatar'
 
 // 配置marked使用highlight.js
 marked.setOptions({
@@ -187,7 +169,8 @@ marked.setOptions({
 export default defineComponent({
   name: 'QuestionDetail',
   components: {
-    AnswerList
+    AnswerList,
+    UiPageHero
   },
   setup() {
     const route = useRoute()
@@ -206,13 +189,25 @@ export default defineComponent({
     const questionId = computed(() => route.params.id)
     
     const isAuthor = computed(() => {
-      return store.state.user && question.value && 
-        String(store.state.user.id) === String(question.value.author.id)
+      return Boolean(store.state.user && question.value?.author?.id &&
+        String(store.state.user.id) === String(question.value.author.id))
     })
     
     const formattedContent = computed(() => {
       if (!question.value || !question.value.content) return ''
       return marked.parse(question.value.content)
+    })
+
+    const questionSummary = computed(() => {
+      const content = question.value?.content || ''
+      const plainText = content
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+        .replace(/[#*_`[\]()]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText || '查看问题详情并参与回答。'
     })
     
     const formattedDate = computed(() => {
@@ -228,16 +223,26 @@ export default defineComponent({
       })
     })
     
-    const authorInitials = computed(() => {
-      if (!question.value || !question.value.author || !question.value.author.name) return '?'
-      
-      return question.value.author.name
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .substring(0, 2)
+    const questionAuthor = computed(() => question.value?.author || question.value?.user || {})
+    const authorName = computed(() => {
+      const author = questionAuthor.value
+      return author.nickname || author.username || author.name || '匿名用户'
     })
+    const authorAvatar = computed(() => resolveAvatarFrom(questionAuthor.value))
+    const authorInitials = computed(() => avatarInitial(authorName.value))
+    const questionTags = computed(() => {
+      const tags = question.value?.tags
+      if (!tags) return []
+      if (Array.isArray(tags)) {
+        return tags.map(tag => typeof tag === 'string' ? tag : tag?.name).filter(Boolean)
+      }
+      return String(tags).split(',').map(tag => tag.trim()).filter(Boolean)
+    })
+    const viewCount = computed(() => question.value?.viewCount || question.value?.views || 0)
+    const answerCount = computed(() => question.value?.answerCount || question.value?.commentCount || 0)
+    const voteCount = computed(() => question.value?.voteCount || question.value?.likeCount || 0)
+    const followCount = computed(() => question.value?.followCount || 0)
+    const questionSolved = computed(() => Boolean(question.value?.isSolved || question.value?.solved))
     
     // 方法
     const getFlag = (data, ...keys) => {
@@ -326,8 +331,7 @@ export default defineComponent({
           throw new Error(response.message || '获取问题详情失败')
         }
       } catch (err) {
-        console.error('Failed to load question:', err)
-        error.value = '加载问题失败，请稍后重试'
+        error.value = err.message || '加载问题失败，请稍后重试'
       } finally {
         loading.value = false
       }
@@ -352,7 +356,6 @@ export default defineComponent({
         }
         await refreshQuestionLikeInfo()
       } catch (err) {
-        console.error('Failed to vote question:', err)
         store.dispatch('setMessage', {
           type: 'error',
           content: err.message || '问题点赞失败'
@@ -373,7 +376,6 @@ export default defineComponent({
         await questionService.followQuestion(questionId.value)
         await refreshQuestionFollowInfo()
       } catch (err) {
-        console.error('Failed to follow question:', err)
         store.dispatch('setMessage', {
           type: 'error',
           content: err.message || '关注问题失败'
@@ -394,7 +396,6 @@ export default defineComponent({
         await questionService.unfollowQuestion(questionId.value)
         await refreshQuestionFollowInfo()
       } catch (err) {
-        console.error('Failed to unfollow question:', err)
         store.dispatch('setMessage', {
           type: 'error',
           content: err.message || '取消关注问题失败'
@@ -422,10 +423,9 @@ export default defineComponent({
         // 跳转到问题列表页面
         router.push('/questions')
       } catch (err) {
-        console.error('Failed to delete question:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '删除问题失败，请稍后重试'
+          content: err.message || '删除问题失败，请稍后重试'
         })
       }
     }
@@ -456,8 +456,18 @@ export default defineComponent({
       questionId,
       isAuthor,
       formattedContent,
+      questionSummary,
       formattedDate,
+      questionAuthor,
+      authorName,
+      authorAvatar,
       authorInitials,
+      questionTags,
+      viewCount,
+      answerCount,
+      voteCount,
+      followCount,
+      questionSolved,
       loadQuestion,
       vote,
       followQuestion,
@@ -472,380 +482,372 @@ export default defineComponent({
 
 <style scoped>
 .question-detail-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+  display: grid;
+  gap: 1.25rem;
 }
 
-.loading-container,
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
+.state-panel {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  min-height: 18rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
   text-align: center;
 }
 
-.loading-spinner,
-.error-icon {
-  margin-bottom: 20px;
-  color: #1890ff;
+.state-panel > svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2.1rem;
 }
 
-.error-icon {
-  color: #ff4d4f;
+.state-panel--error,
+.danger-action {
+  color: var(--kumo-status-danger);
 }
 
-.question-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  max-width: 850px;
-  margin: 0 auto;
+.hero-metrics {
+  display: grid;
+  gap: 0.7rem;
 }
 
-.question-header {
-  padding: 20px;
-  border-bottom: 1px solid #eee;
+.hero-metric {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 9rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
 }
 
-.question-title {
-  font-size: 24px;
-  color: #333;
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-weight: 600;
-}
-
-.question-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 15px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #666;
-  font-size: 14px;
-}
-
-.question-actions {
-  display: flex;
-  justify-content: space-between;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  background: white;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  color: #1890ff;
-  border-color: #1890ff;
-}
-
-.follow-btn {
-  color: #1890ff;
-}
-
-.following-btn {
-  background: #e6f7ff;
-  color: #1890ff;
-  border-color: #91d5ff;
-}
-
-.edit-btn:hover {
-  color: #1890ff;
-  border-color: #1890ff;
-}
-
-.delete-btn:hover {
-  color: #ff4d4f;
-  border-color: #ff4d4f;
-}
-
-.author-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.question-body {
-  padding: 20px;
-  position: relative;
-}
-
-.question-main {
-  display: flex;
-  gap: 20px;
-}
-
-.vote-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-
-.vote-btn {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
+.hero-metric strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
   line-height: 1;
 }
 
-.vote-btn:hover {
-  color: #1890ff;
+.hero-metric span {
+  color: var(--kumo-text-muted);
+  font-size: 0.82rem;
+  font-weight: 760;
 }
 
-.vote-btn.active.up {
-  color: #52c41a;
+.is-following {
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
-.vote-btn.active.down {
-  color: #ff4d4f;
-}
-
-.vote-count {
-  font-size: 18px;
-  font-weight: 700;
-  color: #666;
-  text-align: center;
-  min-width: 30px;
-}
-
-.vote-count.positive {
-  color: #52c41a;
-}
-
-.vote-count.negative {
-  color: #ff4d4f;
-}
-
-.question-content-body {
-  flex: 1;
-}
-
-.markdown-content {
-  color: #333;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  overflow-wrap: break-word;
-}
-
-.content-footer {
+.question-meta-panel {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 30px;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.author-strip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.author-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 840;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.author-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.author-copy strong {
+  overflow: hidden;
+  color: var(--kumo-text-default);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-copy small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--kumo-text-subtle);
+  font-weight: 690;
 }
 
 .question-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
-.tag {
-  background: #f5f5f5;
-  color: #666;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-}
-
-.author-info {
-  display: flex;
+.tag-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.35rem;
+  padding: 0.32rem 0.62rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
 }
 
-.author-avatar {
-  width: 32px;
-  height: 32px;
+.question-layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.question-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.25rem;
+  padding: clamp(1.25rem, 3vw, 2.4rem);
+}
+
+.vote-card {
+  position: sticky;
+  top: 6rem;
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  align-self: start;
+  min-width: 4.8rem;
+  padding: 0.8rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
+}
+
+.vote-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--kumo-hairline);
   border-radius: 50%;
-  background: #1890ff;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 500;
-}
-
-.author-name {
-  font-weight: 500;
-  color: #333;
-}
-
-.status-badge {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  padding: 4px 12px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-
-.status-badge.solved {
-  background: #f6ffed;
-  color: #52c41a;
-  border: 1px solid #b7eb8f;
-}
-
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .question-detail-container {
-    padding: 1rem;
-  }
-
-  .question-content {
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .question-detail-container {
-    padding: 0.5rem;
-  }
-
-  .question-header {
-    padding: 16px;
-  }
-
-  .question-title {
-    font-size: 20px;
-  }
-
-  .question-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .question-body {
-    padding: 16px;
-  }
-
-  .question-main {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .vote-controls {
-    flex-direction: row;
-    justify-content: center;
-    gap: 16px;
-  }
-}
-
-.modal-header {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #999;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
   cursor: pointer;
-  font-size: 16px;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
-.modal-body {
-  padding: 20px 15px;
+.vote-button:hover,
+.vote-button.active {
+  transform: translateY(-2px);
+  border-color: var(--kumo-bg-brand);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
-.modal-footer {
-  padding: 15px;
-  border-top: 1px solid #eee;
+.vote-card strong {
+  color: var(--kumo-text-default);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.vote-card strong.positive {
+  color: var(--kumo-status-success);
+}
+
+.vote-card strong.negative {
+  color: var(--kumo-status-danger);
+}
+
+.vote-card span {
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.question-main {
+  min-width: 0;
+}
+
+.markdown-content {
+  color: var(--kumo-text-default);
+  font-size: 1.05rem;
+  line-height: 1.78;
+  overflow-wrap: break-word;
+}
+
+:deep(.markdown-content > *:first-child) {
+  margin-top: 0;
+}
+
+:deep(.markdown-content > *:last-child) {
+  margin-bottom: 0;
+}
+
+:deep(.markdown-content h1),
+:deep(.markdown-content h2),
+:deep(.markdown-content h3),
+:deep(.markdown-content h4),
+:deep(.markdown-content h5),
+:deep(.markdown-content h6) {
+  margin: 1.6em 0 0.75em;
+  color: var(--kumo-text-default);
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1.22;
+}
+
+:deep(.markdown-content p),
+:deep(.markdown-content blockquote),
+:deep(.markdown-content ul),
+:deep(.markdown-content ol),
+:deep(.markdown-content table),
+:deep(.markdown-content pre) {
+  margin: 0 0 1.1rem;
+}
+
+:deep(.markdown-content blockquote) {
+  padding: 0.7rem 1rem;
+  border-left: 4px solid var(--kumo-bg-brand);
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-text-muted);
+}
+
+:deep(.markdown-content code) {
+  padding: 0.16rem 0.36rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-recessed);
+  color: var(--kumo-bg-brand-strong);
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+:deep(.markdown-content pre) {
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-recessed);
+}
+
+:deep(.markdown-content pre code) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.answers-panel {
+  padding: clamp(1rem, 2.2vw, 1.5rem);
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--kumo-bg-overlay);
+  backdrop-filter: var(--kumo-blur);
+}
+
+.delete-dialog {
+  display: grid;
+  gap: 1.25rem;
+  width: min(100%, 28rem);
+  padding: 1.3rem;
+  animation: dialog-in 260ms ease both;
+}
+
+.dialog-heading {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dialog-heading h2,
+.dialog-heading p {
+  margin: 0;
+}
+
+.dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 0.75rem;
 }
 
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  border: none;
+.delete-button {
+  border-color: transparent;
+  background: var(--kumo-status-danger);
+  color: var(--kumo-text-inverse);
 }
 
-.btn-secondary {
-  background: white;
-  color: #666;
-  border: 1px solid #eee;
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.btn-secondary:hover {
-  color: #1890ff;
-  border-color: #1890ff;
-}
+@media (max-width: 760px) {
+  .hero-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 
-.btn-danger {
-  background: #ff4d4f;
-  color: white;
-}
+  .hero-metric {
+    min-width: 0;
+  }
 
-.btn-danger:hover {
-  background: #ff7875;
-}
+  .hero-metric strong {
+    font-size: 1.6rem;
+  }
 
-.btn-primary {
-  background: #1890ff;
-  color: white;
-}
+  .question-meta-panel,
+  .dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-.btn-primary:hover {
-  background: #40a9ff;
+  .question-tags {
+    justify-content: flex-start;
+  }
+
+  .question-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .vote-card {
+    position: static;
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+  }
 }
-</style> 
+</style>

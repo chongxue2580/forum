@@ -1,603 +1,489 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1>登录</h1>
-        <p>欢迎回到科技论坛，请登录您的账号</p>
+  <div class="auth-page">
+    <section class="auth-visual kumo-surface-strong reveal-rise">
+      <span class="kumo-eyebrow">
+        <font-awesome-icon :icon="['fas', 'shield-alt']" />
+        Secure Access
+      </span>
+      <h1 class="kumo-heading">欢迎回来</h1>
+      <p>继续进入科技论坛，查看关注内容、问题回复和最新技术讨论。</p>
+      <div class="visual-grid" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
-      
-      <div v-if="error" class="error-message">
-        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="error-icon" />
+    </section>
+
+    <section class="auth-card kumo-surface reveal-rise">
+      <div class="auth-header">
+        <span class="brand-icon">TF</span>
+        <div>
+          <h2 class="kumo-heading">登录账号</h2>
+          <p>使用用户名或邮箱登录</p>
+        </div>
+      </div>
+
+      <div v-if="error" class="notice notice-error">
+        <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
         <span>{{ error }}</span>
       </div>
 
-      <div v-if="infoMessage" class="info-message">
-        <font-awesome-icon :icon="['fas', 'shield-alt']" class="info-icon" />
+      <div v-if="infoMessage" class="notice notice-info">
+        <font-awesome-icon :icon="['fas', 'shield-alt']" />
         <span>{{ infoMessage }}</span>
       </div>
-      
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">用户名或邮箱</label>
-          <div class="input-wrapper">
-            <font-awesome-icon :icon="['fas', 'user']" class="input-icon" />
-            <input 
-              type="text" 
-              id="username" 
-              v-model="username" 
+
+      <form class="auth-form" @submit.prevent="handleLogin">
+        <label class="form-field" for="username">
+          <span>用户名或邮箱</span>
+          <span class="input-shell">
+            <font-awesome-icon :icon="['fas', 'user']" />
+            <input
+              id="username"
+              v-model="username"
+              type="text"
               placeholder="请输入用户名或邮箱"
-              required
               autocomplete="username"
-            />
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="password">密码</label>
-          <div class="input-wrapper">
-            <font-awesome-icon :icon="['fas', 'lock']" class="input-icon" />
-            <input 
-              :type="showPassword ? 'text' : 'password'" 
-              id="password" 
-              v-model="password" 
-              placeholder="请输入密码" 
               required
-              autocomplete="current-password"
-            />
-            <button 
-              type="button" 
-              class="toggle-password" 
-              @click="showPassword = !showPassword"
-              aria-label="显示密码"
             >
+          </span>
+        </label>
+
+        <label class="form-field" for="password">
+          <span>密码</span>
+          <span class="input-shell">
+            <font-awesome-icon :icon="['fas', 'lock']" />
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="请输入密码"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" class="field-icon-button" aria-label="切换密码显示" @click="showPassword = !showPassword">
               <font-awesome-icon :icon="['fas', showPassword ? 'eye-slash' : 'eye']" />
             </button>
-          </div>
-        </div>
-        
-        <div class="form-footer">
-          <div class="remember-me">
-            <input type="checkbox" id="remember" v-model="remember" />
-            <label for="remember">记住我</label>
-          </div>
-          <router-link to="/forgot-password" class="forgot-password">
-            忘记密码?
-          </router-link>
+          </span>
+        </label>
+
+        <div class="form-row">
+          <label class="check-row" for="remember">
+            <input id="remember" v-model="remember" type="checkbox">
+            <span>记住我</span>
+          </label>
+          <router-link to="/forgot-password">忘记密码?</router-link>
         </div>
 
         <TacCaptcha v-if="!requiresTwoFactor" ref="captchaRef" v-model="captchaValue" />
 
-        <div v-if="requiresTwoFactor" class="form-group">
-          <label for="twoFactorCode">两步验证码</label>
-          <div class="input-wrapper">
-            <font-awesome-icon :icon="['fas', 'shield-alt']" class="input-icon" />
+        <label v-if="requiresTwoFactor" class="form-field" for="twoFactorCode">
+          <span>两步验证码</span>
+          <span class="input-shell">
+            <font-awesome-icon :icon="['fas', 'shield-alt']" />
             <input
-              type="text"
               id="twoFactorCode"
               v-model="twoFactorCode"
-              placeholder="请输入验证器中的6位数字"
+              type="text"
+              placeholder="请输入6位数字"
               inputmode="numeric"
               autocomplete="one-time-code"
               maxlength="6"
               required
-            />
-          </div>
-        </div>
-        
-        <button type="submit" class="btn-login" :disabled="loading">
-          <font-awesome-icon :icon="['fas', 'spinner']" spin v-if="loading" />
+            >
+          </span>
+        </label>
+
+        <button type="submit" class="kumo-button kumo-button--brand submit-button" :disabled="loading">
+          <font-awesome-icon v-if="loading" :icon="['fas', 'spinner']" spin />
           <span>{{ loading ? '登录中...' : loginButtonText }}</span>
         </button>
       </form>
-      
-      <div class="divider">
-        <span>或</span>
-      </div>
-      
-      <div class="social-login">
-        <button
-          class="btn-social github"
-          :disabled="!!oauthLoadingProvider"
-          @click="handleOAuthLogin('github')"
-        >
+
+      <div class="divider"><span>或</span></div>
+
+      <div class="social-actions">
+        <button class="kumo-button" type="button" :disabled="!!oauthLoadingProvider" @click="handleOAuthLogin('github')">
           <font-awesome-icon :icon="['fab', 'github']" />
-          <span>{{ oauthLoadingProvider === 'github' ? '跳转中...' : 'GitHub登录' }}</span>
+          <span>{{ oauthLoadingProvider === 'github' ? '跳转中...' : 'GitHub' }}</span>
         </button>
-        <button
-          class="btn-social google"
-          :disabled="!!oauthLoadingProvider"
-          @click="handleOAuthLogin('google')"
-        >
+        <button class="kumo-button" type="button" :disabled="!!oauthLoadingProvider" @click="handleOAuthLogin('google')">
           <font-awesome-icon :icon="['fab', 'google']" />
-          <span>{{ oauthLoadingProvider === 'google' ? '跳转中...' : 'Google登录' }}</span>
+          <span>{{ oauthLoadingProvider === 'google' ? '跳转中...' : 'Google' }}</span>
         </button>
       </div>
-      
-      <div class="register-link">
-        还没有账号? 
+
+      <p class="switch-link">
+        还没有账号?
         <router-link to="/register">立即注册</router-link>
-      </div>
-    </div>
-    
-    <div class="login-decoration">
-      <div class="decoration-circle circle-1"></div>
-      <div class="decoration-circle circle-2"></div>
-      <div class="decoration-circle circle-3"></div>
-    </div>
+      </p>
+    </section>
   </div>
 </template>
 
-<script>
-import { computed, defineComponent, onMounted, ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { userApi } from '../api/userApi'
 import TacCaptcha from '../components/TacCaptcha.vue'
 
-export default defineComponent({
-  name: 'LoginView',
-  components: { TacCaptcha },
-  setup() {
-    const router = useRouter()
-    const store = useStore()
-    const route = useRoute()
-    
-    const username = ref('')
-    const password = ref('')
-    const remember = ref(false)
-    const showPassword = ref(false)
-    const loading = ref(false)
-    const error = ref('')
-    const infoMessage = ref('')
-    const captchaValue = ref(null)
-    const captchaRef = ref(null)
-    const requiresTwoFactor = ref(false)
-    const twoFactorCode = ref('')
-    const twoFactorToken = ref('')
-    const oauthLoadingProvider = ref('')
+const router = useRouter()
+const route = useRoute()
+const store = useStore()
 
-    const loginButtonText = computed(() => requiresTwoFactor.value ? '验证并登录' : '登录')
+const username = ref('')
+const password = ref('')
+const remember = ref(false)
+const showPassword = ref(false)
+const loading = ref(false)
+const error = ref('')
+const infoMessage = ref('')
+const captchaValue = ref(null)
+const captchaRef = ref(null)
+const requiresTwoFactor = ref(false)
+const twoFactorCode = ref('')
+const twoFactorToken = ref('')
+const oauthLoadingProvider = ref('')
 
-    onMounted(() => {
-      if (route.query.account || route.query.username) {
-        username.value = String(route.query.account || route.query.username).trim()
-      }
-      const pendingPassword = sessionStorage.getItem('postRegisterPassword')
-      if (pendingPassword) {
-        password.value = pendingPassword
-        remember.value = true
-        sessionStorage.removeItem('postRegisterPassword')
-      }
-      if (route.query.registered === '1') {
-        infoMessage.value = '注册成功，邮箱和密码已填入，完成验证码后即可登录'
-      }
-      if (route.query.oauthError) {
-        error.value = String(route.query.oauthError)
-      }
-    })
+const loginButtonText = computed(() => requiresTwoFactor.value ? '验证并登录' : '登录')
 
-    const handleOAuthLogin = async (provider) => {
-      oauthLoadingProvider.value = provider
-      error.value = ''
+onMounted(() => {
+  if (route.query.account || route.query.username) {
+    username.value = String(route.query.account || route.query.username).trim()
+  }
 
-      try {
-        const redirectPath = route.query.redirect ? String(route.query.redirect) : '/'
-        sessionStorage.setItem('oauthRedirect', redirectPath)
-        sessionStorage.setItem('oauthProvider', provider)
-        const response = await userApi.getOAuthAuthorizeUrl(provider)
-        const authorizationUrl = response?.data?.authorizationUrl
-        if (!authorizationUrl) {
-          throw new Error(response?.message || '第三方登录暂不可用')
-        }
-        window.location.href = authorizationUrl
-      } catch (err) {
-        console.error('第三方登录跳转失败:', err)
-        error.value = err.message || '第三方登录暂不可用'
-        oauthLoadingProvider.value = ''
-      }
-    }
-    
-    const handleLogin = async () => {
-      const account = username.value.trim()
-      if (!account || !password.value) {
-        error.value = '请输入用户名或邮箱和密码'
-        return
-      }
+  const pendingPassword = sessionStorage.getItem('postRegisterPassword')
+  if (pendingPassword) {
+    password.value = pendingPassword
+    remember.value = true
+    sessionStorage.removeItem('postRegisterPassword')
+  }
 
-      if (requiresTwoFactor.value && !twoFactorCode.value) {
-        error.value = '请输入两步验证码'
-        return
-      }
-
-      if (!requiresTwoFactor.value && !captchaValue.value?.captchaId) {
-        error.value = '请先完成验证码验证'
-        return
-      }
-      
-      loading.value = true
-      error.value = ''
-      
-      try {
-        const result = await store.dispatch('login', {
-          username: account,
-          password: password.value,
-          remember: remember.value,
-          captchaId: captchaValue.value?.captchaId,
-          captchaPercentage: captchaValue.value?.captchaPercentage,
-          twoFactorCode: twoFactorCode.value,
-          twoFactorToken: twoFactorToken.value
-        })
-
-        if (result?.requiresTwoFactor) {
-          requiresTwoFactor.value = true
-          twoFactorToken.value = result.twoFactorToken || ''
-          twoFactorCode.value = ''
-          error.value = ''
-          infoMessage.value = '账号已开启两步验证，请输入验证器中的6位数字'
-          return
-        }
-
-        // 登录成功，重定向到原来的页面或首页
-        const redirectPath = route.query.redirect || '/'
-        await router.push(redirectPath)
-      } catch (err) {
-        console.error('登录失败:', err)
-        error.value = err.message || '登录失败，请检查用户名或邮箱和密码'
-        if (!requiresTwoFactor.value) {
-          captchaValue.value = null
-          captchaRef.value?.refresh()
-        }
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    return {
-      username,
-      password,
-      remember,
-      showPassword,
-      loading,
-      error,
-      infoMessage,
-      captchaValue,
-      captchaRef,
-      requiresTwoFactor,
-      twoFactorCode,
-      oauthLoadingProvider,
-      loginButtonText,
-      handleLogin,
-      handleOAuthLogin
-    }
+  if (route.query.registered === '1') {
+    infoMessage.value = '注册成功，完成验证码后即可登录'
+  }
+  if (route.query.oauthError) {
+    error.value = String(route.query.oauthError)
   }
 })
+
+const handleOAuthLogin = async (provider) => {
+  oauthLoadingProvider.value = provider
+  error.value = ''
+
+  try {
+    const redirectPath = route.query.redirect ? String(route.query.redirect) : '/'
+    sessionStorage.setItem('oauthRedirect', redirectPath)
+    sessionStorage.setItem('oauthProvider', provider)
+    const response = await userApi.getOAuthAuthorizeUrl(provider)
+    const authorizationUrl = response?.data?.authorizationUrl
+    if (!authorizationUrl) {
+      throw new Error(response?.message || '第三方登录暂不可用')
+    }
+    window.location.href = authorizationUrl
+  } catch (err) {
+    error.value = err.message || '第三方登录暂不可用'
+    oauthLoadingProvider.value = ''
+  }
+}
+
+const handleLogin = async () => {
+  const account = username.value.trim()
+  if (!account || !password.value) {
+    error.value = '请输入用户名或邮箱和密码'
+    return
+  }
+
+  if (requiresTwoFactor.value && !twoFactorCode.value) {
+    error.value = '请输入两步验证码'
+    return
+  }
+
+  if (!requiresTwoFactor.value && !captchaValue.value?.captchaId) {
+    error.value = '请先完成验证码验证'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    const result = await store.dispatch('login', {
+      username: account,
+      password: password.value,
+      remember: remember.value,
+      captchaId: captchaValue.value?.captchaId,
+      captchaPercentage: captchaValue.value?.captchaPercentage,
+      twoFactorCode: twoFactorCode.value,
+      twoFactorToken: twoFactorToken.value
+    })
+
+    if (result?.requiresTwoFactor) {
+      requiresTwoFactor.value = true
+      twoFactorToken.value = result.twoFactorToken || ''
+      twoFactorCode.value = ''
+      infoMessage.value = '账号已开启两步验证，请输入验证器中的6位数字'
+      return
+    }
+
+    await router.push(route.query.redirect || '/')
+  } catch (err) {
+    error.value = err.message || '登录失败，请检查用户名或邮箱和密码'
+    if (!requiresTwoFactor.value) {
+      captchaValue.value = null
+      captchaRef.value?.refresh()
+    }
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 200px);
-  padding: 2rem 1rem;
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem);
+  gap: 1.25rem;
+  align-items: stretch;
+  min-height: calc(100vh - 12rem);
+}
+
+.auth-visual {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 34rem;
+  padding: clamp(1.5rem, 5vw, 4rem);
   overflow: hidden;
 }
 
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--bg-white);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 2.5rem;
-  position: relative;
-  z-index: 2;
-  border: 1px solid var(--border-color);
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.login-header h1 {
-  margin: 0;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
-  font-size: 1.75rem;
-  font-weight: 700;
-}
-
-.login-header p {
-  color: var(--text-light);
-  margin: 0;
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #fff1f0;
-  border: 1px solid #ff7875;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: var(--radius);
-  color: #a8071a;
-}
-
-.error-icon {
-  font-size: 1rem;
-}
-
-.info-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: rgba(var(--primary-rgb), 0.08);
-  border: 1px solid rgba(var(--primary-rgb), 0.25);
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: var(--radius);
-  color: var(--primary-color);
-}
-
-.info-icon {
-  font-size: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--text-color);
-  font-size: 0.9rem;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
+.auth-visual::after {
+  content: '';
   position: absolute;
-  left: 1rem;
-  color: var(--text-lighter);
+  right: -12rem;
+  bottom: -14rem;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--kumo-bg-brand-soft), transparent 68%);
+  animation: soft-pulse 8s ease-in-out infinite;
 }
 
-input[type="text"],
-input[type="password"] {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 0.95rem;
-  transition: var(--transition);
-  background-color: var(--bg-white);
+.auth-visual h1 {
+  max-width: 7ch;
+  margin: 0;
+  font-size: clamp(3rem, 9vw, 7rem);
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus {
-  border-color: var(--primary-color);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+.auth-visual p {
+  position: relative;
+  z-index: 1;
+  max-width: 36rem;
+  margin: 0;
+  color: var(--kumo-text-muted);
+  font-size: 1.08rem;
 }
 
-.toggle-password {
-  position: absolute;
-  right: 1rem;
-  background: none;
-  border: none;
-  color: var(--text-lighter);
-  cursor: pointer;
-  transition: var(--transition);
+.visual-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  max-width: 32rem;
+  margin-top: 1rem;
 }
 
-.toggle-password:hover {
-  color: var(--primary-color);
+.visual-grid span {
+  aspect-ratio: 1;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-elevated);
 }
 
-.form-footer {
+.auth-card {
+  align-self: center;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.auth-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
+  gap: 0.85rem;
+  margin-bottom: 1.35rem;
 }
 
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.remember-me input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary-color);
-}
-
-.forgot-password {
-  color: var(--primary-color);
-  text-decoration: none;
-  transition: var(--transition);
-}
-
-.forgot-password:hover {
-  text-decoration: underline;
-}
-
-.btn-login {
-  width: 100%;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition);
-  display: flex;
+.brand-icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
+  color: var(--kumo-text-inverse);
+  font-weight: 900;
 }
 
-.btn-login:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  filter: brightness(1.1);
+.auth-header h2,
+.auth-header p {
+  margin: 0;
 }
 
-.btn-login:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.auth-header h2 {
+  font-size: 1.8rem;
+}
+
+.auth-header p {
+  color: var(--kumo-text-muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--kumo-text-default);
+  font-weight: 780;
+}
+
+.input-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3rem;
+  padding: 0 0.55rem 0 0.9rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-subtle);
+}
+
+.input-shell input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kumo-text-default);
+  outline: none;
+}
+
+.field-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kumo-text-subtle);
+  cursor: pointer;
+}
+
+.form-row,
+.check-row,
+.social-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.form-row {
+  justify-content: space-between;
+  color: var(--kumo-text-muted);
+  font-size: 0.9rem;
+}
+
+.form-row a,
+.switch-link a {
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.check-row input {
+  accent-color: var(--kumo-bg-brand);
+}
+
+.submit-button {
+  width: 100%;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--kumo-radius-md);
+  font-weight: 720;
+}
+
+.notice-error {
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
+}
+
+.notice-info {
+  background: var(--kumo-status-info-tint);
+  color: var(--kumo-status-info);
 }
 
 .divider {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
-  color: var(--text-lighter);
-  font-size: 0.9rem;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+  color: var(--kumo-text-subtle);
+  font-size: 0.88rem;
 }
 
 .divider::before,
 .divider::after {
-  content: "";
+  content: '';
   flex: 1;
   height: 1px;
-  background-color: var(--border-color);
+  background: var(--kumo-hairline);
 }
 
-.divider span {
-  padding: 0 1rem;
-}
-
-.social-login {
+.social-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.btn-social {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: var(--transition);
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-white);
-}
-
-.btn-social:disabled {
+.social-actions button:disabled,
+.submit-button:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
-  opacity: 0.65;
 }
 
-.github {
-  color: #333;
-}
-
-.github:hover {
-  background-color: #333;
-  color: white;
-}
-
-.google {
-  color: #ea4335;
-}
-
-.google:hover {
-  background-color: #ea4335;
-  color: white;
-}
-
-.register-link {
+.switch-link {
+  margin: 1.25rem 0 0;
+  color: var(--kumo-text-muted);
   text-align: center;
-  margin-top: 1rem;
-  color: var(--text-light);
-  font-size: 0.9rem;
 }
 
-.register-link a {
-  color: var(--primary-color);
-  font-weight: 500;
-  text-decoration: none;
-  transition: var(--transition);
-}
-
-.register-link a:hover {
-  text-decoration: underline;
-}
-
-/* 装饰元素 */
-.login-decoration {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-.decoration-circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.2;
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-}
-
-.circle-1 {
-  width: 300px;
-  height: 300px;
-  top: -100px;
-  left: -100px;
-  animation: float 8s ease-in-out infinite;
-}
-
-.circle-2 {
-  width: 200px;
-  height: 200px;
-  bottom: -50px;
-  right: -50px;
-  animation: float 6s ease-in-out infinite 1s;
-}
-
-.circle-3 {
-  width: 150px;
-  height: 150px;
-  bottom: 20%;
-  left: 10%;
-  animation: float 10s ease-in-out infinite 2s;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) scale(1);
+@media (max-width: 920px) {
+  .auth-page {
+    grid-template-columns: 1fr;
   }
-  50% {
-    transform: translateY(-20px) scale(1.05);
+
+  .auth-visual {
+    min-height: 22rem;
   }
 }
 
-/* 响应式设计 */
-@media (max-width: 576px) {
-  .login-card {
-    padding: 1.5rem;
-  }
-  
-  .social-login {
+@media (max-width: 560px) {
+  .social-actions {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

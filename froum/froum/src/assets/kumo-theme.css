@@ -1,0 +1,423 @@
+:root,
+html[data-mode='light'] {
+  color-scheme: light;
+  --kumo-bg-base: #f7f7fa;
+  --kumo-bg-subtle: #eceef3;
+  --kumo-bg-elevated: rgba(255, 255, 255, 0.84);
+  --kumo-bg-recessed: #e3e6ed;
+  --kumo-bg-overlay: rgba(18, 18, 24, 0.52);
+  --kumo-bg-brand: #a43f5f;
+  --kumo-bg-brand-strong: #70283f;
+  --kumo-bg-brand-soft: #f8e6ee;
+  --kumo-bg-accent: #0f8b8d;
+  --kumo-bg-accent-soft: #e0f4f3;
+  --kumo-bg-warm: #f6df9a;
+  --kumo-text-default: #191922;
+  --kumo-text-muted: #626573;
+  --kumo-text-subtle: #9296a3;
+  --kumo-text-inverse: #fbfdff;
+  --kumo-hairline: rgba(38, 38, 48, 0.14);
+  --kumo-hairline-strong: rgba(38, 38, 48, 0.24);
+  --kumo-focus-ring: rgba(164, 63, 95, 0.24);
+  --kumo-status-success: #2f9c77;
+  --kumo-status-success-tint: #e4f5ef;
+  --kumo-status-warning: #a66705;
+  --kumo-status-warning-tint: #fff0d2;
+  --kumo-status-danger: #c24155;
+  --kumo-status-danger-tint: #ffe5ea;
+  --kumo-status-info: #0f8b8d;
+  --kumo-status-info-tint: #e0f4f3;
+  --kumo-shadow-sm: 0 8px 26px rgba(25, 25, 34, 0.08);
+  --kumo-shadow-md: 0 18px 54px rgba(25, 25, 34, 0.12);
+  --kumo-shadow-lg: 0 28px 90px rgba(25, 25, 34, 0.16);
+  --kumo-radius-sm: 8px;
+  --kumo-radius-md: 14px;
+  --kumo-radius-lg: 22px;
+  --kumo-radius-xl: 30px;
+  --kumo-blur: blur(18px);
+  --kumo-transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --primary-color: var(--kumo-bg-brand);
+  --primary-light: var(--kumo-bg-brand-soft);
+  --primary-dark: var(--kumo-bg-brand-strong);
+  --accent-color: var(--kumo-bg-accent);
+  --text-color: var(--kumo-text-default);
+  --text-light: var(--kumo-text-muted);
+  --text-lighter: var(--kumo-text-subtle);
+  --border-color: var(--kumo-hairline);
+  --bg-color: var(--kumo-bg-base);
+  --bg-gray: var(--kumo-bg-subtle);
+  --bg-white: var(--kumo-bg-elevated);
+  --success-color: var(--kumo-status-success);
+  --warning-color: var(--kumo-status-warning);
+  --error-color: var(--kumo-status-danger);
+  --success-rgb: 47, 156, 119;
+  --warning-rgb: 166, 103, 5;
+  --error-rgb: 194, 65, 85;
+  --primary-rgb: 164, 63, 95;
+  --shadow-sm: var(--kumo-shadow-sm);
+  --shadow: var(--kumo-shadow-md);
+  --shadow-lg: var(--kumo-shadow-lg);
+  --radius-sm: var(--kumo-radius-sm);
+  --radius: var(--kumo-radius-md);
+  --radius-lg: var(--kumo-radius-lg);
+  --transition: all var(--kumo-transition);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode='light']) {
+    color-scheme: dark;
+    --kumo-bg-base: #0d0d12;
+    --kumo-bg-subtle: #161720;
+    --kumo-bg-elevated: rgba(27, 28, 38, 0.86);
+    --kumo-bg-recessed: #090a0f;
+    --kumo-bg-overlay: rgba(2, 6, 23, 0.68);
+    --kumo-bg-brand: #f0a1ba;
+    --kumo-bg-brand-strong: #ffd3df;
+    --kumo-bg-brand-soft: rgba(240, 161, 186, 0.16);
+    --kumo-bg-accent: #68d7dd;
+    --kumo-bg-accent-soft: rgba(104, 215, 221, 0.14);
+    --kumo-bg-warm: rgba(246, 223, 154, 0.16);
+    --kumo-text-default: #f4f2f5;
+    --kumo-text-muted: #b5b3bd;
+    --kumo-text-subtle: #807f8b;
+    --kumo-text-inverse: #131018;
+    --kumo-hairline: rgba(230, 226, 236, 0.13);
+    --kumo-hairline-strong: rgba(230, 226, 236, 0.22);
+    --kumo-focus-ring: rgba(240, 161, 186, 0.3);
+    --kumo-status-success: #74d8b4;
+    --kumo-status-success-tint: rgba(116, 216, 180, 0.15);
+    --kumo-status-warning: #ffd18a;
+    --kumo-status-warning-tint: rgba(255, 209, 138, 0.16);
+    --kumo-status-danger: #ff8da0;
+    --kumo-status-danger-tint: rgba(255, 141, 160, 0.16);
+    --kumo-status-info: #68d7dd;
+    --kumo-status-info-tint: rgba(104, 215, 221, 0.16);
+    --kumo-shadow-sm: 0 8px 28px rgba(0, 0, 0, 0.3);
+    --kumo-shadow-md: 0 18px 60px rgba(0, 0, 0, 0.38);
+    --kumo-shadow-lg: 0 30px 96px rgba(0, 0, 0, 0.48);
+  }
+}
+
+html[data-mode='dark'] {
+  color-scheme: dark;
+  --kumo-bg-base: #0d0d12;
+  --kumo-bg-subtle: #161720;
+  --kumo-bg-elevated: rgba(27, 28, 38, 0.86);
+  --kumo-bg-recessed: #090a0f;
+  --kumo-bg-overlay: rgba(2, 6, 23, 0.68);
+  --kumo-bg-brand: #f0a1ba;
+  --kumo-bg-brand-strong: #ffd3df;
+  --kumo-bg-brand-soft: rgba(240, 161, 186, 0.16);
+  --kumo-bg-accent: #68d7dd;
+  --kumo-bg-accent-soft: rgba(104, 215, 221, 0.14);
+  --kumo-bg-warm: rgba(246, 223, 154, 0.16);
+  --kumo-text-default: #f4f2f5;
+  --kumo-text-muted: #b5b3bd;
+  --kumo-text-subtle: #807f8b;
+  --kumo-text-inverse: #131018;
+  --kumo-hairline: rgba(230, 226, 236, 0.13);
+  --kumo-hairline-strong: rgba(230, 226, 236, 0.22);
+  --kumo-focus-ring: rgba(240, 161, 186, 0.3);
+  --kumo-status-success: #74d8b4;
+  --kumo-status-success-tint: rgba(116, 216, 180, 0.15);
+  --kumo-status-warning: #ffd18a;
+  --kumo-status-warning-tint: rgba(255, 209, 138, 0.16);
+  --kumo-status-danger: #ff8da0;
+  --kumo-status-danger-tint: rgba(255, 141, 160, 0.16);
+  --kumo-status-info: #68d7dd;
+  --kumo-status-info-tint: rgba(104, 215, 221, 0.16);
+  --kumo-shadow-sm: 0 8px 28px rgba(0, 0, 0, 0.3);
+  --kumo-shadow-md: 0 18px 60px rgba(0, 0, 0, 0.38);
+  --kumo-shadow-lg: 0 30px 96px rgba(0, 0, 0, 0.48);
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 12%, var(--kumo-bg-brand-soft), transparent 34rem),
+    radial-gradient(circle at 82% 4%, var(--kumo-bg-accent-soft), transparent 30rem),
+    linear-gradient(180deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
+  color: var(--kumo-text-default);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--kumo-focus-ring);
+  outline-offset: 3px;
+}
+
+.kumo-page {
+  position: relative;
+  width: 100%;
+}
+
+.kumo-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--kumo-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--kumo-hairline) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 72%);
+}
+
+.kumo-shell {
+  border: 1px solid var(--kumo-hairline);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  backdrop-filter: var(--kumo-blur);
+}
+
+.kumo-surface {
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+  backdrop-filter: var(--kumo-blur);
+}
+
+.kumo-surface-strong {
+  border: 1px solid var(--kumo-hairline-strong);
+  border-radius: var(--kumo-radius-xl);
+  background:
+    linear-gradient(135deg, var(--kumo-bg-elevated), var(--kumo-bg-subtle));
+  box-shadow: var(--kumo-shadow-md);
+  backdrop-filter: var(--kumo-blur);
+}
+
+.kumo-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  min-height: 1.65rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.24rem 0.58rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.kumo-heading {
+  color: var(--kumo-text-default);
+  font-weight: 820;
+  line-height: 1.06;
+  letter-spacing: 0;
+}
+
+.kumo-muted {
+  color: var(--kumo-text-muted);
+}
+
+.kumo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
+  padding: 0.68rem 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  font-weight: 750;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
+}
+
+.kumo-button:hover {
+  transform: translateY(-2px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.kumo-button--brand {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
+}
+
+.kumo-button--ghost {
+  background: transparent;
+}
+
+.kumo-button--icon {
+  width: 2.6rem;
+  padding: 0;
+}
+
+.kumo-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.kumo-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kumo-text-muted);
+  font-weight: 760;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.kumo-tab:hover,
+.kumo-tab.active {
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+}
+
+.kumo-input {
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-default);
+  transition: var(--transition);
+}
+
+.kumo-input::placeholder {
+  color: var(--kumo-text-subtle);
+}
+
+.kumo-input:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
+  outline: none;
+}
+
+.kumo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.kumo-status--success {
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
+}
+
+.kumo-status--warning {
+  background: var(--kumo-status-warning-tint);
+  color: var(--kumo-status-warning);
+}
+
+.kumo-status--danger {
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
+}
+
+.kumo-status--info {
+  background: var(--kumo-status-info-tint);
+  color: var(--kumo-status-info);
+}
+
+.magnetic-card {
+  transform: translateZ(0);
+  transition:
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.magnetic-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-md);
+}
+
+.reveal-rise {
+  animation: reveal-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.stagger-item {
+  animation: reveal-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .kumo-tabs {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .kumo-tab {
+    flex: 0 0 auto;
+  }
+}

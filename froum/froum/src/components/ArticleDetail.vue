@@ -2,11 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
 import ArticleComments from './ArticleComments.vue'
+import UiPageHero from './ui/UiPageHero.vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { articleService } from '../services/articleService'
+import { reportService } from '../services/reportService'
 import { flattenComments } from '../utils/commentHelper'
 import { resolveAvatarUrl } from '../utils/avatar'
 import { formatFriendlyTime } from '../utils/dateUtils'
@@ -48,11 +49,65 @@ const commentCount = computed(() => {
   return article.value?.comments?.length || 0
 })
 
+const articleCategory = computed(() => {
+  const category = article.value?.category
+  if (article.value?.categoryName) return article.value.categoryName
+  if (typeof category === 'string' && category.trim()) return category.trim()
+  if (category?.name) return category.name
+  return '未分类'
+})
+
+const normalizedTags = computed(() => {
+  const tags = article.value?.tags
+  if (!tags) return []
+  if (Array.isArray(tags)) {
+    return tags.map(tag => typeof tag === 'string' ? tag : tag?.name).filter(Boolean)
+  }
+  return String(tags).split(',').map(tag => tag.trim()).filter(Boolean)
+})
+
+const articleSummary = computed(() => {
+  const directSummary = article.value?.summary || article.value?.excerpt
+  if (directSummary) return directSummary
+
+  const content = article.value?.content || ''
+  const plainText = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/[#*_`[\]()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText || '阅读完整内容并参与讨论。'
+})
+
+const author = computed(() => article.value?.author || {})
+
+const authorName = computed(() => {
+  return author.value.nickname || author.value.username || author.value.name || '匿名作者'
+})
+
+const authorAvatar = computed(() => {
+  return getAvatarPath(author.value.avatarUrl || author.value.avatar)
+})
+
+const articleViews = computed(() => article.value?.viewCount || article.value?.views || 0)
+const articleLikes = computed(() => article.value?.likes ?? article.value?.likeCount ?? 0)
+const isAuthorFollowing = computed(() => Boolean(author.value.isFollowing))
+const followButtonIcon = computed(() => {
+  if (isOwnAuthor.value) return 'user'
+  return isAuthorFollowing.value ? 'user-check' : 'user-plus'
+})
+const followButtonLabel = computed(() => {
+  if (isOwnAuthor.value) return '作者本人'
+  return isAuthorFollowing.value ? '已关注' : '关注作者'
+})
+
 // 检查用户是否已登录
 const isLoggedIn = computed(() => store.state.isAuthenticated && store.state.user)
 const currentUserId = computed(() => store.state.user?.id)
 const isOwnAuthor = computed(() => {
-  return Boolean(article.value?.author?.id && currentUserId.value && article.value.author.id === currentUserId.value)
+  return Boolean(article.value?.author?.id && currentUserId.value && String(article.value.author.id) === String(currentUserId.value))
 })
 
 const fetchArticle = async () => {
@@ -68,7 +123,6 @@ const fetchArticle = async () => {
       syncCommentLikeStates()
     ])
   } catch (err) {
-    console.error('获取文章详情失败:', err)
     error.value = err.message || '获取文章详情失败'
   } finally {
     loading.value = false
@@ -95,8 +149,8 @@ const syncAuthorFollowState = async () => {
       targetId: article.value.author.id
     })
     article.value.author.isFollowing = Boolean(info?.isFollowed)
-  } catch (error) {
-    console.error('同步作者关注状态失败:', error)
+  } catch {
+    article.value.author.isFollowing = false
   }
 }
 
@@ -136,18 +190,16 @@ const likeArticle = async () => {
     })
 
     if (result.success) {
-      // 更新文章点赞数
-      if (result.isLiked) {
-        article.value.likes = (article.value.likes || 0) + 1
-      } else {
-        article.value.likes = Math.max(0, (article.value.likes || 0) - 1)
-      }
+      const nextCount = result.isLiked
+        ? Number(articleLikes.value) + 1
+        : Math.max(0, Number(articleLikes.value) - 1)
+      article.value.likes = nextCount
+      article.value.likeCount = nextCount
       showToast(result.message)
     } else {
       showToast(result.message || '操作失败', 'error')
     }
   } catch (error) {
-    console.error('Error toggling like:', error)
     showToast(error.message || '操作失败，请稍后重试', 'error')
   }
 }
@@ -166,8 +218,7 @@ const shareArticle = () => {
     .then(() => {
       showToast('链接已复制到剪贴板!')
     })
-    .catch(err => {
-      console.error('Could not copy text: ', err)
+    .catch(() => {
       showToast('复制链接失败', 'error')
     })
 }
@@ -177,8 +228,13 @@ const reportArticle = () => {
     goToLogin()
     return
   }
-  
-  // 这里可以实现举报逻辑，例如打开一个模态框
+
+  reportTarget.value = {
+    type: 'ARTICLE',
+    id: article.value?.id || Number(props.id),
+    title: article.value?.title ? `文章：${article.value.title}` : ''
+  }
+  reportReason.value = ''
   showReportModal.value = true
 }
 
@@ -190,7 +246,12 @@ const followAuthor = async () => {
 
   try {
     // 获取作者ID
-    const authorId = article.value.author.id
+    const authorId = author.value.id
+    if (authorId === undefined || authorId === null) {
+      showToast('无法找到作者信息', 'error')
+      return
+    }
+
     if (isOwnAuthor.value) {
       showToast('不能关注自己', 'error')
       return
@@ -209,7 +270,6 @@ const followAuthor = async () => {
       showToast(result.message || '操作失败', 'error')
     }
   } catch (error) {
-    console.error('Error following author:', error)
     showToast(error.message || '操作失败，请稍后重试', 'error')
   }
 }
@@ -237,6 +297,12 @@ const showToast = (message, type = 'success') => {
 // 举报模态框
 const showReportModal = ref(false)
 const reportReason = ref('')
+const reportSubmitting = ref(false)
+const reportTarget = ref({
+  type: 'ARTICLE',
+  id: null,
+  title: ''
+})
 const reportReasons = [
   '垃圾内容',
   '违法或违规内容',
@@ -251,7 +317,52 @@ const submitReport = async () => {
     return
   }
 
-  showToast('当前后端暂未提供举报接口', 'error')
+  if (!reportTarget.value.id) {
+    showToast('无法找到举报目标', 'error')
+    return
+  }
+
+  reportSubmitting.value = true
+  try {
+    await reportService.createReport({
+      targetType: reportTarget.value.type,
+      targetId: reportTarget.value.id,
+      reason: reportReason.value,
+      description: reportTarget.value.title || ''
+    })
+    showToast('举报已提交，管理员会尽快处理')
+    showReportModal.value = false
+    reportReason.value = ''
+    reportTarget.value = {
+      type: 'ARTICLE',
+      id: article.value?.id || null,
+      title: article.value?.title ? `文章：${article.value.title}` : ''
+    }
+  } catch (error) {
+    showToast(error.message || '提交举报失败，请稍后重试', 'error')
+  } finally {
+    reportSubmitting.value = false
+  }
+}
+
+const handleReportComment = (comment) => {
+  if (!isLoggedIn.value) {
+    goToLogin()
+    return
+  }
+
+  if (!comment?.id) {
+    showToast('无法找到评论信息', 'error')
+    return
+  }
+
+  reportTarget.value = {
+    type: 'COMMENT',
+    id: comment.id,
+    title: comment.content ? `评论：${String(comment.content).slice(0, 120)}` : ''
+  }
+  reportReason.value = ''
+  showReportModal.value = true
 }
 
 const formatDate = (value) => {
@@ -266,7 +377,6 @@ const handleAddComment = async ({ articleId, content, parentId = null }) => {
       await refreshComments();
       showToast('评论已发布');
     } catch (err) {
-      console.error('发表评论失败:', err);
       showToast(err.message || '发表评论失败', 'error');
     }
   }
@@ -296,7 +406,6 @@ const handleLikeComment = async ({ articleId, commentId }) => {
         await refreshComments();
       }
     } catch (err) {
-      console.error('点赞评论失败:', err);
       showToast(err.message || '点赞评论失败', 'error');
     }
   }
@@ -308,23 +417,21 @@ const goToLogin = () => {
 
 // 导航到作者页面
 const goToAuthorProfile = () => {
-  const author = article.value.author;
+  const articleAuthor = article.value?.author;
 
-  if (!author || author.id === undefined || author.id === null) {
-    console.error('Cannot navigate: Author data is invalid', author);
+  if (!articleAuthor || articleAuthor.id === undefined || articleAuthor.id === null) {
     showToast('无法找到作者信息', 'error');
     return;
   }
 
   // 确保ID是字符串
-  const userId = String(author.id);
+  const userId = String(articleAuthor.id);
 
   // 使用命名路由
   router.push({
     name: 'UserProfile',
     params: { id: userId }
-  }).catch(err => {
-    console.error('Navigation error:', err);
+  }).catch(() => {
     showToast('页面导航错误，请稍后重试', 'error');
   });
 }
@@ -344,328 +451,378 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="article-detail">
-    <div v-if="loading" class="article-state">加载中...</div>
-    <div v-else-if="error" class="article-state error">{{ error }}</div>
+  <div class="article-detail-page">
+    <div v-if="loading" class="state-panel kumo-surface">
+      <font-awesome-icon :icon="['fas', 'spinner']" spin />
+      <span>正在加载文章...</span>
+    </div>
+
+    <div v-else-if="error" class="state-panel kumo-surface state-panel--error">
+      <font-awesome-icon :icon="['fas', 'exclamation-circle']" />
+      <span>{{ error }}</span>
+      <button class="kumo-button" type="button" @click="fetchArticle">
+        <font-awesome-icon :icon="['fas', 'redo']" />
+        重试
+      </button>
+    </div>
+
     <template v-else-if="article">
-    <!-- 文章头部 -->
-    <div class="article-header">
-      <h1 class="article-title">{{ article.title }}</h1>
-      
-      <div class="article-meta">
-        <div class="author-info" @click="goToAuthorProfile">
-          <div class="author-avatar">
-            <img v-if="article.author.avatar" :src="getAvatarPath(article.author.avatar)" :alt="article.author.name">
-            <span v-else>{{ getAuthorInitials(article.author.name) }}</span>
+      <ui-page-hero :title="article.title" :description="articleSummary">
+        <template #eyebrow>
+          <span class="kumo-eyebrow">
+            <font-awesome-icon :icon="['fas', 'file-alt']" />
+            Article
+          </span>
+        </template>
+
+        <template #actions>
+          <button class="kumo-button kumo-button--brand" type="button" @click="likeArticle">
+            <font-awesome-icon :icon="['fas', 'heart']" />
+            喜欢 {{ articleLikes }}
+          </button>
+          <button class="kumo-button" type="button" @click="shareArticle">
+            <font-awesome-icon :icon="['fas', 'share']" />
+            分享
+          </button>
+          <button class="kumo-button kumo-button--ghost" type="button" @click="reportArticle">
+            <font-awesome-icon :icon="['fas', 'flag']" />
+            举报
+          </button>
+        </template>
+
+        <template #aside>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <strong>{{ articleViews }}</strong>
+              <span>阅读</span>
+            </div>
+            <div class="hero-metric">
+              <strong>{{ commentCount }}</strong>
+              <span>评论</span>
+            </div>
+            <div class="hero-metric">
+              <strong>{{ articleLikes }}</strong>
+              <span>喜欢</span>
+            </div>
           </div>
-          <span class="author-name">{{ article.author.name }}</span>
-          <span class="publish-time">
-            <font-awesome-icon :icon="['fas', 'calendar-alt']" />
-            {{ formatDate(article.createTime) }}
-          </span>
-        </div>
-        
-        <div class="article-stats">
-          <span class="stat-item">
-            <font-awesome-icon :icon="['fas', 'eye']" />
-            {{ article.views }} 阅读
-          </span>
-          <span class="stat-item">
-            <font-awesome-icon :icon="['fas', 'comment']" />
-            {{ commentCount }} 评论
-          </span>
-          <span class="stat-item">
-            <font-awesome-icon :icon="['fas', 'thumbs-up']" />
-            {{ article.likes }} 喜欢
-          </span>
-        </div>
-      </div>
-      
-      <div class="article-tags">
-        <span class="category">{{ article.category }}</span>
-        <span v-for="tag in article.tags" :key="tag" class="tag">
-          <font-awesome-icon :icon="['fas', 'tag']" class="tag-icon" />
-          {{ tag }}
-        </span>
-      </div>
-    </div>
+        </template>
+      </ui-page-hero>
 
-    <!-- 文章内容 -->
-    <div class="article-content markdown-body" v-html="formattedContent"></div>
-
-    <!-- 文章操作 -->
-    <div class="article-actions">
-      <button class="action-btn like-btn" @click="likeArticle">
-        <font-awesome-icon :icon="['fas', 'heart']" />
-        <span>喜欢文章</span>
-      </button>
-      <button class="action-btn share-btn" @click="shareArticle">
-        <font-awesome-icon :icon="['fas', 'share']" />
-        <span>分享文章</span>
-      </button>
-      <button class="action-btn report-btn" @click="reportArticle">
-        <font-awesome-icon :icon="['fas', 'flag']" />
-        <span>举报</span>
-      </button>
-    </div>
-
-    <!-- 作者信息 -->
-    <div class="article-author">
-      <div class="author-card">
-        <div class="author-avatar large" @click="goToAuthorProfile">
-          <img v-if="article.author.avatar" :src="getAvatarPath(article.author.avatar)" :alt="article.author.name">
-          <span v-else>{{ getAuthorInitials(article.author.name) }}</span>
-        </div>
-        <div class="author-info">
-          <h3 class="author-name" @click="goToAuthorProfile">{{ article.author.name }}</h3>
-          <p class="author-bio">资深前端开发工程师</p>
-        </div>
-        <button
-          class="follow-btn"
-          :class="{ following: article.author.isFollowing }"
-          :disabled="isOwnAuthor"
-          @click="followAuthor"
-        >
-          <font-awesome-icon :icon="['fas', isOwnAuthor ? 'user' : (article.author.isFollowing ? 'user-check' : 'user-plus')]" />
-          <span>{{ isOwnAuthor ? '作者本人' : (article.author.isFollowing ? '已关注' : '关注作者') }}</span>
+      <section class="article-meta-panel kumo-surface">
+        <button class="author-strip" type="button" @click="goToAuthorProfile">
+          <span class="author-avatar">
+            <img v-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+            <span v-else>{{ getAuthorInitials(authorName) }}</span>
+          </span>
+          <span class="author-copy">
+            <strong>{{ authorName }}</strong>
+            <small>
+              <font-awesome-icon :icon="['fas', 'calendar-alt']" />
+              {{ formatDate(article.createTime || article.createdAt) }}
+            </small>
+          </span>
         </button>
+
+        <div class="article-taxonomy">
+          <span class="kumo-status kumo-status--info">
+            <font-awesome-icon :icon="['fas', 'folder']" />
+            {{ articleCategory }}
+          </span>
+          <span v-for="tag in normalizedTags" :key="tag" class="tag-chip">
+            <font-awesome-icon :icon="['fas', 'tag']" />
+            {{ tag }}
+          </span>
+        </div>
+      </section>
+
+      <main class="article-layout">
+        <article class="article-content-panel kumo-surface">
+          <div class="article-content markdown-body" v-html="formattedContent"></div>
+        </article>
+
+        <aside class="article-side">
+          <section class="author-card kumo-surface magnetic-card">
+            <button class="author-avatar author-avatar--large" type="button" @click="goToAuthorProfile">
+              <img v-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+              <span v-else>{{ getAuthorInitials(authorName) }}</span>
+            </button>
+            <div class="author-card-copy">
+              <h2 class="kumo-heading">{{ authorName }}</h2>
+              <p class="kumo-muted">文章作者</p>
+            </div>
+            <button
+              class="kumo-button follow-button"
+              :class="{ 'kumo-button--brand': !isAuthorFollowing && !isOwnAuthor, 'is-following': isAuthorFollowing }"
+              :disabled="isOwnAuthor"
+              type="button"
+              @click="followAuthor"
+            >
+              <font-awesome-icon :icon="['fas', followButtonIcon]" />
+              {{ followButtonLabel }}
+            </button>
+          </section>
+
+          <section class="side-actions kumo-surface">
+            <button class="side-action" type="button" @click="likeArticle">
+              <font-awesome-icon :icon="['fas', 'heart']" />
+              <span>喜欢文章</span>
+            </button>
+            <button class="side-action" type="button" @click="shareArticle">
+              <font-awesome-icon :icon="['fas', 'share']" />
+              <span>复制链接</span>
+            </button>
+            <button class="side-action" type="button" @click="reportArticle">
+              <font-awesome-icon :icon="['fas', 'flag']" />
+              <span>举报内容</span>
+            </button>
+          </section>
+        </aside>
+      </main>
+
+      <section class="comments-panel kumo-surface">
+        <article-comments
+          :comments="article.comments"
+          :article-id="article.id"
+          @add-comment="handleAddComment"
+          @like-comment="handleLikeComment"
+          @report-comment="handleReportComment"
+        />
+      </section>
+    </template>
+
+    <div v-if="toast.show" class="toast-container">
+      <div class="toast kumo-surface" :class="`toast--${toast.type}`">
+        <font-awesome-icon :icon="['fas', toast.type === 'error' ? 'exclamation-circle' : 'check-circle']" />
+        <span>{{ toast.message }}</span>
       </div>
     </div>
 
-    <!-- 评论区域 -->
-    <article-comments 
-      :comments="article.comments" 
-      :article-id="article.id"
-      @add-comment="handleAddComment"
-      @like-comment="handleLikeComment"
-    />
-    </template>
-  </div>
-  
-  <!-- Toast消息提示 -->
-  <div class="toast-container" v-if="toast.show">
-    <div class="toast" :class="toast.type">
-      <span class="toast-message">{{ toast.message }}</span>
-    </div>
-  </div>
-  
-  <!-- 举报模态框 -->
-  <div class="modal-overlay" v-if="showReportModal" @click="showReportModal = false">
-    <div class="modal-content" @click.stop>
-      <h3 class="modal-title">举报文章</h3>
-      <p class="modal-subtitle">请选择举报原因</p>
-      
-      <div class="reason-list">
-        <div 
-          v-for="(reason, index) in reportReasons" 
-          :key="index"
-          class="reason-item"
-          :class="{ active: reportReason === reason }"
-          @click="reportReason = reason"
-        >
-          <div class="reason-radio">
-            <div class="radio-inner" v-if="reportReason === reason"></div>
-          </div>
-          <span>{{ reason }}</span>
+    <div v-if="showReportModal" class="dialog-backdrop" @click="showReportModal = false">
+      <section class="report-dialog kumo-surface" role="dialog" aria-modal="true" aria-labelledby="report-title" @click.stop>
+        <div class="dialog-heading">
+          <span class="kumo-eyebrow">
+            <font-awesome-icon :icon="['fas', 'flag']" />
+            Report
+          </span>
+          <h2 id="report-title" class="kumo-heading">举报{{ reportTarget.type === 'COMMENT' ? '评论' : '文章' }}</h2>
+          <p class="kumo-muted">请选择一个原因，提交后管理员会在后台处理。</p>
         </div>
-      </div>
-      
-      <div class="modal-actions">
-        <button class="cancel-btn" @click="showReportModal = false">取消</button>
-        <button class="submit-btn" @click="submitReport">提交</button>
-      </div>
+
+        <div class="reason-list">
+          <button
+            v-for="reason in reportReasons"
+            :key="reason"
+            class="reason-item"
+            :class="{ active: reportReason === reason }"
+            type="button"
+            @click="reportReason = reason"
+          >
+            <span class="reason-radio">
+              <span v-if="reportReason === reason"></span>
+            </span>
+            {{ reason }}
+          </button>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="kumo-button" type="button" @click="showReportModal = false">取消</button>
+          <button class="kumo-button kumo-button--brand" type="button" :disabled="reportSubmitting" @click="submitReport">
+            <font-awesome-icon v-if="reportSubmitting" :icon="['fas', 'spinner']" spin />
+            {{ reportSubmitting ? '提交中' : '提交' }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-.article-detail {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+.article-detail-page {
+  display: grid;
+  gap: 1.25rem;
 }
 
-.article-state {
-  min-height: 240px;
+.state-panel {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  min-height: 18rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
+  text-align: center;
+}
+
+.state-panel > svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2.1rem;
+}
+
+.state-panel--error {
+  color: var(--kumo-status-danger);
+}
+
+.state-panel--error > svg {
+  color: var(--kumo-status-danger);
+}
+
+.hero-metrics {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.hero-metric {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 9rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+}
+
+.hero-metric strong {
+  color: var(--kumo-bg-brand-strong);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.hero-metric span {
+  color: var(--kumo-text-muted);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.article-meta-panel {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-light);
-}
-
-.article-state.error {
-  color: var(--error-color);
-}
-
-.article-header {
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1.5rem;
-}
-
-.article-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin-bottom: 1rem;
-  line-height: 1.3;
-}
-
-.article-meta {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  padding: 1rem;
 }
 
-.author-info {
-  display: flex;
+.author-strip {
+  display: inline-flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kumo-text-default);
   cursor: pointer;
-  color: var(--text-color);
-  transition: var(--transition);
-}
-
-.author-info:hover .author-name {
-  color: var(--primary-color);
-}
-
-.author-avatar-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-}
-
-.author-avatar-link:hover .author-avatar {
-  transform: scale(1.05);
-  box-shadow: 0 0 0 2px var(--primary-color);
-}
-
-.author-name-link {
-  text-decoration: none;
-  color: inherit;
-}
-
-.author-name-link:hover .author-name {
-  color: var(--primary-color);
 }
 
 .author-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 1.1rem;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 auto;
   overflow: hidden;
-  transition: var(--transition);
-  cursor: pointer;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-size: 1rem;
+  font-weight: 840;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
-.author-avatar:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 0 2px var(--primary-color);
+.author-avatar:hover,
+.author-strip:hover .author-avatar {
+  transform: translateY(-2px) scale(1.03);
+  border-color: var(--kumo-hairline-strong);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
-.author-avatar.large {
-  width: 60px;
-  height: 60px;
-  font-size: 1.5rem;
-}
-
-.author-avatar span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.author-avatar img {
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
 
-.author-name {
-  font-weight: 600;
-  color: var(--text-color);
+.author-avatar--large {
+  width: 4.4rem;
+  height: 4.4rem;
+  border: 0;
+  font-size: 1.5rem;
   cursor: pointer;
-  transition: var(--transition);
 }
 
-.author-name:hover {
-  color: var(--primary-color);
+.author-copy {
+  display: grid;
+  min-width: 0;
+  text-align: left;
 }
 
-.publish-time {
-  color: var(--text-lighter);
-  font-size: 0.9rem;
-  display: flex;
+.author-copy strong {
+  overflow: hidden;
+  color: var(--kumo-text-default);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-copy small {
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
+  color: var(--kumo-text-subtle);
+  font-weight: 690;
 }
 
-.article-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--text-lighter);
-  font-size: 0.9rem;
-}
-
-.article-tags {
+.article-taxonomy {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
-.category {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.tag {
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  display: flex;
+.tag-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
+  padding: 0.32rem 0.62rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
 }
 
-.tag-icon {
-  font-size: 0.7rem;
+.article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.article-content-panel {
+  min-width: 0;
+  padding: clamp(1.25rem, 3vw, 2.4rem);
 }
 
 .article-content {
+  color: var(--kumo-text-default);
   font-size: 1.05rem;
-  line-height: 1.7;
-  color: var(--text-color);
-  margin-bottom: 2rem;
+  line-height: 1.78;
 }
 
-/* Markdown styling */
 :deep(.markdown-body) {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  color: var(--text-color);
-  line-height: 1.7;
+  color: var(--kumo-text-default);
+}
+
+:deep(.markdown-body > *:first-child) {
+  margin-top: 0;
+}
+
+:deep(.markdown-body > *:last-child) {
+  margin-bottom: 0;
 }
 
 :deep(.markdown-body h1),
@@ -674,486 +831,345 @@ onMounted(() => {
 :deep(.markdown-body h4),
 :deep(.markdown-body h5),
 :deep(.markdown-body h6) {
-  margin-top: 1.5em;
-  margin-bottom: 0.75em;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--text-color);
+  margin: 1.6em 0 0.75em;
+  color: var(--kumo-text-default);
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1.22;
 }
 
-:deep(.markdown-body h1) {
-  font-size: 2em;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.3em;
-}
-
+:deep(.markdown-body h1),
 :deep(.markdown-body h2) {
-  font-size: 1.5em;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.3em;
-}
-
-:deep(.markdown-body h3) {
-  font-size: 1.25em;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--kumo-hairline);
 }
 
 :deep(.markdown-body p),
 :deep(.markdown-body blockquote),
 :deep(.markdown-body ul),
 :deep(.markdown-body ol),
-:deep(.markdown-body dl),
 :deep(.markdown-body table),
 :deep(.markdown-body pre) {
-  margin-bottom: 1em;
+  margin: 0 0 1.1rem;
+}
+
+:deep(.markdown-body a) {
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 750;
+}
+
+:deep(.markdown-body blockquote) {
+  padding: 0.7rem 1rem;
+  border-left: 4px solid var(--kumo-bg-brand);
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-text-muted);
 }
 
 :deep(.markdown-body code) {
-  padding: 0.2em 0.4em;
-  margin: 0;
-  font-size: 0.85em;
-  background-color: rgba(27, 31, 35, 0.05);
-  border-radius: 3px;
+  padding: 0.16rem 0.36rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-sm);
+  background: var(--kumo-bg-recessed);
+  color: var(--kumo-bg-brand-strong);
   font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 0.88em;
 }
 
 :deep(.markdown-body pre) {
-  padding: 1em;
   overflow: auto;
-  background-color: #f6f8fa;
-  border-radius: var(--radius);
-  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-recessed);
 }
 
 :deep(.markdown-body pre code) {
   padding: 0;
-  background-color: transparent;
-  font-size: 0.9em;
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 
-.article-actions {
-  display: flex;
-  justify-content: center;
+:deep(.markdown-body img) {
+  max-width: 100%;
+  border-radius: var(--kumo-radius-md);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+:deep(.markdown-body table) {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: var(--kumo-radius-sm);
+}
+
+:deep(.markdown-body th),
+:deep(.markdown-body td) {
+  padding: 0.7rem;
+  border: 1px solid var(--kumo-hairline);
+}
+
+.article-side {
+  position: sticky;
+  top: 6rem;
+  display: grid;
   gap: 1rem;
-  padding: 1.5rem 0;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 2rem;
 }
 
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: none;
-  background-color: transparent;
-}
-
-.like-btn {
-  color: var(--error-color);
-}
-
-.like-btn:hover {
-  background-color: rgba(var(--error-rgb), 0.1);
-}
-
-.share-btn {
-  color: var(--primary-color);
-}
-
-.share-btn:hover {
-  background-color: var(--primary-light);
-}
-
-.report-btn {
-  color: var(--text-lighter);
-}
-
-.report-btn:hover {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
-}
-
-.article-author {
-  margin-bottom: 2rem;
+.author-card,
+.side-actions {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .author-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background-color: var(--bg-gray);
-  border-radius: var(--radius);
+  justify-items: start;
 }
 
-.author-bio {
-  color: var(--text-light);
-  font-size: 0.95rem;
-  margin-top: 0.25rem;
+.author-card-copy {
+  display: grid;
+  gap: 0.25rem;
 }
 
-.follow-btn {
-  margin-left: auto;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.6rem 1.25rem;
-  min-width: 116px;
-  justify-content: center;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.25s ease, color 0.25s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.author-card-copy h2,
+.author-card-copy p {
+  margin: 0;
 }
 
-.follow-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.follow-btn.following {
-  background-color: var(--success-color);
-}
-
-.follow-btn:disabled {
-  background-color: var(--text-lighter);
-  cursor: not-allowed;
-}
-
-.article-comments {
-  margin-top: 2rem;
-}
-
-.comments-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.author-card-copy h2 {
   font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: var(--text-color);
 }
 
-.comment-form {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.form-input {
-  flex-grow: 1;
-}
-
-.comment-textarea {
+.follow-button {
   width: 100%;
-  min-height: 100px;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  margin-bottom: 0.75rem;
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.3s;
 }
 
-.comment-textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+.follow-button.is-following {
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
-.submit-btn {
-  float: right;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.6rem 1.25rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.submit-btn:disabled {
-  background-color: var(--text-lighter);
+.follow-button:disabled {
   cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
 }
 
-.submit-btn:not(:disabled):hover {
-  background-color: var(--primary-dark);
-}
-
-.comments-list {
-  margin-top: 2rem;
-}
-
-.comment-item {
-  padding: 1.5rem 0;
-  border-top: 1px solid var(--border-color);
-}
-
-.comment-author {
-  display: flex;
-  gap: 1rem;
-}
-
-.comment-info {
-  flex-grow: 1;
-}
-
-.comment-meta {
+.side-action {
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.comment-author-name {
-  font-weight: 600;
-  color: var(--text-color);
-  margin-right: 0.75rem;
-}
-
-.comment-time {
-  color: var(--text-lighter);
-  font-size: 0.9rem;
-}
-
-.comment-content {
-  color: var(--text-color);
-  line-height: 1.6;
-  margin-bottom: 0.75rem;
-}
-
-.comment-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.comment-like,
-.comment-reply {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: none;
-  border: none;
-  color: var(--text-lighter);
-  font-size: 0.9rem;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  min-height: 2.8rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
+  font-weight: 760;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.3s;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
-.comment-like:hover,
-.comment-reply:hover {
-  background-color: var(--bg-gray);
-  color: var(--text-color);
+.side-action:hover {
+  transform: translateX(3px);
+  border-color: var(--kumo-hairline-strong);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
-@media (max-width: 768px) {
-  .article-title {
-    font-size: 1.5rem;
-  }
-  
-  .article-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-  
-  .article-stats {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .author-card {
-    flex-direction: column;
-    text-align: center;
-    padding: 1rem;
-  }
-  
-  .follow-btn {
-    margin-left: 0;
-    margin-top: 0.75rem;
-  }
+.comments-panel {
+  padding: clamp(1rem, 2.2vw, 1.5rem);
 }
 
-/* Toast消息提示样式 */
+.comments-panel :deep(.article-comments) {
+  margin-top: 0;
+}
+
+.comments-panel :deep(.comments-title) {
+  color: var(--kumo-text-default);
+}
+
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 1100;
 }
 
 .toast {
-  padding: 12px 20px;
-  border-radius: var(--radius);
-  background-color: white;
-  box-shadow: var(--shadow);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  animation: fadeIn 0.3s ease;
+  gap: 0.65rem;
+  min-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.85rem 1rem;
+  color: var(--kumo-text-default);
+  animation: toast-in 260ms ease both;
 }
 
-.toast.success {
-  background-color: rgba(var(--success-rgb), 0.1);
-  border-left: 4px solid var(--success-color);
+.toast--success {
+  border-color: var(--kumo-status-success);
+  background: var(--kumo-status-success-tint);
+  color: var(--kumo-status-success);
 }
 
-.toast.error {
-  background-color: rgba(var(--error-rgb), 0.1);
-  border-left: 4px solid var(--error-color);
+.toast--error {
+  border-color: var(--kumo-status-danger);
+  background: var(--kumo-status-danger-tint);
+  color: var(--kumo-status-danger);
 }
 
-.toast-message {
-  font-size: 0.95rem;
-  color: var(--text-color);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 模态框样式 */
-.modal-overlay {
+.dialog-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--kumo-bg-overlay);
+  backdrop-filter: var(--kumo-blur);
 }
 
-.modal-content {
-  background-color: white;
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 450px;
-  box-shadow: var(--shadow-lg);
-  animation: modalFadeIn 0.3s ease;
+.report-dialog {
+  display: grid;
+  gap: 1.25rem;
+  width: min(100%, 30rem);
+  padding: 1.3rem;
+  animation: dialog-in 260ms ease both;
 }
 
-.modal-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin-bottom: 0.5rem;
+.dialog-heading {
+  display: grid;
+  gap: 0.7rem;
 }
 
-.modal-subtitle {
-  color: var(--text-light);
-  margin-bottom: 1.25rem;
+.dialog-heading h2,
+.dialog-heading p {
+  margin: 0;
 }
 
 .reason-list {
-  margin-bottom: 1.5rem;
+  display: grid;
+  gap: 0.55rem;
 }
 
 .reason-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
+  font-weight: 740;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    color var(--kumo-transition);
 }
 
-.reason-item:hover {
-  background-color: var(--bg-gray);
-}
-
+.reason-item:hover,
 .reason-item.active {
-  background-color: rgba(var(--primary-rgb), 0.1);
+  transform: translateY(-2px);
+  border-color: var(--kumo-bg-brand);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .reason-radio {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-
-.reason-item.active .reason-radio {
-  border-color: var(--primary-color);
-}
-
-.radio-inner {
-  width: 10px;
-  height: 10px;
-  background-color: var(--primary-color);
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  border: 2px solid var(--kumo-hairline-strong);
   border-radius: 50%;
 }
 
-.modal-actions {
+.reason-radio span {
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 50%;
+  background: var(--kumo-bg-brand);
+}
+
+.dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
 }
 
-.cancel-btn, .submit-btn {
-  padding: 0.6rem 1.25rem;
-  border-radius: var(--radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.cancel-btn {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-light);
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.cancel-btn:hover {
-  background-color: var(--bg-gray);
+@media (max-width: 980px) {
+  .article-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .article-side {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.submit-btn {
-  background-color: var(--primary-color);
-  border: none;
-  color: white;
-}
+@media (max-width: 720px) {
+  .article-meta-panel,
+  .dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-.submit-btn:hover {
-  background-color: var(--primary-dark);
-}
+  .article-taxonomy {
+    justify-content: flex-start;
+  }
 
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  .article-side {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hero-metric {
+    min-width: 0;
+  }
+
+  .hero-metric strong {
+    font-size: 1.6rem;
+  }
 }
-</style> 
+</style>

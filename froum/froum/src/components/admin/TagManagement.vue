@@ -10,6 +10,7 @@ import {
   updateTag as updateTagApi
 } from '@/api/admin'
 
+const DEFAULT_TAG_COLOR = 'var(--kumo-bg-brand)'
 const loading = ref(false)
 const tags = ref([])
 // 视图模式：标签默认列表（横排）
@@ -18,7 +19,7 @@ const setView = (v) => { viewMode.value = v; localStorage.setItem('adminView_tag
 const tagForm = ref({
   name: '',
   description: '',
-  color: '#1677ff'
+  color: DEFAULT_TAG_COLOR
 })
 const dialogVisible = ref(false)
 const editingTagId = ref(null)
@@ -64,7 +65,7 @@ const normalizeTag = (tag) => ({
   id: tag.id,
   name: tag.name || '',
   description: tag.description || '',
-  color: tag.color || '#1677ff',
+  color: tag.color || DEFAULT_TAG_COLOR,
   count: tag.usageCount || tag.count || 0,
   status: String(tag.status || 'PENDING').toLowerCase(),
   createTime: formatDateTime(tag.createdAt || tag.createTime),
@@ -102,7 +103,6 @@ const loadTags = async () => {
     tags.value = page.content.map(normalizeTag)
     total.value = page.totalElements
   } catch (error) {
-    console.error('加载标签列表失败:', error)
     tags.value = []
     total.value = 0
     ElMessage.error(error.message || '加载标签列表失败')
@@ -116,7 +116,7 @@ const openCreateTag = () => {
   tagForm.value = {
     name: '',
     description: '',
-    color: '#1677ff'
+    color: DEFAULT_TAG_COLOR
   }
   dialogVisible.value = true
 }
@@ -234,7 +234,7 @@ onMounted(loadTags)
 </script>
 
 <template>
-  <div class="tag-management">
+  <div class="tag-management admin-page-container">
     <div class="management-header">
       <div class="search-filter">
         <el-input
@@ -282,7 +282,7 @@ onMounted(loadTags)
         <div v-if="filteredTags.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
           <div v-for="row in filteredTags" :key="row.id" class="ad-card">
             <div class="ad-card__head">
-              <span class="ad-card__avatar" style="background: linear-gradient(135deg,#5b7cfa,#8aa3ff);"><font-awesome-icon icon="hashtag" /></span>
+              <span class="ad-card__avatar"><font-awesome-icon icon="hashtag" /></span>
               <div style="min-width:0;flex:1;">
                 <div class="ad-card__title">{{ row.name }}</div>
                 <div class="ad-card__sub">
@@ -373,7 +373,7 @@ onMounted(loadTags)
 <style scoped>
 .tag-desc {
   margin: 0;
-  color: var(--ad-text-muted, #5b6478);
+  color: var(--ad-text-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -383,27 +383,18 @@ onMounted(loadTags)
 }
 
 .tag-management {
-  padding: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   min-height: calc(100vh - 134px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.tag-management:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .management-header {
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--ad-border);
 }
 
 .search-filter {
@@ -446,7 +437,7 @@ onMounted(loadTags)
 .tag-description {
   margin: 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--ad-text-muted);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -472,7 +463,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--ad-text-muted);
   font-size: 13px;
 }
 
@@ -480,7 +471,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--ad-text-muted);
   font-size: 13px;
 }
 
@@ -493,7 +484,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--ad-text-muted);
   font-size: 13px;
 }
 
@@ -522,16 +513,15 @@ onMounted(loadTags)
   display: flex;
   justify-content: flex-end;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--ad-border);
 }
 
 .table-container {
   flex: 1;
   overflow: auto;
   margin: 24px 0;
-  background: #ffffff;
+  background: var(--ad-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 :deep(.el-table) {
@@ -545,12 +535,12 @@ onMounted(loadTags)
 
 :deep(.el-table--border) {
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--ad-border);
 }
 
 :deep(.el-table th.el-table__cell) {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--ad-surface-muted);
+  color: var(--ad-text);
   font-weight: 600;
   padding: 12px 8px;
 }

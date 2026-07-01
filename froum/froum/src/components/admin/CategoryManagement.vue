@@ -105,7 +105,6 @@ const loadCategories = async () => {
     categories.value = page.content.map(normalizeCategory)
     total.value = page.totalElements
   } catch (error) {
-    console.error('加载分类列表失败:', error)
     categories.value = []
     total.value = 0
     ElMessage.error(error.message || '加载分类列表失败')
@@ -302,7 +301,7 @@ onMounted(loadCategories)
         <div v-if="filteredCategories.length" class="ad-card-grid" :class="{ 'is-list': viewMode === 'list' }">
           <div v-for="row in filteredCategories" :key="row.id" class="ad-card">
             <div class="ad-card__head">
-              <span class="ad-card__avatar" style="background: linear-gradient(135deg,#5b7cfa,#8aa3ff); font-size:1.3rem;">{{ row.icon }}</span>
+              <span class="ad-card__avatar category-card-icon">{{ row.icon }}</span>
               <div style="min-width:0;flex:1;">
                 <div class="ad-card__title">{{ row.name }}</div>
                 <div class="ad-card__sub">
@@ -415,7 +414,7 @@ onMounted(loadCategories)
 
 .category-desc {
   margin: 0;
-  color: var(--ad-text-muted, #5b6478);
+  color: var(--ad-text-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -444,9 +443,9 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-light) 0%, rgba(37, 99, 235, 0.1) 100%);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius-lg);
-  border: 2px solid rgba(37, 99, 235, 0.2);
+  border: 2px solid var(--ad-border);
   transition: all 0.3s ease;
 }
 
@@ -470,7 +469,7 @@ onMounted(loadCategories)
 .category-description {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -478,9 +477,9 @@ onMounted(loadCategories)
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   padding: 0.5rem 0.75rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
 }
 
 .category-meta {
@@ -502,24 +501,24 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
 }
 
 .time-info {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--ad-brand-soft);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
 }
 
 .stats {
@@ -532,13 +531,17 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--text-light);
+  color: var(--ad-text-muted);
   font-size: 0.875rem;
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, var(--bg-white) 0%, rgba(37, 99, 235, 0.05) 100%);
+  background: var(--ad-surface-muted);
   border-radius: var(--radius);
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--ad-border);
   transition: all 0.2s ease;
+}
+
+.category-card-icon {
+  font-size: 1.3rem;
 }
 
 .stat-item:hover {
@@ -600,8 +603,8 @@ onMounted(loadCategories)
 }
 
 :deep(.el-table th.el-table__cell) {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--ad-surface-muted);
+  color: var(--ad-text);
   font-weight: 600;
   padding: 12px 8px;
 }

@@ -33,11 +33,12 @@
     
     <!-- 回答列表 -->
     <div v-if="sortedAnswers.length > 0" class="answer-items">
-      <div 
-        v-for="answer in sortedAnswers" 
+      <div
+        v-for="(answer, index) in sortedAnswers"
         :key="answer.id" 
-        class="answer-item"
+        class="answer-item kumo-surface magnetic-card stagger-item"
         :class="{ 'is-best-answer': isAnswerBest(answer.id) }"
+        :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
       >
         <!-- 最佳答案标识 -->
         <div v-if="isAnswerBest(answer.id)" class="best-answer-badge">
@@ -450,10 +451,9 @@ export default defineComponent({
           content: '回答已成功删除'
         })
       } catch (err) {
-        console.error('Failed to delete answer:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '删除回答失败，请稍后重试'
+          content: err.message || '删除回答失败，请稍后重试'
         })
       }
     }
@@ -470,10 +470,9 @@ export default defineComponent({
           content: '已设置为最佳答案'
         })
       } catch (err) {
-        console.error('Failed to set best answer:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '设置最佳答案失败，请稍后重试'
+          content: err.message || '设置最佳答案失败，请稍后重试'
         })
       }
     }
@@ -490,10 +489,9 @@ export default defineComponent({
           content: '已取消最佳答案'
         })
       } catch (err) {
-        console.error('Failed to unset best answer:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '取消最佳答案失败，请稍后重试'
+          content: err.message || '取消最佳答案失败，请稍后重试'
         })
       }
     }
@@ -526,10 +524,9 @@ export default defineComponent({
           content: '回答已成功发布'
         })
       } catch (err) {
-        console.error('Failed to submit answer:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '发布回答失败，请稍后重试'
+          content: err.message || '发布回答失败，请稍后重试'
         })
       } finally {
         isSubmitting.value = false
@@ -560,7 +557,6 @@ export default defineComponent({
         }
         await loadAnswers()
       } catch (err) {
-        console.error('Failed to vote answer:', err)
         store.dispatch('setMessage', {
           type: 'error',
           content: err.message || '回答点赞失败'
@@ -593,10 +589,9 @@ export default defineComponent({
         await questionService.addAnswerComment(props.questionId, answerId, content)
         await loadAnswers()
       } catch (err) {
-        console.error('Failed to add comment:', err)
         store.dispatch('setMessage', {
           type: 'error',
-          content: '添加评论失败，请稍后重试'
+          content: err.message || '添加评论失败，请稍后重试'
         })
       }
     }
@@ -632,502 +627,489 @@ export default defineComponent({
 
 <style scoped>
 .answer-list-container {
-  margin-top: 40px;
+  display: grid;
+  gap: 1.25rem;
 }
 
 .answers-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .answers-header h2 {
-  font-size: 1.5em;
-  font-weight: 500;
-  color: #333;
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.35rem;
+  font-weight: 840;
 }
 
 .sort-options {
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
 }
 
 .sort-btn {
-  background: none;
-  border: none;
-  color: #666;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kumo-text-muted);
+  font-weight: 760;
+  cursor: pointer;
+  transition: var(--transition);
 }
 
-.sort-btn:hover {
-  color: #1890ff;
-  background: #f0f8ff;
-}
-
+.sort-btn:hover,
 .sort-btn.active {
-  color: #1890ff;
-  font-weight: 500;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .answer-items {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  margin-bottom: 40px;
+  display: grid;
+  gap: 1rem;
 }
 
 .answer-item {
   position: relative;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 20px;
+  padding: clamp(1rem, 2.2vw, 1.5rem);
 }
 
 .answer-item.is-best-answer {
-  background: #f6ffed;
-  border-color: #b7eb8f;
+  border-color: var(--kumo-status-success);
+  background: var(--kumo-status-success-tint);
 }
 
 .best-answer-badge {
   position: absolute;
-  top: -12px;
-  left: 20px;
-  background: #52c41a;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 4px;
-  display: flex;
+  top: -0.85rem;
+  left: 1rem;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 500;
-  font-size: 14px;
+  gap: 0.4rem;
+  padding: 0.34rem 0.68rem;
+  border-radius: 999px;
+  background: var(--kumo-status-success);
+  color: var(--kumo-text-inverse);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .answer-main {
-  display: flex;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
 }
 
 .vote-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  gap: 0.35rem;
+  min-width: 4.2rem;
+  padding: 0.65rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
 }
 
 .vote-btn {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 24px;
+  display: inline-grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 50%;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
   cursor: pointer;
-  padding: 0;
-  line-height: 1;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    background-color var(--kumo-transition),
+    color var(--kumo-transition);
 }
 
-.vote-btn:hover {
-  color: #1890ff;
-}
-
-.vote-btn.active.up {
-  color: #52c41a;
-}
-
-.vote-btn.active.down {
-  color: #ff4d4f;
+.vote-btn:hover,
+.vote-btn.active {
+  transform: translateY(-2px);
+  border-color: var(--kumo-bg-brand);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .vote-count {
-  font-size: 18px;
-  font-weight: 700;
-  color: #666;
+  min-width: 2rem;
+  color: var(--kumo-text-default);
+  font-size: 1.25rem;
+  font-weight: 900;
   text-align: center;
-  min-width: 30px;
 }
 
 .vote-count.positive {
-  color: #52c41a;
+  color: var(--kumo-status-success);
 }
 
 .vote-count.negative {
-  color: #ff4d4f;
+  color: var(--kumo-status-danger);
 }
 
 .answer-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
 }
 
 .markdown-content {
-  color: #333;
-  line-height: 1.6;
+  color: var(--kumo-text-default);
+  line-height: 1.72;
+}
+
+.markdown-content :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.markdown-content :deep(p:last-child) {
+  margin-bottom: 0;
 }
 
 .answer-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .action-group {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 0.55rem;
 }
 
-.action-btn {
-  display: flex;
+.action-btn,
+.btn {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  background: white;
-  color: #666;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.48rem 0.8rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
+  font-size: 0.9rem;
+  font-weight: 760;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  transition:
+    transform var(--kumo-transition),
+    border-color var(--kumo-transition),
+    color var(--kumo-transition),
+    background-color var(--kumo-transition);
 }
 
-.action-btn:hover {
-  color: #1890ff;
-  border-color: #1890ff;
+.action-btn:hover,
+.btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--kumo-hairline-strong);
+  color: var(--kumo-bg-brand-strong);
 }
 
 .accept-btn:hover {
-  color: #52c41a;
-  border-color: #52c41a;
+  border-color: var(--kumo-status-success);
+  color: var(--kumo-status-success);
 }
 
-.unaccept-btn:hover, .delete-btn:hover {
-  color: #ff4d4f;
-  border-color: #ff4d4f;
+.unaccept-btn:hover,
+.delete-btn:hover {
+  border-color: var(--kumo-status-danger);
+  color: var(--kumo-status-danger);
 }
 
 .answer-meta {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--kumo-hairline);
 }
 
 .answer-time {
-  color: #999;
-  font-size: 14px;
+  color: var(--kumo-text-subtle);
+  font-size: 0.86rem;
+  font-weight: 690;
 }
 
 .author-info {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.6rem;
 }
 
 .author-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #1890ff;
-  color: white;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  font-weight: 840;
 }
 
 .author-name {
-  font-weight: 500;
-  color: #333;
+  color: var(--kumo-text-default);
+  font-weight: 760;
 }
 
 .no-answers {
-  margin-bottom: 40px;
+  display: grid;
 }
 
 .empty-state {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 40px;
+  display: grid;
+  place-items: center;
+  gap: 0.6rem;
+  min-height: 12rem;
+  padding: 2rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
   text-align: center;
-  color: #999;
 }
 
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 20px;
-  opacity: 0.5;
+  color: var(--kumo-bg-brand);
+  font-size: 2.6rem;
 }
 
 .empty-state p {
   margin: 0;
-  margin-bottom: 10px;
-  font-size: 18px;
+  font-weight: 760;
 }
 
 .hint {
-  font-size: 14px !important;
-  color: #666;
+  color: var(--kumo-text-subtle);
+  font-size: 0.9rem !important;
 }
 
 .add-answer-section {
-  background: white;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 20px;
-  transition: all 0.3s;
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2.2vw, 1.4rem);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-elevated);
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
 }
 
 .add-answer-section.is-focused {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
 }
 
 .add-answer-section h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 18px;
-  font-weight: 500;
-  color: #333;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.55rem;
+  margin: 0;
+  color: var(--kumo-text-default);
+  font-size: 1.05rem;
+  font-weight: 840;
 }
 
 .editor-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  display: grid;
+  gap: 1rem;
 }
 
 .answer-editor {
   width: 100%;
-  min-height: 150px;
-  padding: 15px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  resize: vertical;
+  min-height: 10rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-md);
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-default);
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.6;
+  resize: vertical;
+  transition:
+    border-color var(--kumo-transition),
+    box-shadow var(--kumo-transition);
+}
+
+.answer-editor:focus {
+  border-color: var(--kumo-bg-brand);
+  box-shadow: 0 0 0 4px var(--kumo-focus-ring);
+  outline: none;
 }
 
 .editor-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .editor-tips {
-  color: #999;
-  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  color: var(--kumo-text-subtle);
+  font-size: 0.88rem;
+  font-weight: 690;
 }
 
 .markdown-help {
-  margin-left: 15px;
-  color: #1890ff;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.35rem;
+  color: var(--kumo-bg-brand-strong);
+  text-decoration: none;
 }
 
-.submit-btn {
-  padding: 8px 20px;
-  background: #1890ff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s;
-}
-
-.submit-btn:hover {
-  background: #40a9ff;
+.submit-btn,
+.btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  color: var(--kumo-text-inverse);
 }
 
 .submit-btn:disabled {
-  background: #ccc;
+  background: var(--kumo-bg-recessed);
+  color: var(--kumo-text-subtle);
   cursor: not-allowed;
 }
 
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--kumo-bg-overlay);
+  backdrop-filter: var(--kumo-blur);
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: grid;
+  width: min(100%, 28rem);
+  overflow: hidden;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-elevated);
+  box-shadow: var(--kumo-shadow-lg);
+  backdrop-filter: var(--kumo-blur);
+  animation: dialog-in 260ms ease both;
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .modal-header {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border-bottom: 1px solid var(--kumo-hairline);
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 18px;
-  color: #333;
+  color: var(--kumo-text-default);
+  font-size: 1.1rem;
+  font-weight: 840;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  color: #999;
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 50%;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
   cursor: pointer;
-  font-size: 16px;
 }
 
 .modal-body {
-  padding: 20px 15px;
+  padding: 1.2rem 1rem;
+  color: var(--kumo-text-muted);
 }
 
 .modal-footer {
-  padding: 15px;
-  border-top: 1px solid #eee;
-  display: flex;
   justify-content: flex-end;
-  gap: 10px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-secondary {
-  background: white;
-  color: #666;
-  border: 1px solid #eee;
-}
-
-.btn-secondary:hover {
-  color: #1890ff;
-  border-color: #1890ff;
+  border-top: 1px solid var(--kumo-hairline);
 }
 
 .btn-danger {
-  background: #ff4d4f;
-  color: white;
+  border-color: transparent;
+  background: var(--kumo-status-danger);
+  color: var(--kumo-text-inverse);
 }
 
-.btn-danger:hover {
-  background: #ff7875;
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.btn-primary {
-  background: #1890ff;
-  color: white;
-}
+@media (max-width: 760px) {
+  .answers-header,
+  .answer-meta,
+  .answer-actions,
+  .editor-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-.btn-primary:hover {
-  background: #40a9ff;
-}
+  .sort-options {
+    width: 100%;
+    overflow-x: auto;
+  }
 
-/* 评论样式 */
-.comments-section {
-  background: #f9f9f9;
-  border-radius: 4px;
-  padding: 15px;
-  margin-top: 15px;
-}
+  .sort-btn {
+    flex: 0 0 auto;
+  }
 
-.comments-title {
-  font-size: 14px;
-  color: #666;
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-weight: 500;
-}
+  .answer-main {
+    grid-template-columns: 1fr;
+  }
 
-.comments-list {
-  margin-bottom: 15px;
-}
+  .vote-controls {
+    grid-template-columns: auto auto;
+    justify-content: center;
+  }
 
-.comment-item {
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  .submit-btn {
+    width: 100%;
+  }
 }
-
-.comment-item:last-child {
-  border-bottom: none;
-}
-
-.comment-content {
-  color: #333;
-}
-
-.comment-content p {
-  margin: 0 0 8px 0;
-}
-
-.comment-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #999;
-  font-size: 12px;
-}
-
-.comment-author {
-  font-weight: 500;
-  color: #555;
-}
-
-.add-comment {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.comment-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.comment-submit {
-  padding: 0 12px;
-  background: #1890ff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.comment-submit:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-</style> 
+</style>

@@ -1,69 +1,62 @@
 <template>
   <div class="category-list">
-    <div v-if="categories.length === 0" class="no-categories">
-      <div class="empty-state">
-        <font-awesome-icon :icon="['fas', 'folder-open']" class="empty-icon" />
-        <p>暂无分类内容</p>
-      </div>
+    <div v-if="categories.length === 0" class="empty-state kumo-surface">
+      <font-awesome-icon :icon="['fas', 'folder-open']" />
+      <p>暂无分类内容</p>
     </div>
-    
+
     <div v-else class="category-grid">
-      <router-link 
-        v-for="category in categories" 
-        :key="category.id" 
+      <router-link
+        v-for="(category, index) in categories"
+        :key="category.id"
         :to="`/category/${category.id}`"
-        class="category-card"
+        class="category-card kumo-surface magnetic-card stagger-item"
+        :style="{ animationDelay: `${Math.min(index, 10) * 45}ms` }"
       >
-        <div class="category-icon">
-          <font-awesome-icon :icon="getRandomIcon(category)" />
-        </div>
-        <div class="category-content">
-          <h3>{{ category.name }}</h3>
-          <p>{{ category.articleCount || 0 }}篇文章</p>
-        </div>
-        <div class="category-arrow">
-          <font-awesome-icon :icon="['fas', 'chevron-right']" />
-        </div>
+        <span class="category-icon">
+          <font-awesome-icon :icon="getCategoryIcon(category)" />
+        </span>
+        <span class="category-content">
+          <strong>{{ category.name }}</strong>
+          <small>{{ category.description || `${category.articleCount || 0} 篇文章` }}</small>
+        </span>
+        <span class="category-count">{{ category.articleCount || 0 }}</span>
+        <font-awesome-icon :icon="['fas', 'chevron-right']" class="category-arrow" />
       </router-link>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'CategoryList',
-  props: {
-    categories: {
-      type: Array,
-      default: () => []
-    }
-  },
-  methods: {
-    getRandomIcon(category) {
-      // 为特定类别分配固定图标
-      const categoryIcons = {
-        '前端开发': ['fas', 'code'],
-        '后端开发': ['fas', 'server'],
-        '移动开发': ['fas', 'mobile-alt'],
-        '人工智能': ['fas', 'robot'],
-        '开发工具': ['fas', 'tools']
-      };
-      
-      if (categoryIcons[category.name]) {
-        return categoryIcons[category.name];
-      }
-      
-      // 为其他类别分配基于ID的图标
-      const icons = [
-        'folder', 'code', 'laptop-code', 'server', 
-        'database', 'mobile-alt', 'desktop', 'browser', 
-        'cloud', 'network-wired', 'microchip', 'robot'
-      ];
-      
-      const index = category.id % icons.length;
-      return ['fas', icons[index]];
-    }
+<script setup>
+defineProps({
+  categories: {
+    type: Array,
+    default: () => []
   }
+})
+
+const getCategoryIcon = (category) => {
+  const categoryIcons = {
+    前端开发: ['fas', 'code'],
+    后端开发: ['fas', 'server'],
+    移动开发: ['fas', 'mobile-alt'],
+    人工智能: ['fas', 'robot'],
+    开发工具: ['fas', 'tools']
+  }
+
+  if (categoryIcons[category.name]) return categoryIcons[category.name]
+
+  const icons = [
+    'folder',
+    'code',
+    'server',
+    'database',
+    'mobile-alt',
+    'cloud',
+    'network-wired',
+    'robot'
+  ]
+  return ['fas', icons[(category.id || 0) % icons.length]]
 }
 </script>
 
@@ -72,142 +65,93 @@ export default {
   width: 100%;
 }
 
-.no-categories {
-  padding: 1.5rem 0;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 2rem;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.empty-icon {
-  font-size: 2.5rem;
-  color: var(--text-light);
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-state p {
-  margin: 0.5rem 0;
-  color: var(--text-color);
-  font-size: 1rem;
-}
-
 .category-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  gap: 0.8rem;
 }
 
 .category-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  padding: 1rem;
-  background-color: #fff;
-  border-radius: var(--radius);
+  gap: 0.85rem;
+  padding: 0.9rem;
+  color: var(--kumo-text-default);
   text-decoration: none;
-  color: var(--text-color);
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.category-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(to bottom, var(--primary-color), var(--accent-color));
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.category-card:hover {
-  transform: translateY(-3px) translateX(3px);
-  box-shadow: var(--shadow-lg);
-}
-
-.category-card:hover::before {
-  opacity: 1;
 }
 
 .category-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary-light), #fff);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
-  color: var(--primary-color);
-  margin-right: 1rem;
-  transition: transform 0.3s ease, background 0.3s ease, color 0.3s ease;
-  flex-shrink: 0;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 1rem;
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
+  transition: var(--transition);
 }
 
 .category-card:hover .category-icon {
-  transform: scale(1.1);
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-  color: white;
+  background: var(--kumo-bg-brand);
+  color: var(--kumo-text-inverse);
 }
 
 .category-content {
-  flex: 1;
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
 }
 
-h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  transition: color 0.2s ease;
+.category-content strong {
+  overflow: hidden;
+  color: var(--kumo-text-default);
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.category-card:hover h3 {
-  color: var(--primary-color);
+.category-content small {
+  overflow: hidden;
+  color: var(--kumo-text-muted);
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-light);
+.category-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-weight: 820;
 }
 
 .category-arrow {
-  margin-left: 1rem;
-  font-size: 0.875rem;
-  color: var(--text-light);
-  opacity: 0.5;
-  transition: transform 0.3s ease, opacity 0.3s ease, color 0.3s ease;
+  color: var(--kumo-text-subtle);
+  transition: var(--transition);
 }
 
 .category-card:hover .category-arrow {
-  transform: translateX(3px);
-  opacity: 1;
-  color: var(--primary-color);
+  color: var(--kumo-bg-brand-strong);
+  transform: translateX(4px);
 }
 
-@media (max-width: 480px) {
-  .category-card {
-    padding: 0.75rem;
-  }
-  
-  .category-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-    margin-right: 0.75rem;
-  }
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 10rem;
+  padding: 2rem;
+  color: var(--kumo-text-muted);
+  text-align: center;
+}
+
+.empty-state svg {
+  color: var(--kumo-bg-brand);
+  font-size: 2rem;
 }
 </style>

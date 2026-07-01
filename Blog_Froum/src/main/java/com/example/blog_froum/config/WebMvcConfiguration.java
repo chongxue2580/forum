@@ -95,6 +95,9 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 .addPathPatterns("/api/follows/**")
                 // 拦截点赞相关接口
                 .addPathPatterns("/api/likes/**")
+                // 拦截举报相关接口
+                .addPathPatterns("/api/reports")
+                .addPathPatterns("/api/reports/**")
                 // 排除不需要认证的接口
                 .excludePathPatterns("/api/user/login")
                 .excludePathPatterns("/api/user/register")
