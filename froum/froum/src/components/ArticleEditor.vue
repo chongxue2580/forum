@@ -30,10 +30,13 @@ const route = useRoute()
 const router = useRouter()
 const editor = ref(null)
 const editorEl = ref(null)
+const titleInput = ref(null)
 const isEditMode = computed(() => route.params.id !== undefined)
 const isSaving = ref(false)
 const saveError = ref('')
 const store = useStore()
+let saveErrorTimer = null
+let successMessageTimer = null
 
 // 文章数据
 const article = ref({
@@ -83,17 +86,17 @@ const articleId = computed(() => route.params.id);
 // 表单验证
 const validateForm = () => {
   if (!article.value.title || article.value.title.trim() === '') {
-    saveError.value = '请输入文章标题';
+    showSaveError('请输入文章标题', { focusTitle: true });
     return false;
   }
-  
+
   if (!article.value.content || article.value.content.trim() === '') {
-    saveError.value = '请输入文章内容';
+    showSaveError('请输入文章内容');
     return false;
   }
-  
+
   if (!article.value.categoryId && !article.value.category) {
-    saveError.value = '请选择文章分类';
+    showSaveError('请选择文章分类');
     return false;
   }
   
@@ -103,12 +106,35 @@ const validateForm = () => {
 // 成功消息
 const successMessage = ref('');
 const showSuccessMessage = (message) => {
+  if (successMessageTimer) clearTimeout(successMessageTimer)
   successMessage.value = message;
   // 3秒后清除消息
-  setTimeout(() => {
+  successMessageTimer = setTimeout(() => {
     successMessage.value = '';
+    successMessageTimer = null
   }, 3000);
 };
+
+const clearSaveError = () => {
+  if (saveErrorTimer) clearTimeout(saveErrorTimer)
+  saveErrorTimer = null
+  saveError.value = ''
+}
+
+const showSaveError = (message, options = {}) => {
+  if (!message) return
+
+  if (saveErrorTimer) clearTimeout(saveErrorTimer)
+  saveError.value = message
+  saveErrorTimer = setTimeout(() => {
+    saveError.value = ''
+    saveErrorTimer = null
+  }, options.duration || 3600)
+
+  if (options.focusTitle) {
+    nextTick(() => titleInput.value?.focus())
+  }
+}
 
 // 方法
 const togglePreview = () => {
@@ -172,7 +198,7 @@ const loadEditorOptions = async () => {
     categories.value = unwrapList(categoryResponse)
     popularTags.value = unwrapList(tagResponse)
   } catch (error) {
-    saveError.value = error.message || '加载分类或标签失败'
+    showSaveError(error.message || '加载分类或标签失败')
   }
 }
 
@@ -182,13 +208,13 @@ const uploadCover = async (event) => {
     try {
       // 验证文件类型
       if (!file.type.startsWith('image/')) {
-        saveError.value = '请选择图片文件'
+        showSaveError('请选择图片文件')
         return
       }
 
       // 验证文件大小 (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        saveError.value = '图片文件大小不能超过5MB'
+        showSaveError('图片文件大小不能超过5MB')
         return
       }
 
@@ -198,7 +224,7 @@ const uploadCover = async (event) => {
       // 显示成功消息
       showSuccessMessage('封面图片上传成功！')
     } catch (error) {
-      saveError.value = `封面图片上传失败: ${error.message}`
+      showSaveError(`封面图片上传失败: ${error.message}`)
     }
   }
 }
@@ -219,7 +245,7 @@ onMounted(async () => {
           const url = await articleService.uploadImage(blob)
           callback(url)
         } catch (error) {
-          saveError.value = error.message || '图片上传失败'
+          showSaveError(error.message || '图片上传失败')
           callback('图片上传失败')
         }
       }
@@ -251,6 +277,7 @@ onMounted(async () => {
   // 监听内容变化
   editor.value.on('change', () => {
     article.value.content = editor.value.getMarkdown()
+    if (saveError.value) clearSaveError()
   })
 })
 
@@ -271,20 +298,21 @@ const loadArticle = async (id) => {
     }
     editor.value.setMarkdown(data.content || '')
   } catch (error) {
-    saveError.value = error.message || '加载文章失败'
+    showSaveError(error.message || '加载文章失败')
   }
 }
 
 // 保存文章
 const saveArticle = async () => {
-  if (!validateForm()) return;
-  
+  article.value.content = editor.value?.getMarkdown() || article.value.content
+  if (!validateForm()) return null;
+
   try {
     isSaving.value = true;
-    saveError.value = '';
-    
+    clearSaveError();
+
     // 获取编辑器的最新内容
-    article.value.content = editor.value.getMarkdown();
+    article.value.content = editor.value?.getMarkdown() || article.value.content;
     
     // 构建文章对象，确保符合后端API要求
     const articleData = {
@@ -325,7 +353,12 @@ const saveArticle = async () => {
     }
     
     // 显示成功消息
-    showSuccessMessage(isEditMode.value ? '文章已更新成功!' : '文章已发布成功!');
+    const successText = article.value.isDraft
+      ? '草稿保存成功！'
+      : isEditMode.value
+        ? '文章已更新成功!'
+        : '文章已发布成功!'
+    showSuccessMessage(successText);
     
     // 导航到文章详情页
     setTimeout(() => {
@@ -334,8 +367,12 @@ const saveArticle = async () => {
         params: { id: savedArticle.id }
       });
     }, 1500);
+    return savedArticle
   } catch (error) {
-    saveError.value = error.message || '保存文章时出错，请稍后重试';
+    showSaveError(error.message || '保存文章时出错，请稍后重试', {
+      focusTitle: (error.message || '').includes('标题')
+    });
+    throw error
   } finally {
     isSaving.value = false;
   }
@@ -346,39 +383,39 @@ const saveAsDraft = async () => {
   try {
     article.value.isDraft = true
     await saveArticle()
-    showSuccessMessage('草稿保存成功！')
   } catch (error) {
-    saveError.value = `保存草稿失败: ${error.message}`
+    showSaveError(`保存草稿失败: ${error.message}`)
   }
 }
 
 // 发布文章
 const publish = async () => {
   try {
+    article.value.content = editor.value?.getMarkdown() || article.value.content
+
     // 验证必填字段
     if (!article.value.title?.trim()) {
-      saveError.value = '请输入文章标题'
+      showSaveError('请输入文章标题', { focusTitle: true })
       return
     }
 
     if (!article.value.content?.trim()) {
-      saveError.value = '请输入文章内容'
+      showSaveError('请输入文章内容')
       return
     }
 
     if (!article.value.categoryId && !article.value.category) {
-      saveError.value = '请选择文章分类'
+      showSaveError('请选择文章分类')
       return
     }
 
     article.value.isDraft = false
     await saveArticle()
-    showSuccessMessage('文章发布成功！')
 
     // 发布成功后可以跳转到文章列表或详情页
     // router.push('/articles')
   } catch (error) {
-    saveError.value = `发布文章失败: ${error.message}`
+    showSaveError(`发布文章失败: ${error.message}`)
   }
 }
 
@@ -395,13 +432,15 @@ const handleDrop = async (e) => {
       const imageMarkdown = `![${file.name}](${url})\n`
       editor.value.insertText(imageMarkdown)
     } catch (error) {
-      saveError.value = error.message || '图片上传失败'
+      showSaveError(error.message || '图片上传失败')
     }
   }
 }
 
 // 组件销毁时清理编辑器
 onUnmounted(() => {
+  if (saveErrorTimer) clearTimeout(saveErrorTimer)
+  if (successMessageTimer) clearTimeout(successMessageTimer)
   if (editor.value) {
     editor.value.destroy()
   }
@@ -420,10 +459,12 @@ onUnmounted(() => {
       <div class="header-left">
         <h1 class="editor-title">{{ isEditMode ? '编辑文章' : '创建文章' }}</h1>
         <input
+          ref="titleInput"
           v-model="article.title"
           type="text"
           placeholder="请输入文章标题..."
           class="title-input"
+          @input="clearSaveError"
         />
       </div>
 
@@ -497,7 +538,7 @@ onUnmounted(() => {
         <!-- 分类选择 -->
         <div class="category-select">
           <h3>文章分类</h3>
-          <select v-model="article.categoryId" required>
+          <select v-model="article.categoryId" required @change="clearSaveError">
             <option value="">选择分类</option>
             <option 
               v-for="category in categories"
@@ -686,17 +727,20 @@ onUnmounted(() => {
 .success-message,
 .error-message {
   position: fixed;
-  top: 1.2rem;
+  top: auto;
   right: 1.2rem;
+  bottom: 1.2rem;
   z-index: 1300;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
   min-width: min(22rem, calc(100vw - 2rem));
+  max-width: min(28rem, calc(100vw - 2rem));
   padding: 0.85rem 1rem;
   border: 1px solid var(--kumo-hairline);
   border-radius: var(--kumo-radius-lg);
   box-shadow: var(--kumo-shadow-md);
+  pointer-events: none;
   animation: slide-in 260ms ease both;
 }
 
@@ -938,7 +982,7 @@ onUnmounted(() => {
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateY(-0.6rem);
+    transform: translateY(0.6rem);
   }
   to {
     opacity: 1;
@@ -959,6 +1003,14 @@ onUnmounted(() => {
 
   .action-buttons {
     justify-content: flex-start;
+  }
+
+  .success-message,
+  .error-message {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    min-width: auto;
+    width: calc(100vw - 1.5rem);
   }
 }
 </style>

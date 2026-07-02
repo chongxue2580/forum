@@ -14,6 +14,14 @@ const showUserMenu = ref(false)
 const mobileMenuOpen = ref(false)
 const unreadNotificationCount = ref(0)
 const themeMode = ref(localStorage.getItem('themeMode') || 'light')
+const adminToolbarRef = ref(null)
+const adminToolbarPosition = ref({ x: null, y: null })
+const adminToolbarDragging = ref(false)
+const adminToolbarClickSuppressed = ref(false)
+
+const ADMIN_TOOLBAR_POSITION_KEY = 'adminToolbarPosition'
+const ADMIN_TOOLBAR_MARGIN = 12
+let adminToolbarDragState = null
 
 const navLinks = [
   { to: '/', label: '首页', icon: ['fas', 'home'], exact: true },
@@ -36,6 +44,16 @@ const isAdmin = computed(() => {
 
 const themeIcon = computed(() => themeMode.value === 'dark' ? ['fas', 'sun'] : ['fas', 'moon'])
 const themeLabel = computed(() => themeMode.value === 'dark' ? '切换浅色模式' : '切换深色模式')
+const adminToolbarStyle = computed(() => {
+  if (adminToolbarPosition.value.x === null || adminToolbarPosition.value.y === null) return {}
+
+  return {
+    left: `${adminToolbarPosition.value.x}px`,
+    top: `${adminToolbarPosition.value.y}px`,
+    right: 'auto',
+    bottom: 'auto'
+  }
+})
 
 const setThemeMode = (mode) => {
   themeMode.value = mode
@@ -128,6 +146,122 @@ const goToAdmin = () => {
   router.push('/admin/dashboard')
 }
 
+const clampAdminToolbarPosition = (x, y) => {
+  const toolbar = adminToolbarRef.value
+  const width = toolbar?.offsetWidth || 220
+  const height = toolbar?.offsetHeight || 56
+  const maxX = Math.max(ADMIN_TOOLBAR_MARGIN, window.innerWidth - width - ADMIN_TOOLBAR_MARGIN)
+  const maxY = Math.max(ADMIN_TOOLBAR_MARGIN, window.innerHeight - height - ADMIN_TOOLBAR_MARGIN)
+
+  return {
+    x: Math.min(Math.max(x, ADMIN_TOOLBAR_MARGIN), maxX),
+    y: Math.min(Math.max(y, ADMIN_TOOLBAR_MARGIN), maxY)
+  }
+}
+
+const persistAdminToolbarPosition = () => {
+  if (adminToolbarPosition.value.x === null || adminToolbarPosition.value.y === null) return
+  localStorage.setItem(ADMIN_TOOLBAR_POSITION_KEY, JSON.stringify(adminToolbarPosition.value))
+}
+
+const initializeAdminToolbarPosition = () => {
+  if (!adminToolbarRef.value) return
+
+  let storedPosition = null
+  try {
+    storedPosition = JSON.parse(localStorage.getItem(ADMIN_TOOLBAR_POSITION_KEY) || 'null')
+  } catch {
+    storedPosition = null
+  }
+
+  if (Number.isFinite(storedPosition?.x) && Number.isFinite(storedPosition?.y)) {
+    adminToolbarPosition.value = clampAdminToolbarPosition(storedPosition.x, storedPosition.y)
+    persistAdminToolbarPosition()
+    return
+  }
+
+  const rect = adminToolbarRef.value.getBoundingClientRect()
+  adminToolbarPosition.value = clampAdminToolbarPosition(
+    window.innerWidth - rect.width - 16,
+    window.innerHeight - rect.height - 16
+  )
+}
+
+const startAdminToolbarDrag = (event) => {
+  if (event.button !== undefined && event.button !== 0) return
+  const toolbar = adminToolbarRef.value
+  if (!toolbar) return
+
+  const rect = toolbar.getBoundingClientRect()
+  if (adminToolbarPosition.value.x === null || adminToolbarPosition.value.y === null) {
+    adminToolbarPosition.value = clampAdminToolbarPosition(rect.left, rect.top)
+  }
+
+  adminToolbarDragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    originX: adminToolbarPosition.value.x,
+    originY: adminToolbarPosition.value.y,
+    moved: false
+  }
+
+  adminToolbarClickSuppressed.value = false
+  toolbar.setPointerCapture?.(event.pointerId)
+  window.addEventListener('pointermove', handleAdminToolbarDrag)
+  window.addEventListener('pointerup', stopAdminToolbarDrag)
+  window.addEventListener('pointercancel', stopAdminToolbarDrag)
+}
+
+const handleAdminToolbarDrag = (event) => {
+  if (!adminToolbarDragState || event.pointerId !== adminToolbarDragState.pointerId) return
+
+  const deltaX = event.clientX - adminToolbarDragState.startX
+  const deltaY = event.clientY - adminToolbarDragState.startY
+  if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+    adminToolbarDragState.moved = true
+    adminToolbarDragging.value = true
+    event.preventDefault()
+  }
+
+  if (!adminToolbarDragState.moved) return
+
+  adminToolbarPosition.value = clampAdminToolbarPosition(
+    adminToolbarDragState.originX + deltaX,
+    adminToolbarDragState.originY + deltaY
+  )
+}
+
+const stopAdminToolbarDrag = (event) => {
+  if (!adminToolbarDragState || event.pointerId !== adminToolbarDragState.pointerId) return
+
+  adminToolbarRef.value?.releasePointerCapture?.(event.pointerId)
+  window.removeEventListener('pointermove', handleAdminToolbarDrag)
+  window.removeEventListener('pointerup', stopAdminToolbarDrag)
+  window.removeEventListener('pointercancel', stopAdminToolbarDrag)
+
+  if (adminToolbarDragState.moved) {
+    adminToolbarClickSuppressed.value = true
+    persistAdminToolbarPosition()
+  }
+
+  adminToolbarDragState = null
+  adminToolbarDragging.value = false
+}
+
+const suppressAdminToolbarClickAfterDrag = (event) => {
+  if (!adminToolbarClickSuppressed.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  adminToolbarClickSuppressed.value = false
+}
+
+const handleAdminToolbarResize = () => {
+  if (adminToolbarPosition.value.x === null || adminToolbarPosition.value.y === null) return
+  adminToolbarPosition.value = clampAdminToolbarPosition(adminToolbarPosition.value.x, adminToolbarPosition.value.y)
+  persistAdminToolbarPosition()
+}
+
 onMounted(async () => {
   setThemeMode(themeMode.value)
   await initializeApp()
@@ -135,11 +269,17 @@ onMounted(async () => {
 
   document.addEventListener('click', closeMenus)
   window.addEventListener('notifications-updated', loadUnreadNotificationCount)
+  window.addEventListener('resize', handleAdminToolbarResize)
+  requestAnimationFrame(initializeAdminToolbarPosition)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeMenus)
   window.removeEventListener('notifications-updated', loadUnreadNotificationCount)
+  window.removeEventListener('resize', handleAdminToolbarResize)
+  window.removeEventListener('pointermove', handleAdminToolbarDrag)
+  window.removeEventListener('pointerup', stopAdminToolbarDrag)
+  window.removeEventListener('pointercancel', stopAdminToolbarDrag)
 })
 
 watch(isAuthenticated, (authenticated) => {
@@ -153,6 +293,11 @@ watch(isAuthenticated, (authenticated) => {
 watch(() => route.fullPath, () => {
   showUserMenu.value = false
   mobileMenuOpen.value = false
+})
+
+watch([isAdmin, isAdminPage], ([admin, adminPage]) => {
+  if (!admin || adminPage) return
+  requestAnimationFrame(initializeAdminToolbarPosition)
 })
 </script>
 
@@ -313,8 +458,18 @@ watch(() => route.fullPath, () => {
       </router-view>
     </main>
 
-    <aside v-if="isAdmin && !isAdminPage" class="admin-toolbar kumo-surface">
-      <span>
+    <aside
+      v-if="isAdmin && !isAdminPage"
+      ref="adminToolbarRef"
+      class="admin-toolbar kumo-surface"
+      :class="{ 'is-dragging': adminToolbarDragging }"
+      :style="adminToolbarStyle"
+      title="按住拖动可移动后台入口"
+      @pointerdown="startAdminToolbarDrag"
+      @click.capture="suppressAdminToolbarClickAfterDrag"
+    >
+      <span class="admin-toolbar-handle">
+        <font-awesome-icon :icon="['fas', 'grip-lines']" />
         <font-awesome-icon :icon="['fas', 'shield-alt']" />
         管理员模式
       </span>
@@ -686,15 +841,29 @@ watch(() => route.fullPath, () => {
   align-items: center;
   gap: 0.8rem;
   padding: 0.6rem;
+  max-width: calc(100vw - 1.5rem);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  will-change: left, top;
 }
 
-.admin-toolbar span {
+.admin-toolbar.is-dragging {
+  cursor: grabbing;
+  box-shadow: var(--kumo-shadow-md);
+}
+
+.admin-toolbar-handle {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   padding-left: 0.45rem;
   color: var(--kumo-text-muted);
   font-weight: 760;
+}
+
+.admin-toolbar .kumo-button {
+  cursor: pointer;
 }
 
 .site-footer {
@@ -842,6 +1011,24 @@ watch(() => route.fullPath, () => {
   .footer-links,
   .footer-social {
     flex-wrap: wrap;
+  }
+
+  .admin-toolbar {
+    gap: 0.5rem;
+    padding: 0.45rem;
+  }
+
+  .admin-toolbar-handle {
+    max-width: 8.5rem;
+    overflow: hidden;
+    font-size: 0.84rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-toolbar .kumo-button {
+    min-height: 2.35rem;
+    padding-inline: 0.75rem;
   }
 }
 </style>
