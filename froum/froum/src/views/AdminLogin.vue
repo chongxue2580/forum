@@ -579,7 +579,7 @@ input[type="password"]:focus {
 .btn-login {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
   border: none;
   border-radius: 12px;

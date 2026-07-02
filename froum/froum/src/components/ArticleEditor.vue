@@ -679,7 +679,7 @@ onUnmounted(() => {
 
 .btn-primary {
   border-color: transparent;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
 }
 

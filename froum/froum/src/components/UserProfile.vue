@@ -816,8 +816,8 @@ const formatWebsite = (url) => {
 .default-avatar {
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
-  color: var(--kumo-text-inverse);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
   font-size: 2.8rem;
   font-weight: 900;
 }
@@ -856,7 +856,7 @@ const formatWebsite = (url) => {
 
 .follow-btn:not(.following) {
   border-color: transparent;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
 }
 

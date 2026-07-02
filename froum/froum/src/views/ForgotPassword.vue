@@ -219,8 +219,8 @@ onUnmounted(() => {
   width: 3rem;
   height: 3rem;
   border-radius: 1rem;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
-  color: var(--kumo-text-inverse);
+  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-brand-strong);
   font-weight: 900;
 }
 

@@ -25,15 +25,15 @@
   --error-color: var(--kumo-status-danger);
   
   /* RGB versions for opacity control */
-  --primary-rgb: 201, 100, 66;
-  --accent-rgb: 0, 122, 255;
+  --primary-rgb: 255, 104, 44;
+  --accent-rgb: 255, 104, 44;
   --text-rgb: 33, 30, 26;
   --el-color-primary: var(--kumo-bg-accent);
-  --el-color-primary-dark-2: #005ecb;
-  --el-color-primary-light-3: #4da3ff;
-  --el-color-primary-light-5: #80bdff;
-  --el-color-primary-light-7: #b3d7ff;
-  --el-color-primary-light-8: #cce4ff;
+  --el-color-primary-dark-2: #cc5223;
+  --el-color-primary-light-3: #ff8f66;
+  --el-color-primary-light-5: #ffad91;
+  --el-color-primary-light-7: #ffcbbd;
+  --el-color-primary-light-8: #ffddd4;
   --el-color-primary-light-9: var(--kumo-bg-accent-soft);
   
   --shadow-sm: var(--kumo-shadow-sm);
@@ -111,14 +111,14 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  filter: brightness(1.1);
+  box-shadow: var(--shadow-sm);
+  filter: none;
 }
 
 .btn-secondary {
@@ -875,14 +875,14 @@ a:hover {
 .el-message-box__btns .el-button--primary,
 .el-dialog__footer .el-button--primary {
   border: none;
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
-  box-shadow: 0 8px 18px rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 1px 3px rgba(32, 32, 32, 0.08);
 }
 
 .el-message-box__btns .el-button--primary:hover,
 .el-dialog__footer .el-button--primary:hover {
-  background: linear-gradient(180deg, #2d98ff, var(--kumo-bg-accent));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
 }
 

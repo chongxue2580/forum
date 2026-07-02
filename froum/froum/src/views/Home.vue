@@ -549,8 +549,8 @@ onMounted(async () => {
   width: min(42rem, 58%);
   height: 100%;
   background:
-    linear-gradient(135deg, transparent 18%, rgba(var(--accent-rgb), 0.07)),
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.08), transparent);
+    linear-gradient(135deg, transparent 18%, rgba(var(--accent-rgb), 0.045)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent);
   pointer-events: none;
 }
 
@@ -601,9 +601,9 @@ onMounted(async () => {
   border: 1px solid var(--kumo-hairline);
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), transparent),
     color-mix(in srgb, var(--kumo-bg-elevated) 88%, var(--kumo-bg-subtle));
-  box-shadow: 0 18px 46px rgba(31, 28, 24, 0.1);
+  box-shadow: var(--kumo-shadow-sm);
   overflow: hidden;
 }
 
@@ -762,7 +762,7 @@ onMounted(async () => {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
+  background: var(--kumo-bg-accent);
 }
 
 .topic-dock {

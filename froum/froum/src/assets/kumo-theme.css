@@ -1,40 +1,40 @@
 :root,
 html[data-mode='light'] {
   color-scheme: light;
-  --kumo-bg-base: #f7f4ee;
-  --kumo-bg-subtle: #ece6dc;
-  --kumo-bg-elevated: rgba(255, 252, 245, 0.92);
-  --kumo-bg-recessed: #ded6c9;
-  --kumo-bg-overlay: rgba(31, 28, 24, 0.46);
-  --kumo-bg-brand: #c96442;
-  --kumo-bg-brand-strong: #7f3d28;
-  --kumo-bg-brand-soft: #f4ded2;
-  --kumo-bg-accent: #007aff;
-  --kumo-bg-accent-soft: #e7f1ff;
-  --kumo-bg-warm: #f2dca7;
-  --kumo-text-default: #211e1a;
-  --kumo-text-muted: #6b635b;
-  --kumo-text-subtle: #9a9288;
-  --kumo-text-inverse: #fffaf3;
-  --kumo-hairline: rgba(54, 48, 41, 0.13);
-  --kumo-hairline-strong: rgba(54, 48, 41, 0.24);
-  --kumo-focus-ring: rgba(0, 122, 255, 0.22);
-  --kumo-status-success: #248a5b;
-  --kumo-status-success-tint: #e4f3ea;
-  --kumo-status-warning: #a96705;
-  --kumo-status-warning-tint: #fff1d1;
+  --kumo-bg-base: #efefef;
+  --kumo-bg-subtle: #f5f5f5;
+  --kumo-bg-elevated: #ffffff;
+  --kumo-bg-recessed: #e8e8e8;
+  --kumo-bg-overlay: rgba(32, 32, 32, 0.32);
+  --kumo-bg-brand: #ff682c;
+  --kumo-bg-brand-strong: #202020;
+  --kumo-bg-brand-soft: rgba(255, 104, 44, 0.12);
+  --kumo-bg-accent: #ff682c;
+  --kumo-bg-accent-soft: rgba(255, 104, 44, 0.1);
+  --kumo-bg-warm: #f5f5f5;
+  --kumo-text-default: #202020;
+  --kumo-text-muted: #4d4d4d;
+  --kumo-text-subtle: #828282;
+  --kumo-text-inverse: #ffffff;
+  --kumo-hairline: rgba(32, 32, 32, 0.12);
+  --kumo-hairline-strong: rgba(32, 32, 32, 0.22);
+  --kumo-focus-ring: rgba(255, 104, 44, 0.24);
+  --kumo-status-success: #407c5d;
+  --kumo-status-success-tint: #e9f2ed;
+  --kumo-status-warning: #816729;
+  --kumo-status-warning-tint: #f6f0df;
   --kumo-status-danger: #b84a3d;
-  --kumo-status-danger-tint: #ffe8e3;
-  --kumo-status-info: #007aff;
-  --kumo-status-info-tint: #e7f1ff;
-  --kumo-shadow-sm: 0 8px 24px rgba(31, 28, 24, 0.06);
-  --kumo-shadow-md: 0 16px 42px rgba(31, 28, 24, 0.1);
-  --kumo-shadow-lg: 0 24px 70px rgba(31, 28, 24, 0.15);
+  --kumo-status-danger-tint: #fbe9e6;
+  --kumo-status-info: #ff682c;
+  --kumo-status-info-tint: rgba(255, 104, 44, 0.1);
+  --kumo-shadow-sm: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
+  --kumo-shadow-md: 0 2px 8px rgba(32, 32, 32, 0.05), 0 10px 24px rgba(32, 32, 32, 0.04);
+  --kumo-shadow-lg: 0 4px 14px rgba(32, 32, 32, 0.06), 0 18px 40px rgba(32, 32, 32, 0.05);
   --kumo-radius-sm: 8px;
-  --kumo-radius-md: 14px;
-  --kumo-radius-lg: 22px;
-  --kumo-radius-xl: 30px;
-  --kumo-blur: blur(18px);
+  --kumo-radius-md: 12px;
+  --kumo-radius-lg: 16px;
+  --kumo-radius-xl: 22px;
+  --kumo-blur: blur(10px);
   --kumo-transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --primary-color: var(--kumo-bg-brand);
@@ -53,17 +53,17 @@ html[data-mode='light'] {
   --success-color: var(--kumo-status-success);
   --warning-color: var(--kumo-status-warning);
   --error-color: var(--kumo-status-danger);
-  --success-rgb: 36, 138, 91;
-  --warning-rgb: 169, 103, 5;
+  --success-rgb: 64, 124, 93;
+  --warning-rgb: 129, 103, 41;
   --error-rgb: 184, 74, 61;
-  --primary-rgb: 201, 100, 66;
-  --accent-rgb: 0, 122, 255;
+  --primary-rgb: 255, 104, 44;
+  --accent-rgb: 255, 104, 44;
   --el-color-primary: var(--kumo-bg-accent);
-  --el-color-primary-dark-2: #005ecb;
-  --el-color-primary-light-3: #4da3ff;
-  --el-color-primary-light-5: #80bdff;
-  --el-color-primary-light-7: #b3d7ff;
-  --el-color-primary-light-8: #cce4ff;
+  --el-color-primary-dark-2: #cc5223;
+  --el-color-primary-light-3: #ff8f66;
+  --el-color-primary-light-5: #ffad91;
+  --el-color-primary-light-7: #ffcbbd;
+  --el-color-primary-light-8: #ffddd4;
   --el-color-primary-light-9: var(--kumo-bg-accent-soft);
   --shadow-sm: var(--kumo-shadow-sm);
   --shadow: var(--kumo-shadow-md);
@@ -76,100 +76,100 @@ html[data-mode='light'] {
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-mode='light']) {
-    color-scheme: dark;
-    --kumo-bg-base: #171513;
-    --kumo-bg-subtle: #211f1c;
-    --kumo-bg-elevated: rgba(38, 35, 31, 0.9);
-    --kumo-bg-recessed: #11100e;
-    --kumo-bg-overlay: rgba(6, 5, 4, 0.68);
-    --kumo-bg-brand: #ee9a77;
-    --kumo-bg-brand-strong: #ffd4bf;
-    --kumo-bg-brand-soft: rgba(238, 154, 119, 0.15);
-    --kumo-bg-accent: #0a84ff;
-    --kumo-bg-accent-soft: rgba(10, 132, 255, 0.15);
-    --kumo-bg-warm: rgba(242, 220, 167, 0.16);
-    --kumo-text-default: #f5f0e8;
-    --kumo-text-muted: #c6bdb3;
-    --kumo-text-subtle: #8c837a;
-    --kumo-text-inverse: #1d1712;
-    --kumo-hairline: rgba(244, 237, 228, 0.13);
-    --kumo-hairline-strong: rgba(244, 237, 228, 0.23);
-    --kumo-focus-ring: rgba(10, 132, 255, 0.28);
-    --kumo-status-success: #73d39b;
-    --kumo-status-success-tint: rgba(115, 211, 155, 0.15);
-    --kumo-status-warning: #ffd083;
-    --kumo-status-warning-tint: rgba(255, 208, 131, 0.16);
-    --kumo-status-danger: #ff8f82;
-    --kumo-status-danger-tint: rgba(255, 143, 130, 0.16);
-    --kumo-status-info: #0a84ff;
-    --kumo-status-info-tint: rgba(10, 132, 255, 0.16);
-    --kumo-shadow-sm: 0 8px 28px rgba(0, 0, 0, 0.28);
-    --kumo-shadow-md: 0 16px 52px rgba(0, 0, 0, 0.36);
-    --kumo-shadow-lg: 0 28px 86px rgba(0, 0, 0, 0.46);
-    --success-rgb: 115, 211, 155;
-    --warning-rgb: 255, 208, 131;
-    --error-rgb: 255, 143, 130;
-    --primary-rgb: 238, 154, 119;
-    --accent-rgb: 10, 132, 255;
+    color-scheme: light;
+    --kumo-bg-base: #efefef;
+    --kumo-bg-subtle: #f5f5f5;
+    --kumo-bg-elevated: #ffffff;
+    --kumo-bg-recessed: #e8e8e8;
+    --kumo-bg-overlay: rgba(32, 32, 32, 0.32);
+    --kumo-bg-brand: #ff682c;
+    --kumo-bg-brand-strong: #202020;
+    --kumo-bg-brand-soft: rgba(255, 104, 44, 0.12);
+    --kumo-bg-accent: #ff682c;
+    --kumo-bg-accent-soft: rgba(255, 104, 44, 0.1);
+    --kumo-bg-warm: #f5f5f5;
+    --kumo-text-default: #202020;
+    --kumo-text-muted: #4d4d4d;
+    --kumo-text-subtle: #828282;
+    --kumo-text-inverse: #ffffff;
+    --kumo-hairline: rgba(32, 32, 32, 0.12);
+    --kumo-hairline-strong: rgba(32, 32, 32, 0.22);
+    --kumo-focus-ring: rgba(255, 104, 44, 0.24);
+    --kumo-status-success: #407c5d;
+    --kumo-status-success-tint: #e9f2ed;
+    --kumo-status-warning: #816729;
+    --kumo-status-warning-tint: #f6f0df;
+    --kumo-status-danger: #b84a3d;
+    --kumo-status-danger-tint: #fbe9e6;
+    --kumo-status-info: #ff682c;
+    --kumo-status-info-tint: rgba(255, 104, 44, 0.1);
+    --kumo-shadow-sm: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
+    --kumo-shadow-md: 0 2px 8px rgba(32, 32, 32, 0.05), 0 10px 24px rgba(32, 32, 32, 0.04);
+    --kumo-shadow-lg: 0 4px 14px rgba(32, 32, 32, 0.06), 0 18px 40px rgba(32, 32, 32, 0.05);
+    --success-rgb: 64, 124, 93;
+    --warning-rgb: 129, 103, 41;
+    --error-rgb: 184, 74, 61;
+    --primary-rgb: 255, 104, 44;
+    --accent-rgb: 255, 104, 44;
     --el-color-primary: var(--kumo-bg-accent);
-    --el-color-primary-dark-2: #0066d6;
-    --el-color-primary-light-3: #51a9ff;
-    --el-color-primary-light-5: #85c2ff;
-    --el-color-primary-light-7: #b6daff;
-    --el-color-primary-light-8: #d0e8ff;
+    --el-color-primary-dark-2: #cc5223;
+    --el-color-primary-light-3: #ff8f66;
+    --el-color-primary-light-5: #ffad91;
+    --el-color-primary-light-7: #ffcbbd;
+    --el-color-primary-light-8: #ffddd4;
     --el-color-primary-light-9: var(--kumo-bg-accent-soft);
   }
 }
 
 html[data-mode='dark'] {
-  color-scheme: dark;
-  --kumo-bg-base: #171513;
-  --kumo-bg-subtle: #211f1c;
-  --kumo-bg-elevated: rgba(38, 35, 31, 0.9);
-  --kumo-bg-recessed: #11100e;
-  --kumo-bg-overlay: rgba(6, 5, 4, 0.68);
-  --kumo-bg-brand: #ee9a77;
-  --kumo-bg-brand-strong: #ffd4bf;
-  --kumo-bg-brand-soft: rgba(238, 154, 119, 0.15);
-  --kumo-bg-accent: #0a84ff;
-  --kumo-bg-accent-soft: rgba(10, 132, 255, 0.15);
-  --kumo-bg-warm: rgba(242, 220, 167, 0.16);
-  --kumo-text-default: #f5f0e8;
-  --kumo-text-muted: #c6bdb3;
-  --kumo-text-subtle: #8c837a;
-  --kumo-text-inverse: #1d1712;
-  --kumo-hairline: rgba(244, 237, 228, 0.13);
-  --kumo-hairline-strong: rgba(244, 237, 228, 0.23);
-  --kumo-focus-ring: rgba(10, 132, 255, 0.28);
-  --kumo-status-success: #73d39b;
-  --kumo-status-success-tint: rgba(115, 211, 155, 0.15);
-  --kumo-status-warning: #ffd083;
-  --kumo-status-warning-tint: rgba(255, 208, 131, 0.16);
-  --kumo-status-danger: #ff8f82;
-  --kumo-status-danger-tint: rgba(255, 143, 130, 0.16);
-  --kumo-status-info: #0a84ff;
-  --kumo-status-info-tint: rgba(10, 132, 255, 0.16);
-  --kumo-shadow-sm: 0 8px 28px rgba(0, 0, 0, 0.28);
-  --kumo-shadow-md: 0 16px 52px rgba(0, 0, 0, 0.36);
-  --kumo-shadow-lg: 0 28px 86px rgba(0, 0, 0, 0.46);
-  --success-rgb: 115, 211, 155;
-  --warning-rgb: 255, 208, 131;
-  --error-rgb: 255, 143, 130;
-  --primary-rgb: 238, 154, 119;
-  --accent-rgb: 10, 132, 255;
+  color-scheme: light;
+  --kumo-bg-base: #dedbd6;
+  --kumo-bg-subtle: #e8e5df;
+  --kumo-bg-elevated: #f8f7f5;
+  --kumo-bg-recessed: #d2cec7;
+  --kumo-bg-overlay: rgba(32, 32, 32, 0.38);
+  --kumo-bg-brand: #ff682c;
+  --kumo-bg-brand-strong: #202020;
+  --kumo-bg-brand-soft: rgba(255, 104, 44, 0.14);
+  --kumo-bg-accent: #ff682c;
+  --kumo-bg-accent-soft: rgba(255, 104, 44, 0.12);
+  --kumo-bg-warm: #e8e5df;
+  --kumo-text-default: #202020;
+  --kumo-text-muted: #4d4d4d;
+  --kumo-text-subtle: #747474;
+  --kumo-text-inverse: #ffffff;
+  --kumo-hairline: rgba(32, 32, 32, 0.14);
+  --kumo-hairline-strong: rgba(32, 32, 32, 0.25);
+  --kumo-focus-ring: rgba(255, 104, 44, 0.26);
+  --kumo-status-success: #407c5d;
+  --kumo-status-success-tint: rgba(64, 124, 93, 0.12);
+  --kumo-status-warning: #816729;
+  --kumo-status-warning-tint: rgba(129, 103, 41, 0.12);
+  --kumo-status-danger: #b84a3d;
+  --kumo-status-danger-tint: rgba(184, 74, 61, 0.12);
+  --kumo-status-info: #ff682c;
+  --kumo-status-info-tint: rgba(255, 104, 44, 0.12);
+  --kumo-shadow-sm: 0 1px 3px rgba(32, 32, 32, 0.05), 0 4px 12px rgba(32, 32, 32, 0.04);
+  --kumo-shadow-md: 0 2px 8px rgba(32, 32, 32, 0.06), 0 10px 24px rgba(32, 32, 32, 0.05);
+  --kumo-shadow-lg: 0 4px 14px rgba(32, 32, 32, 0.08), 0 18px 40px rgba(32, 32, 32, 0.06);
+  --success-rgb: 64, 124, 93;
+  --warning-rgb: 129, 103, 41;
+  --error-rgb: 184, 74, 61;
+  --primary-rgb: 255, 104, 44;
+  --accent-rgb: 255, 104, 44;
   --el-color-primary: var(--kumo-bg-accent);
-  --el-color-primary-dark-2: #0066d6;
-  --el-color-primary-light-3: #51a9ff;
-  --el-color-primary-light-5: #85c2ff;
-  --el-color-primary-light-7: #b6daff;
-  --el-color-primary-light-8: #d0e8ff;
+  --el-color-primary-dark-2: #cc5223;
+  --el-color-primary-light-3: #ff8f66;
+  --el-color-primary-light-5: #ffad91;
+  --el-color-primary-light-7: #ffcbbd;
+  --el-color-primary-light-8: #ffddd4;
   --el-color-primary-light-9: var(--kumo-bg-accent-soft);
 }
 
 body {
   background:
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.08), transparent 18rem),
-    linear-gradient(120deg, rgba(var(--accent-rgb), 0.06), transparent 30rem),
+    linear-gradient(180deg, rgba(var(--primary-rgb), 0.035), transparent 18rem),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.72), transparent 30rem),
     linear-gradient(180deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
   color: var(--kumo-text-default);
 }
@@ -212,7 +212,6 @@ textarea:focus-visible {
   border: 1px solid var(--kumo-hairline);
   background: var(--kumo-bg-elevated);
   box-shadow: var(--kumo-shadow-sm);
-  backdrop-filter: var(--kumo-blur);
 }
 
 .kumo-surface {
@@ -220,16 +219,14 @@ textarea:focus-visible {
   border-radius: var(--kumo-radius-lg);
   background: var(--kumo-bg-elevated);
   box-shadow: var(--kumo-shadow-sm);
-  backdrop-filter: var(--kumo-blur);
 }
 
 .kumo-surface-strong {
   border: 1px solid var(--kumo-hairline-strong);
   border-radius: var(--kumo-radius-xl);
   background:
-    linear-gradient(135deg, var(--kumo-bg-elevated), var(--kumo-bg-subtle));
+    linear-gradient(135deg, var(--kumo-bg-elevated), color-mix(in srgb, var(--kumo-bg-subtle) 62%, var(--kumo-bg-elevated)));
   box-shadow: var(--kumo-shadow-md);
-  backdrop-filter: var(--kumo-blur);
 }
 
 .kumo-eyebrow {
@@ -269,7 +266,7 @@ textarea:focus-visible {
   min-height: 2.65rem;
   padding: 0.68rem 1rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: 12px;
+  border-radius: 20px;
   background: var(--kumo-bg-elevated);
   color: var(--kumo-text-default);
   font-weight: 750;
@@ -291,9 +288,9 @@ textarea:focus-visible {
 
 .kumo-button--brand {
   border-color: transparent;
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
-  box-shadow: 0 8px 18px rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 1px 3px rgba(32, 32, 32, 0.08);
 }
 
 .kumo-button--ghost {
@@ -335,7 +332,7 @@ textarea:focus-visible {
 .kumo-tab:hover,
 .kumo-tab.active {
   background: var(--kumo-bg-accent-soft);
-  color: var(--kumo-bg-accent);
+  color: var(--kumo-text-default);
 }
 
 .kumo-input {

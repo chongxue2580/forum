@@ -163,7 +163,7 @@ const formatDate = (dateString) => {
   padding: 0.55rem 0.85rem;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  background: var(--kumo-text-default);
   color: var(--kumo-text-inverse);
   font-size: 0.9rem;
   font-weight: 780;

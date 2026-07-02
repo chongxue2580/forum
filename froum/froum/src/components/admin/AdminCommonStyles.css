@@ -277,8 +277,8 @@
 .admin-page-container .el-button--primary {
   color: var(--kumo-text-inverse);
   border-color: transparent;
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
-  box-shadow: 0 8px 18px rgba(var(--accent-rgb), 0.2);
+  background: var(--kumo-text-default);
+  box-shadow: 0 1px 3px rgba(32, 32, 32, 0.08);
 }
 
 .admin-action-btn.danger,
@@ -412,8 +412,8 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  color: var(--kumo-text-inverse);
-  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
+  color: var(--kumo-bg-brand-strong);
+  background: var(--kumo-bg-brand-soft);
 }
 
 .ad-kpi__icon {
