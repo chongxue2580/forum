@@ -91,6 +91,16 @@
       </router-link>
     </section>
 
+    <steep-insight-panel
+      v-if="!searchKeyword"
+      class="reveal-rise"
+      :article-count="articleCount"
+      :question-count="questionCount"
+      :category-count="categoryCount"
+      :tag-count="tagCount"
+      :topics="popularTags"
+    />
+
     <div class="home-layout">
       <main class="content-column">
         <div class="content-toolbar">
@@ -266,6 +276,7 @@ import ArticleList from '../components/ArticleList.vue'
 import CategoryList from '../components/CategoryList.vue'
 import TagList from '../components/TagList.vue'
 import QuestionList from '../components/QuestionList.vue'
+import SteepInsightPanel from '../components/home/SteepInsightPanel.vue'
 import { questionService } from '../services/questionService'
 import { userApi } from '../api/userApi'
 import { resolveAvatarFrom } from '../utils/avatar'

@@ -1,5 +1,6 @@
 @import './base.css';
 @import './kumo-theme.css';
+@import './steep-theme.css';
 
 /* 全局样式 */
 :root {

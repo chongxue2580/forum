@@ -1,0 +1,216 @@
+:root {
+  --steep-ink: #17191c;
+  --steep-pure-white: #ffffff;
+  --steep-fog: #f7f7f8;
+  --steep-ash: #4c4c4c;
+  --steep-graphite: #777b86;
+  --steep-dove: #a3a6af;
+  --steep-slate: #8b8c8d;
+  --steep-obsidian: #000000;
+  --steep-rust: #5d2a1a;
+  --steep-apricot-wash: #fbe1d1;
+  --steep-sky-wash: #d3e3fc;
+  --steep-blue: #4a90e2;
+
+  --steep-font-display: "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --steep-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --steep-text-caption: 14px;
+  --steep-text-body: 16px;
+  --steep-text-body-lg: 18px;
+  --steep-text-subheading: 22px;
+  --steep-text-heading-sm: 26px;
+  --steep-text-heading: 44px;
+  --steep-text-heading-lg: 64px;
+
+  --steep-radius-card: 24px;
+  --steep-radius-inner: 16px;
+  --steep-radius-image: 12px;
+  --steep-radius-pill: 9999px;
+  --steep-card-padding: 24px;
+  --steep-element-gap: 8px;
+  --steep-section-gap: 80px;
+  --steep-max-width: 1200px;
+  --steep-shadow-subtle:
+    rgba(4, 23, 43, 0.05) 0 0 0 1px,
+    rgba(0, 0, 0, 0.1) 0 20px 25px -5px,
+    rgba(0, 0, 0, 0.1) 0 8px 10px -6px;
+}
+
+.steep-surface {
+  color: var(--steep-ink);
+  background: var(--steep-pure-white);
+  font-family: var(--steep-font-body);
+  letter-spacing: -0.009em;
+}
+
+.steep-display {
+  margin: 0;
+  color: var(--steep-ink);
+  font-family: var(--steep-font-display);
+  font-size: var(--steep-text-heading);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.steep-subtitle {
+  margin: 0;
+  color: var(--steep-ash);
+  font-size: var(--steep-text-body-lg);
+  font-weight: 400;
+  letter-spacing: -0.009em;
+  line-height: 1.35;
+}
+
+.steep-card,
+.steep-dashboard-card,
+.steep-floating-card {
+  border-radius: var(--steep-radius-card);
+  background: var(--steep-pure-white);
+  box-shadow: var(--steep-shadow-subtle);
+}
+
+.steep-card,
+.steep-dashboard-card {
+  padding: var(--steep-card-padding);
+}
+
+.steep-dashboard-card {
+  min-width: 0;
+}
+
+.steep-dashboard-card.is-warm {
+  background: var(--steep-apricot-wash);
+}
+
+.steep-dashboard-card.is-cool {
+  background: var(--steep-sky-wash);
+}
+
+.steep-filled-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 20px;
+  border: 0;
+  border-radius: var(--steep-radius-pill);
+  background: var(--steep-ink);
+  color: var(--steep-pure-white);
+  font: 450 15px/1.25 var(--steep-font-body);
+  letter-spacing: -0.009em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.steep-text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--steep-ink);
+  font: 450 15px/1.25 var(--steep-font-body);
+  letter-spacing: -0.009em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.steep-sidebar-nav {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--steep-radius-card);
+  background: var(--steep-fog);
+}
+
+.steep-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  color: var(--steep-ink);
+  font-size: 15px;
+  font-weight: 450;
+}
+
+.steep-nav-item.is-active {
+  background: var(--steep-pure-white);
+}
+
+.steep-avatar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--steep-radius-pill);
+  background: var(--steep-apricot-wash);
+  color: var(--steep-ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.steep-chat-input {
+  display: grid;
+  grid-template-columns: 1fr 40px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 18px;
+  border: 1px solid color-mix(in srgb, var(--steep-dove) 72%, transparent);
+  border-radius: 20px;
+  background: var(--steep-pure-white);
+}
+
+.steep-chat-input span {
+  overflow: hidden;
+  color: var(--steep-graphite);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.steep-chat-input button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--steep-radius-pill);
+  appearance: none;
+  background: var(--steep-ink);
+  color: var(--steep-pure-white);
+  font: inherit;
+  cursor: pointer;
+}
+
+.steep-region-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  color: var(--steep-graphite);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.steep-region-row strong {
+  color: var(--steep-ink);
+  font-weight: 480;
+}
+
+.steep-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--steep-radius-pill);
+  background: var(--steep-fog);
+  color: var(--steep-graphite);
+  font-size: 14px;
+  font-weight: 450;
+}
