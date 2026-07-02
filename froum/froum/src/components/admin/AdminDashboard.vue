@@ -1091,6 +1091,9 @@ onBeforeUnmount(() => {
   --admin-danger-soft: #f8ece9;
 
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   color: var(--admin-ink);
   background:
     linear-gradient(180deg, var(--ad-theme-one, rgba(255, 255, 255, 0.8)), transparent 15rem),
@@ -1126,8 +1129,10 @@ onBeforeUnmount(() => {
 
 .admin-dashboard-shell {
   display: flex;
+  position: relative;
   min-height: calc(100vh - 70px);
   margin-top: 70px;
+  overflow-x: clip;
 }
 
 .admin-sidebar {
@@ -1359,17 +1364,23 @@ onBeforeUnmount(() => {
 .admin-content {
   flex: 1;
   min-width: 0;
+  width: calc(100% - 260px);
+  max-width: calc(100vw - 260px);
   margin-left: 260px;
   padding: 24px;
+  overflow-x: clip;
   transition: margin-left var(--kumo-transition);
 }
 
 .admin-content.full-width {
+  width: 100%;
+  max-width: 100vw;
   margin-left: 0;
 }
 
 .dashboard-content {
   width: 100%;
+  min-width: 0;
 }
 
 .dashboard-grid {
@@ -2119,6 +2130,8 @@ onBeforeUnmount(() => {
   }
 
   .admin-content {
+    width: calc(100% - 82px);
+    max-width: calc(100vw - 82px);
     margin-left: 82px;
     padding: 18px;
   }
@@ -2168,8 +2181,14 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .admin-dashboard-container {
+    overflow-x: hidden;
+  }
+
   .admin-sidebar {
     width: min(320px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+    box-sizing: border-box;
     transform: translateX(-108%);
   }
 
@@ -2179,6 +2198,8 @@ onBeforeUnmount(() => {
 
   .admin-content,
   .admin-content.full-width {
+    width: 100%;
+    max-width: 100vw;
     margin-left: 0;
     padding: 14px;
   }
@@ -2211,6 +2232,17 @@ onBeforeUnmount(() => {
     align-items: flex-start;
   }
 
+  .dashboard-grid,
+  .dashboard-center,
+  .dashboard-insights,
+  .dashboard-card,
+  .stat-card,
+  .admin-user-table,
+  .pending-list,
+  .activity-feed {
+    min-width: 0;
+  }
+
   .stats-cards,
   .dashboard-insights,
   .system-mini-grid {
@@ -2229,9 +2261,29 @@ onBeforeUnmount(() => {
   .item-actions {
     justify-content: flex-start;
   }
+
+  .line-action,
+  .ghost-command {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
+  .admin-dashboard-shell {
+    margin-top: 60px;
+  }
+
+  .admin-sidebar {
+    top: 60px;
+    height: calc(100vh - 60px);
+    padding: 12px 10px;
+  }
+
+  .admin-content,
+  .admin-content.full-width {
+    padding: 10px;
+  }
+
   .dashboard-hero,
   .dashboard-card,
   .stat-card {
@@ -2253,6 +2305,16 @@ onBeforeUnmount(() => {
   .card-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .stat-card {
+    min-height: 148px;
+  }
+
+  .system-mini-grid div,
+  .pending-item,
+  .table-row {
+    padding: 12px;
   }
 }
 </style>

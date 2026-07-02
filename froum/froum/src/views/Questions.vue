@@ -18,9 +18,18 @@
       </template>
       <template #aside>
         <div class="qa-summary">
+          <div class="qa-summary-header">
+            <span class="qa-summary-dot"></span>
+            <span>Question console</span>
+          </div>
           <strong>{{ totalQuestions }}</strong>
           <span>个问题</span>
           <small>{{ activeFilterLabel }}</small>
+          <div class="qa-summary-bars" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
         </div>
       </template>
     </ui-page-hero>
@@ -102,7 +111,12 @@
             </p>
 
             <div v-if="getQuestionImage(question)" class="question-image-preview">
-              <img :src="getQuestionImage(question)" :alt="question.title" loading="lazy">
+              <img
+                :src="getQuestionImage(question)"
+                :alt="question.title"
+                loading="lazy"
+                @error="event => event.currentTarget.closest('.question-image-preview')?.classList.add('is-hidden')"
+              >
             </div>
 
             <div class="question-meta">
@@ -197,6 +211,8 @@ const resolveContentImageUrl = (url) => {
   if (/^(https?:|data:image\/|blob:)/i.test(normalizedUrl)) return normalizedUrl
   if (normalizedUrl.startsWith('/')) return normalizedUrl
   if (normalizedUrl.startsWith('uploads/')) return `/${normalizedUrl}`
+  if (normalizedUrl.startsWith('images/')) return `/uploads/${normalizedUrl}`
+  if (normalizedUrl.startsWith('files/')) return `/uploads/${normalizedUrl}`
   return normalizedUrl
 }
 
@@ -243,7 +259,47 @@ const stripInlineMediaSyntax = (content = '') => String(content || '')
   .replace(/\s+/g, ' ')
   .trim()
 
-const getQuestionImage = (question) => extractFirstImageUrl(question?.content || question?.summary || '')
+const normalizeImageCandidate = (candidate) => {
+  if (!candidate) return ''
+  if (typeof candidate === 'string') return resolveContentImageUrl(candidate)
+  return resolveContentImageUrl(candidate.url || candidate.src || candidate.path || candidate.fileUrl || candidate.imageUrl || '')
+}
+
+const getQuestionImage = (question) => {
+  const directCandidates = [
+    question?.coverImage,
+    question?.coverUrl,
+    question?.image,
+    question?.imageUrl,
+    question?.thumbnail,
+    question?.thumbnailUrl,
+    question?.firstImage,
+    question?.banner
+  ]
+
+  for (const candidate of directCandidates) {
+    const imageUrl = normalizeImageCandidate(candidate)
+    if (imageUrl) return imageUrl
+  }
+
+  const collectionCandidates = [
+    question?.images,
+    question?.attachments,
+    question?.files,
+    question?.media
+  ]
+
+  for (const collection of collectionCandidates) {
+    const list = Array.isArray(collection) ? collection : []
+    for (const item of list) {
+      const imageUrl = normalizeImageCandidate(item)
+      const itemType = String(item?.type || item?.mimeType || item?.contentType || '').toLowerCase()
+      if (imageUrl && (isImageUrl(imageUrl) || itemType.startsWith('image/'))) return imageUrl
+    }
+  }
+
+  return extractFirstImageUrl(question?.content || question?.summary || question?.description || '')
+}
 const getQuestionExcerpt = (question) => stripInlineMediaSyntax(question?.summary || question?.content || '')
 
 const normalizeTags = (tags) => {
@@ -330,21 +386,41 @@ onMounted(loadQuestions)
 <style scoped>
 .questions-view {
   display: grid;
-  gap: 1.25rem;
+  gap: clamp(0.9rem, 2vw, 1.25rem);
 }
 
 .qa-summary {
   display: grid;
-  gap: 0.2rem;
-  padding: 1.2rem;
+  gap: 0.35rem;
+  min-width: min(18rem, 100%);
+  padding: 1.15rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-lg);
-  background: var(--kumo-bg-base);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--kumo-bg-elevated), var(--kumo-bg-subtle));
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.qa-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--kumo-text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.qa-summary-dot {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-accent);
+  box-shadow: 0 0 0 5px var(--kumo-bg-accent-soft);
 }
 
 .qa-summary strong {
   color: var(--kumo-bg-brand-strong);
-  font-size: 3.4rem;
+  font-size: clamp(2.6rem, 6vw, 3.4rem);
   font-weight: 900;
   line-height: 1;
 }
@@ -355,12 +431,39 @@ onMounted(loadQuestions)
   font-weight: 740;
 }
 
+.qa-summary-bars {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.qa-summary-bars i {
+  display: block;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--kumo-bg-recessed);
+}
+
+.qa-summary-bars i:nth-child(1) {
+  width: 86%;
+  background: var(--kumo-bg-brand-soft);
+}
+
+.qa-summary-bars i:nth-child(2) {
+  width: 62%;
+}
+
+.qa-summary-bars i:nth-child(3) {
+  width: 74%;
+}
+
 .question-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem;
+  border-radius: 18px;
 }
 
 .sort-control {
@@ -403,10 +506,19 @@ onMounted(loadQuestions)
 
 .question-card {
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 1.1rem;
+  padding: 1.1rem;
+  border-color: color-mix(in srgb, var(--kumo-hairline-strong) 72%, transparent);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), transparent),
+    var(--kumo-bg-elevated);
   cursor: pointer;
+}
+
+.question-card:hover {
+  border-color: var(--kumo-hairline-strong);
 }
 
 .question-stats {
@@ -419,7 +531,8 @@ onMounted(loadQuestions)
   display: grid;
   gap: 0.15rem;
   padding: 0.8rem;
-  border-radius: var(--kumo-radius-md);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 14px;
   background: var(--kumo-bg-subtle);
   color: var(--kumo-text-muted);
   font-size: 0.8rem;
@@ -466,12 +579,17 @@ onMounted(loadQuestions)
 }
 
 .question-image-preview {
-  width: min(24rem, 100%);
+  width: min(28rem, 100%);
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-md);
+  border: 1px solid var(--kumo-hairline-strong);
+  border-radius: 14px;
   background: var(--kumo-bg-subtle);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.44);
+}
+
+.question-image-preview.is-hidden {
+  display: none;
 }
 
 .question-image-preview img {
@@ -542,6 +660,7 @@ onMounted(loadQuestions)
   justify-content: center;
   gap: 1rem;
   padding: 0.85rem;
+  border-radius: 18px;
 }
 
 .pagination span {
@@ -555,23 +674,80 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  .questions-view {
+    gap: 0.85rem;
+  }
+
   .question-toolbar,
   .question-meta {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .question-toolbar {
+    padding: 0.75rem;
+  }
+
+  .question-toolbar .kumo-tabs {
+    width: 100%;
+  }
+
   .question-card {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 0.9rem;
   }
 
   .question-stats {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    order: 2;
   }
 
   .sort-control {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .sort-control select {
+    width: 100%;
+  }
+
+  .question-image-preview {
+    width: 100%;
+  }
+
+  .pagination {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .pagination .kumo-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .qa-summary {
+    padding: 0.95rem;
+  }
+
+  .question-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .question-title-row h2 {
+    font-size: 1.08rem;
+  }
+
+  .question-excerpt {
+    -webkit-line-clamp: 3;
+  }
+
+  .question-stats span {
+    padding: 0.7rem;
   }
 }
 </style>
