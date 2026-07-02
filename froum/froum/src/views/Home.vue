@@ -21,16 +21,58 @@
       </div>
 
       <div class="hero-panel">
-        <div class="signal-card">
-          <span>实时讨论</span>
-          <strong>{{ articleCount + questionCount }}</strong>
-          <small>条内容正在沉淀</small>
-        </div>
-        <div class="signal-grid">
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
+        <div class="radar-console">
+          <div class="radar-header">
+            <div>
+              <span class="radar-kicker">Knowledge Radar</span>
+              <strong>技术脉冲</strong>
+            </div>
+            <span class="radar-score">
+              <i></i>
+              {{ activeScore }}%
+            </span>
+          </div>
+
+          <div class="radar-visual" aria-hidden="true">
+            <span class="radar-ring outer"></span>
+            <span class="radar-ring middle"></span>
+            <span class="radar-ring inner"></span>
+            <span class="radar-sweep"></span>
+            <span
+              v-for="(topic, index) in radarTopics"
+              :key="`${topic.type}-${topic.id}-${index}`"
+              class="radar-dot"
+              :class="`dot-${index + 1}`"
+            ></span>
+          </div>
+
+          <div class="radar-metrics">
+            <div v-for="metric in radarMetrics" :key="metric.label" class="radar-metric">
+              <font-awesome-icon :icon="['fas', metric.icon]" />
+              <span>
+                <strong>{{ metric.value }}</strong>
+                <small>{{ metric.label }}</small>
+              </span>
+            </div>
+          </div>
+
+          <div class="radar-progress">
+            <span :style="{ width: `${activeScore}%` }"></span>
+          </div>
+
+          <div class="topic-dock">
+            <button
+              v-for="topic in radarTopics"
+              :key="`${topic.type}-${topic.id}`"
+              type="button"
+              class="topic-chip"
+              @click="openRadarTopic(topic)"
+            >
+              <font-awesome-icon :icon="['fas', topic.type === 'tag' ? 'hashtag' : 'folder']" />
+              <span>{{ topic.label }}</span>
+              <small>{{ topic.meta }}</small>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -261,6 +303,44 @@ const articleCount = computed(() => store.state.articleCount || articles.value.l
 const categoryCount = computed(() => categories.value.length)
 const tagCount = computed(() => popularTags.value.length)
 const questionCount = computed(() => questionTotalItems.value || questions.value.length || 0)
+const totalContentCount = computed(() => articleCount.value + questionCount.value)
+const activeScore = computed(() => {
+  const base = totalContentCount.value * 4 + categoryCount.value * 6 + tagCount.value * 2
+  return Math.max(18, Math.min(96, base || 42))
+})
+
+const radarMetrics = computed(() => [
+  { label: '内容资产', value: totalContentCount.value, icon: 'server' },
+  { label: '知识域', value: categoryCount.value, icon: 'folder' },
+  { label: '主题信号', value: tagCount.value, icon: 'chart-line' }
+])
+
+const normalizeTopicLabel = (item, fallback) => item?.name || item?.label || item?.title || fallback
+const normalizeTopicId = (item, fallback) => item?.id || item?.tagId || item?.categoryId || normalizeTopicLabel(item, fallback)
+
+const radarTopics = computed(() => {
+  const topicTags = popularTags.value.slice(0, 3).map((tag, index) => ({
+    type: 'tag',
+    id: normalizeTopicId(tag, `tag-${index}`),
+    label: normalizeTopicLabel(tag, `主题 ${index + 1}`),
+    meta: `${tag?.count || tag?.articleCount || tag?.usageCount || 'hot'}`
+  }))
+
+  const topicCategories = categories.value.slice(0, 2).map((category, index) => ({
+    type: 'category',
+    id: normalizeTopicId(category, `category-${index}`),
+    label: normalizeTopicLabel(category, `分类 ${index + 1}`),
+    meta: `${category?.articleCount || category?.count || 'nav'}`
+  }))
+
+  const fallback = [
+    { type: 'tag', id: 'vue', label: 'Vue', meta: 'front' },
+    { type: 'tag', id: 'spring', label: 'Spring', meta: 'backend' },
+    { type: 'category', id: 'architecture', label: '架构', meta: 'system' }
+  ]
+
+  return [...topicTags, ...topicCategories, ...fallback].slice(0, 5)
+})
 
 const stats = computed(() => [
   { label: '文章', value: articleCount.value, caption: '长期沉淀', icon: 'file-alt' },
@@ -277,6 +357,15 @@ const switchTab = (tab) => {
       tab
     }
   })
+}
+
+const openRadarTopic = (topic) => {
+  if (topic.type === 'tag') {
+    router.push(`/tag/${topic.id}`)
+    return
+  }
+
+  router.push(`/category/${topic.id}`)
 }
 
 const loadHotArticles = async () => {
@@ -435,9 +524,9 @@ onMounted(async () => {
 .home-hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.4fr);
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.46fr);
   gap: 1.5rem;
-  min-height: 20rem;
+  min-height: 23rem;
   padding: clamp(1.5rem, 4vw, 3.25rem);
   overflow: hidden;
 }
@@ -445,12 +534,13 @@ onMounted(async () => {
 .home-hero::after {
   content: '';
   position: absolute;
-  inset: auto -12rem -16rem auto;
-  width: 34rem;
-  height: 34rem;
-  border-radius: 999px;
-  background: radial-gradient(circle, var(--kumo-bg-brand-soft), transparent 66%);
-  animation: soft-pulse 8s ease-in-out infinite;
+  inset: 0 0 auto auto;
+  width: min(42rem, 58%);
+  height: 100%;
+  background:
+    linear-gradient(135deg, transparent 18%, rgba(var(--accent-rgb), 0.07)),
+    linear-gradient(180deg, rgba(var(--primary-rgb), 0.08), transparent);
+  pointer-events: none;
 }
 
 .hero-copy {
@@ -487,47 +577,227 @@ onMounted(async () => {
 .hero-panel {
   position: relative;
   z-index: 1;
+  min-width: 0;
+}
+
+.radar-console {
+  position: relative;
   display: grid;
-  align-content: center;
+  gap: 1rem;
+  height: 100%;
+  min-height: 19rem;
+  padding: 1.1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent),
+    color-mix(in srgb, var(--kumo-bg-elevated) 88%, var(--kumo-bg-subtle));
+  box-shadow: 0 18px 46px rgba(31, 28, 24, 0.1);
+  overflow: hidden;
+}
+
+.radar-header,
+.radar-score,
+.radar-metrics,
+.radar-metric,
+.topic-chip {
+  display: flex;
+  align-items: center;
+}
+
+.radar-header {
+  justify-content: space-between;
   gap: 1rem;
 }
 
-.signal-card {
-  display: grid;
-  gap: 0.2rem;
-  padding: 1.25rem;
+.radar-kicker {
+  display: block;
+  color: var(--kumo-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 780;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.radar-header strong {
+  color: var(--kumo-text-default);
+  font-size: 1.05rem;
+  font-weight: 860;
+}
+
+.radar-score {
+  gap: 0.42rem;
+  padding: 0.35rem 0.58rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 999px;
   background: var(--kumo-bg-base);
-  box-shadow: var(--kumo-shadow-sm);
+  color: var(--kumo-text-default);
+  font-size: 0.82rem;
+  font-weight: 820;
 }
 
-.signal-card span,
-.signal-card small {
-  color: var(--kumo-text-muted);
-  font-weight: 740;
+.radar-score i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--kumo-status-success);
+  box-shadow: 0 0 0 4px var(--kumo-status-success-tint);
 }
 
-.signal-card strong {
-  color: var(--kumo-bg-brand-strong);
-  font-size: 2.45rem;
-  font-weight: 900;
+.radar-visual {
+  position: relative;
+  width: min(15rem, 76%);
+  aspect-ratio: 1;
+  place-self: center;
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(var(--accent-rgb), 0.08), transparent 54%),
+    var(--kumo-bg-base);
+  box-shadow:
+    inset 0 0 0 1px var(--kumo-hairline),
+    inset 0 0 34px rgba(var(--accent-rgb), 0.08);
+}
+
+.radar-ring,
+.radar-sweep,
+.radar-dot {
+  position: absolute;
+  border-radius: 999px;
+}
+
+.radar-ring {
+  inset: 12%;
+  border: 1px solid color-mix(in srgb, var(--kumo-hairline-strong) 72%, transparent);
+}
+
+.radar-ring.middle {
+  inset: 28%;
+}
+
+.radar-ring.inner {
+  inset: 44%;
+}
+
+.radar-sweep {
+  inset: 50% 50% 0 50%;
+  width: 42%;
+  height: 1px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.76), transparent);
+  animation: radar-scan 7s linear infinite;
+}
+
+.radar-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  background: var(--kumo-bg-accent);
+  box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.12);
+}
+
+.dot-1 { top: 22%; left: 62%; }
+.dot-2 { top: 48%; left: 24%; }
+.dot-3 { top: 66%; left: 70%; }
+.dot-4 { top: 34%; left: 42%; background: var(--kumo-bg-brand); box-shadow: 0 0 0 5px rgba(var(--primary-rgb), 0.12); }
+.dot-5 { top: 72%; left: 38%; background: var(--kumo-status-success); box-shadow: 0 0 0 5px var(--kumo-status-success-tint); }
+
+.radar-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.radar-metric {
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.62rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--kumo-bg-base) 76%, var(--kumo-bg-elevated));
+}
+
+.radar-metric svg {
+  color: var(--kumo-bg-accent);
+}
+
+.radar-metric span {
+  display: grid;
+  min-width: 0;
+}
+
+.radar-metric strong {
+  color: var(--kumo-text-default);
+  font-size: 1rem;
+  font-weight: 860;
   line-height: 1;
 }
 
-.signal-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+.radar-metric small {
+  overflow: hidden;
+  color: var(--kumo-text-subtle);
+  font-size: 0.68rem;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.signal-grid span {
-  aspect-ratio: 1;
+.radar-progress {
+  height: 0.46rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--kumo-bg-recessed);
+}
+
+.radar-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
+}
+
+.topic-dock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.topic-chip {
+  gap: 0.36rem;
+  min-height: 2rem;
+  max-width: 100%;
+  padding: 0.42rem 0.58rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-md);
-  background:
-    linear-gradient(135deg, var(--kumo-bg-brand-soft), transparent),
-    var(--kumo-bg-elevated);
+  border-radius: 999px;
+  background: var(--kumo-bg-elevated);
+  color: var(--kumo-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 760;
+  cursor: pointer;
+  transition: var(--kumo-transition);
+}
+
+.topic-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--kumo-hairline-strong);
+  background: var(--kumo-bg-accent-soft);
+  color: var(--kumo-bg-accent);
+}
+
+.topic-chip span {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-chip small {
+  color: var(--kumo-text-subtle);
+}
+
+@keyframes radar-scan {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .search-summary {

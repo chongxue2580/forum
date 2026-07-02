@@ -516,9 +516,9 @@ export default defineComponent({
 }
 
 .method-button.active {
-  border-color: var(--kumo-bg-brand);
-  background-color: var(--kumo-bg-brand-soft);
-  color: var(--kumo-bg-brand-strong);
+  border-color: var(--kumo-bg-accent);
+  background-color: var(--kumo-bg-accent-soft);
+  color: var(--kumo-bg-accent);
   font-weight: 600;
 }
 
@@ -560,7 +560,7 @@ input[type="password"] {
 
 input[type="text"]:focus,
 input[type="password"]:focus {
-  border-color: var(--kumo-bg-brand);
+  border-color: var(--kumo-bg-accent);
   outline: none;
   box-shadow: 0 0 0 4px var(--kumo-focus-ring);
 }
@@ -579,10 +579,10 @@ input[type="password"]:focus {
 .btn-login {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-brand-strong));
+  background: linear-gradient(180deg, #148cff, var(--kumo-bg-accent));
   color: var(--kumo-text-inverse);
   border: none;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -592,13 +592,13 @@ input[type="password"]:focus {
   gap: 0.5rem;
   transition: var(--kumo-transition);
   margin-top: 1rem;
-  box-shadow: var(--shadow);
+  box-shadow: 0 10px 22px rgba(var(--accent-rgb), 0.2);
 }
 
 .btn-login:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(var(--accent-rgb), 0.24);
+  filter: none;
 }
 
 .btn-login:disabled {
@@ -611,7 +611,7 @@ input[type="password"]:focus {
   margin-top: 0.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: 999px;
+  border-radius: 12px;
   background-color: var(--kumo-bg-elevated);
   color: var(--kumo-text-default);
   font-size: 0.9rem;
@@ -624,8 +624,8 @@ input[type="password"]:focus {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--kumo-bg-brand);
-  color: var(--kumo-bg-brand-strong);
+  border-color: var(--kumo-bg-accent);
+  color: var(--kumo-bg-accent);
 }
 
 .btn-secondary:disabled {
@@ -649,7 +649,7 @@ input[type="password"]:focus {
 }
 
 .back-link a:hover {
-  color: var(--kumo-bg-brand-strong);
+  color: var(--kumo-bg-accent);
 }
 
 .admin-login-decoration {
@@ -664,9 +664,9 @@ input[type="password"]:focus {
 
 .decoration-circle {
   position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--kumo-bg-brand-soft), transparent 68%);
-  opacity: 0.72;
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--accent-rgb), 0.06));
+  opacity: 0.5;
   animation: soft-pulse 7s ease-in-out infinite;
 }
 

@@ -1075,30 +1075,30 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   color: var(--kumo-text-default);
   background:
-    radial-gradient(circle at 12% 10%, var(--ad-theme-one, var(--kumo-bg-brand-soft)), transparent 30rem),
-    radial-gradient(circle at 88% 84%, var(--ad-theme-two, var(--kumo-bg-accent-soft)), transparent 28rem),
-    linear-gradient(135deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
+    linear-gradient(180deg, var(--ad-theme-one, rgba(var(--primary-rgb), 0.04)), transparent 15rem),
+    linear-gradient(120deg, var(--ad-theme-two, rgba(var(--accent-rgb), 0.035)), transparent 32rem),
+    linear-gradient(180deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
   background-attachment: fixed;
 }
 
 .admin-dashboard-container.bg-mint {
-  --ad-theme-one: var(--kumo-bg-brand-soft);
-  --ad-theme-two: var(--kumo-status-success-tint);
+  --ad-theme-one: rgba(var(--primary-rgb), 0.055);
+  --ad-theme-two: rgba(var(--success-rgb), 0.04);
 }
 
 .admin-dashboard-container.bg-ice {
-  --ad-theme-one: var(--kumo-bg-accent-soft);
-  --ad-theme-two: var(--kumo-status-info-tint);
+  --ad-theme-one: rgba(var(--primary-rgb), 0.035);
+  --ad-theme-two: rgba(var(--accent-rgb), 0.045);
 }
 
 .admin-dashboard-container.bg-gold {
-  --ad-theme-one: var(--kumo-bg-warm);
-  --ad-theme-two: var(--kumo-status-warning-tint);
+  --ad-theme-one: rgba(var(--warning-rgb), 0.08);
+  --ad-theme-two: rgba(var(--primary-rgb), 0.035);
 }
 
 .admin-dashboard-container.bg-violet {
-  --ad-theme-one: var(--kumo-bg-accent-soft);
-  --ad-theme-two: var(--kumo-bg-brand-soft);
+  --ad-theme-one: rgba(var(--accent-rgb), 0.055);
+  --ad-theme-two: rgba(var(--primary-rgb), 0.035);
 }
 
 .admin-dashboard-container.bg-gray {
@@ -1129,11 +1129,11 @@ onBeforeUnmount(() => {
 .dashboard-card,
 .stat-card {
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-xl);
+  border-radius: 12px;
   background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-sm);
-  backdrop-filter: var(--kumo-blur);
-  -webkit-backdrop-filter: var(--kumo-blur);
+  box-shadow: 0 10px 28px rgba(19, 32, 33, 0.07);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .sidebar-menu {
@@ -1257,7 +1257,7 @@ onBeforeUnmount(() => {
 .menu-list :deep(.el-menu-item) {
   height: 46px;
   margin: 4px 0;
-  border-radius: var(--kumo-radius-md);
+  border-radius: 8px;
   color: var(--kumo-text-muted);
   line-height: 46px;
   transition:
@@ -1268,8 +1268,8 @@ onBeforeUnmount(() => {
 
 .menu-list :deep(.el-menu-item:hover),
 .menu-list :deep(.el-menu-item.is-active) {
-  color: var(--kumo-bg-brand-strong);
-  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-accent);
+  background: var(--kumo-bg-accent-soft);
 }
 
 .menu-list :deep(.el-menu-item.is-active) {
@@ -1391,11 +1391,10 @@ onBeforeUnmount(() => {
 .dashboard-hero::after {
   content: '';
   position: absolute;
-  inset: auto -80px -130px auto;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--kumo-bg-accent-soft), transparent 68%);
+  inset: auto 0 0 auto;
+  width: 38%;
+  height: 100%;
+  background: linear-gradient(135deg, transparent, rgba(var(--accent-rgb), 0.08));
   pointer-events: none;
 }
 
@@ -1429,7 +1428,7 @@ onBeforeUnmount(() => {
 .hero-status {
   min-width: 176px;
   padding: 14px 16px;
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 10px;
 }
 
 .hero-status strong {
@@ -1468,9 +1467,9 @@ onBeforeUnmount(() => {
 
 .stat-card:hover,
 .dashboard-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--kumo-hairline-strong);
-  box-shadow: var(--kumo-shadow-md);
+  box-shadow: 0 14px 36px rgba(19, 32, 33, 0.1);
 }
 
 .stat-card::before {
@@ -1660,17 +1659,17 @@ onBeforeUnmount(() => {
 .ghost-command {
   min-height: 38px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 8px;
 }
 
 .ghost-command:hover,
 .line-action:hover,
 .line-icon-btn:hover {
   transform: translateY(-1px);
-  color: var(--kumo-bg-brand-strong);
+  color: var(--kumo-bg-accent);
   border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-brand-soft);
-  box-shadow: var(--kumo-shadow-sm);
+  background: var(--kumo-bg-accent-soft);
+  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.12);
 }
 
 .ghost-command:disabled {
@@ -1700,7 +1699,7 @@ onBeforeUnmount(() => {
 .table-row {
   min-height: 66px;
   padding: 10px 14px;
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 10px;
 }
 
 .user-cell {
@@ -1750,7 +1749,9 @@ onBeforeUnmount(() => {
   padding: 5px;
   margin-bottom: 14px;
   overflow-x: auto;
-  border-radius: 999px;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--kumo-bg-subtle) 72%, var(--kumo-bg-elevated));
 }
 
 .tab-item {
@@ -1760,7 +1761,7 @@ onBeforeUnmount(() => {
   gap: 7px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--kumo-text-muted);
   background: transparent;
   font: inherit;
@@ -1778,9 +1779,9 @@ onBeforeUnmount(() => {
 }
 
 .tab-item.active {
-  color: var(--kumo-bg-brand-strong);
+  color: var(--kumo-bg-accent);
   background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-sm);
+  box-shadow: 0 6px 16px rgba(19, 32, 33, 0.08);
 }
 
 .pending-list {
@@ -1793,7 +1794,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 10px;
 }
 
 .item-info {
@@ -1831,7 +1832,7 @@ onBeforeUnmount(() => {
 .line-action {
   min-height: 34px;
   padding: 0 11px;
-  border-radius: 999px;
+  border-radius: 8px;
 }
 
 .line-action.success {

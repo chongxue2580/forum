@@ -460,10 +460,6 @@ onMounted(loadCategories)
   color: var(--text-color);
   font-weight: 600;
   line-height: 1.4;
-  background: linear-gradient(135deg, var(--text-color) 0%, var(--primary-color) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .category-description {

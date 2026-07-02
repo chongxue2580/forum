@@ -388,10 +388,11 @@ watch(() => route.fullPath, () => {
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 12px;
   background:
-    linear-gradient(135deg, var(--kumo-bg-brand), var(--kumo-bg-accent));
-  color: var(--kumo-text-inverse);
+    linear-gradient(180deg, var(--kumo-bg-elevated), var(--kumo-bg-brand-soft));
+  color: var(--kumo-bg-brand-strong);
   font-weight: 900;
   box-shadow: var(--kumo-shadow-sm);
 }

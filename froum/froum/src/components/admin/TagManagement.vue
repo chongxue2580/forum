@@ -308,11 +308,22 @@ onMounted(loadTags)
               <button v-if="row.status === 'pending'" class="ad-btn is-danger" @click="updateTagStatus(row, 'rejected')">
                 <font-awesome-icon icon="times" /> 拒绝
               </button>
-              <button class="ad-btn is-primary" @click="editTag(row)">
-                <font-awesome-icon icon="edit" /> 编辑
+              <button
+                class="ad-icon-action is-edit"
+                title="编辑标签"
+                aria-label="编辑标签"
+                @click="editTag(row)"
+              >
+                <font-awesome-icon icon="edit" />
               </button>
-              <button v-if="row.count === 0" class="ad-btn is-danger" @click="deleteTag(row)">
-                <font-awesome-icon icon="trash-alt" /> 删除
+              <button
+                v-if="row.count === 0"
+                class="ad-icon-action is-delete"
+                title="删除标签"
+                aria-label="删除标签"
+                @click="deleteTag(row)"
+              >
+                <font-awesome-icon icon="trash-alt" />
               </button>
             </div>
           </div>

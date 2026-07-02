@@ -16,10 +16,10 @@ const emit = defineEmits(['toggle-theme', 'set-bg'])
 
 // 背景主题预设（色卡）
 const bgPresets = [
-  { key: 'ice', label: '冰蓝', swatch: 'linear-gradient(135deg, var(--kumo-bg-brand-soft), var(--kumo-bg-accent-soft))' },
-  { key: 'mint', label: '青雾', swatch: 'linear-gradient(135deg, var(--kumo-bg-accent-soft), var(--kumo-status-success-tint))' },
-  { key: 'gold', label: '暖金', swatch: 'linear-gradient(135deg, var(--kumo-bg-warm), var(--kumo-status-warning-tint))' },
-  { key: 'violet', label: '暮光', swatch: 'linear-gradient(135deg, var(--kumo-bg-accent-soft), var(--kumo-bg-brand-soft))' },
+  { key: 'ice', label: '暖白', swatch: 'linear-gradient(135deg, var(--kumo-bg-base), var(--kumo-bg-subtle))' },
+  { key: 'mint', label: '陶土', swatch: 'linear-gradient(135deg, var(--kumo-bg-brand-soft), var(--kumo-bg-subtle))' },
+  { key: 'gold', label: '砂岩', swatch: 'linear-gradient(135deg, var(--kumo-bg-warm), var(--kumo-bg-subtle))' },
+  { key: 'violet', label: '系统蓝', swatch: 'linear-gradient(135deg, var(--kumo-bg-accent-soft), var(--kumo-bg-subtle))' },
   { key: 'gray', label: '极简', swatch: 'linear-gradient(135deg, var(--kumo-bg-subtle), var(--kumo-bg-recessed))' }
 ]
 const unreadNotificationCount = ref(0)
@@ -310,10 +310,10 @@ onBeforeUnmount(() => {
   padding: 0 2rem;
   color: var(--kumo-text-default);
   border-bottom: 1px solid var(--kumo-hairline);
-  background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-sm);
-  backdrop-filter: var(--kumo-blur);
-  -webkit-backdrop-filter: var(--kumo-blur);
+  background: color-mix(in srgb, var(--kumo-bg-elevated) 92%, var(--kumo-bg-subtle));
+  box-shadow: 0 8px 24px rgba(19, 32, 33, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .admin-nav-left,
@@ -360,7 +360,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--kumo-radius-md);
+  border-radius: 10px;
   cursor: pointer;
 }
 
@@ -374,17 +374,17 @@ onBeforeUnmount(() => {
 .user-info:hover,
 .nav-button:hover {
   transform: translateY(-1px);
-  color: var(--kumo-bg-brand-strong);
+  color: var(--kumo-bg-accent);
   border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-brand-soft);
-  box-shadow: var(--kumo-shadow-sm);
+  background: var(--kumo-bg-accent-soft);
+  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.12);
 }
 
 .nav-greeting {
   display: flex;
   flex-direction: column;
   padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border-radius: 10px;
 }
 
 .greeting {
@@ -410,7 +410,7 @@ onBeforeUnmount(() => {
 .nav-time {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
 .notification-row.unread,
 .notification-footer:hover {
   border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-brand-soft);
+  background: var(--kumo-bg-accent-soft);
 }
 
 .notification-title {
@@ -484,7 +484,7 @@ onBeforeUnmount(() => {
 .notification-footer {
   padding: 8px 10px;
   border-radius: var(--kumo-radius-sm);
-  color: var(--kumo-bg-brand-strong);
+  color: var(--kumo-bg-accent);
 }
 
 .nav-button {
@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -541,9 +541,9 @@ onBeforeUnmount(() => {
   width: 200px;
   overflow: hidden;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 12px;
   background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-lg);
+  box-shadow: 0 18px 48px rgba(19, 32, 33, 0.16);
   animation: dropdown-fade 0.2s ease;
 }
 
@@ -576,8 +576,8 @@ onBeforeUnmount(() => {
 }
 
 .dropdown-item:hover {
-  color: var(--kumo-bg-brand-strong);
-  background: var(--kumo-bg-brand-soft);
+  color: var(--kumo-bg-accent);
+  background: var(--kumo-bg-accent-soft);
 }
 
 .dropdown-divider {
@@ -606,7 +606,7 @@ onBeforeUnmount(() => {
   gap: 5px;
   padding: 6px 2px;
   border: 1px solid transparent;
-  border-radius: var(--kumo-radius-md);
+  border-radius: 8px;
   background: transparent;
   cursor: pointer;
   transition:
@@ -616,11 +616,11 @@ onBeforeUnmount(() => {
 
 .bg-swatch:hover,
 .bg-swatch.active {
-  background: var(--kumo-bg-brand-soft);
+  background: var(--kumo-bg-accent-soft);
 }
 
 .bg-swatch.active {
-  border-color: var(--kumo-bg-brand);
+  border-color: var(--kumo-bg-accent);
 }
 
 .bg-swatch-dot {

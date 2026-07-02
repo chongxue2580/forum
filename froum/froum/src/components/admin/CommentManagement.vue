@@ -358,12 +358,24 @@ onMounted(refreshAll)
             <span><font-awesome-icon icon="clock" /> {{ row.createdAt }}</span>
           </div>
 
-          <div class="ad-card__actions">
-            <button v-if="row.isDeleted" class="ad-btn is-primary" @click="handleRestore(row)">
-              <font-awesome-icon icon="undo" /> 恢复
+          <div class="ad-card__actions ad-card__actions--compact">
+            <button
+              v-if="row.isDeleted"
+              class="ad-icon-action is-restore"
+              title="恢复评论"
+              aria-label="恢复评论"
+              @click="handleRestore(row)"
+            >
+              <font-awesome-icon icon="undo" />
             </button>
-            <button v-else class="ad-btn is-danger" @click="handleDelete(row)">
-              <font-awesome-icon icon="trash-alt" /> 删除
+            <button
+              v-else
+              class="ad-icon-action is-delete"
+              title="删除评论"
+              aria-label="删除评论"
+              @click="handleDelete(row)"
+            >
+              <font-awesome-icon icon="trash-alt" />
             </button>
           </div>
         </div>
@@ -531,17 +543,12 @@ onMounted(refreshAll)
 .filter-panel :deep(.el-input__wrapper.is-focus),
 .filter-panel :deep(.el-select__wrapper.is-focused) {
   background: var(--ad-surface);
-  box-shadow: inset 0 0 0 1px var(--ad-brand), 0 0 0 4px var(--kumo-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--kumo-bg-accent), 0 0 0 4px var(--kumo-focus-ring);
 }
 
 .comment-management :deep(.el-button) {
-  border-radius: 999px;
+  border-radius: 8px;
   font-weight: 700;
-}
-
-.comment-management :deep(.el-button--primary) {
-  background: linear-gradient(135deg, var(--ad-brand), var(--ad-brand-strong));
-  border-color: transparent;
 }
 
 </style>
