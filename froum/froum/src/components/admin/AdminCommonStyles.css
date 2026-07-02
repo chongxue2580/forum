@@ -41,6 +41,39 @@
     linear-gradient(180deg, var(--ad-bg), var(--ad-surface-muted));
 }
 
+html[data-mode='dark'] .admin-page-container {
+  --ad-bg: #15130f;
+  --ad-surface: #242019;
+  --ad-surface-muted: #1c1914;
+  --ad-surface-strong: #2d2820;
+  --ad-surface-pressed: #343028;
+  --ad-border: rgba(255, 244, 232, 0.12);
+  --ad-border-strong: rgba(255, 244, 232, 0.22);
+  --ad-text: #f5efe6;
+  --ad-muted: #c7bdae;
+  --ad-soft: #958a7b;
+  --ad-ink: #f5efe6;
+  --ad-ink-soft: #fff4e8;
+  --ad-brand: #ff8b58;
+  --ad-brand-strong: #ffb28d;
+  --ad-brand-soft: rgba(255, 104, 44, 0.15);
+  --ad-info: #9cc7ff;
+  --ad-info-soft: rgba(94, 148, 220, 0.16);
+  --ad-success: #8cc6a2;
+  --ad-success-soft: rgba(92, 177, 127, 0.16);
+  --ad-warning: #d5b36b;
+  --ad-warning-soft: rgba(213, 179, 107, 0.16);
+  --ad-danger: #ee8d80;
+  --ad-danger-soft: rgba(238, 141, 128, 0.16);
+  --ad-shadow: 0 1px 2px rgba(0, 0, 0, 0.22), 0 14px 32px rgba(0, 0, 0, 0.18);
+  --ad-shadow-focus: 0 1px 2px rgba(0, 0, 0, 0.26), 0 20px 46px rgba(0, 0, 0, 0.24);
+
+  background:
+    radial-gradient(circle at 18% -10%, rgba(255, 104, 44, 0.12), transparent 20rem),
+    linear-gradient(120deg, rgba(255, 244, 232, 0.035), transparent 28rem),
+    linear-gradient(180deg, var(--ad-bg), #100e0b);
+}
+
 .admin-page-header,
 .admin-content-card,
 .admin-pagination,

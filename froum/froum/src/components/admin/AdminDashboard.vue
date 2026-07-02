@@ -1127,6 +1127,34 @@ onBeforeUnmount(() => {
   --ad-theme-two: #e4e2dd;
 }
 
+:global(html[data-mode='dark']) .admin-dashboard-container,
+.admin-dashboard-container.dark {
+  --admin-bg: #15130f;
+  --admin-surface: #242019;
+  --admin-muted-surface: #1c1914;
+  --admin-pressed: #343028;
+  --admin-border: rgba(255, 244, 232, 0.12);
+  --admin-border-strong: rgba(255, 244, 232, 0.22);
+  --admin-ink: #f5efe6;
+  --admin-muted: #c7bdae;
+  --admin-soft: #958a7b;
+  --admin-info: #9cc7ff;
+  --admin-info-soft: rgba(94, 148, 220, 0.16);
+  --admin-success: #8cc6a2;
+  --admin-success-soft: rgba(92, 177, 127, 0.16);
+  --admin-warning: #d5b36b;
+  --admin-warning-soft: rgba(213, 179, 107, 0.16);
+  --admin-danger: #ee8d80;
+  --admin-danger-soft: rgba(238, 141, 128, 0.16);
+  --ad-theme-one: rgba(255, 104, 44, 0.12);
+  --ad-theme-two: rgba(255, 244, 232, 0.035);
+
+  background:
+    radial-gradient(circle at 18% -10%, var(--ad-theme-one), transparent 20rem),
+    linear-gradient(120deg, var(--ad-theme-two), transparent 30rem),
+    linear-gradient(180deg, var(--admin-bg), #100e0b);
+}
+
 .admin-dashboard-shell {
   display: flex;
   position: relative;

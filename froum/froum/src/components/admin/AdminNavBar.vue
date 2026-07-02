@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-nav-bar">
+  <div class="admin-nav-bar" :class="{ dark: props.isDark }">
     <div class="admin-nav-left">
       <div class="toggle-sidebar" @click="handleToggleSidebar">
         <font-awesome-icon :icon="['fas', 'bars']" />
@@ -323,6 +323,24 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--admin-nav-border);
   background: color-mix(in srgb, var(--admin-nav-surface) 94%, var(--admin-nav-bg));
   box-shadow: 0 1px 2px rgba(23, 23, 23, 0.04), 0 10px 24px rgba(23, 23, 23, 0.04);
+}
+
+:global(html[data-mode='dark']) .admin-nav-bar,
+.admin-nav-bar.dark {
+  --admin-nav-surface: #242019;
+  --admin-nav-bg: #15130f;
+  --admin-nav-muted: #c7bdae;
+  --admin-nav-soft: #958a7b;
+  --admin-nav-border: rgba(255, 244, 232, 0.12);
+  --admin-nav-border-strong: rgba(255, 244, 232, 0.22);
+  --admin-nav-ink: #f5efe6;
+  --admin-nav-hover: #1c1914;
+  --admin-nav-info: #ff9b69;
+  --admin-nav-danger: #ee8d80;
+
+  background: color-mix(in srgb, var(--admin-nav-surface) 88%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.26), 0 16px 36px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
 }
 
 .admin-nav-left,

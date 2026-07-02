@@ -37,6 +37,25 @@
     rgba(0, 0, 0, 0.1) 0 8px 10px -6px;
 }
 
+html[data-mode='dark'] {
+  --steep-ink: #f4efe8;
+  --steep-pure-white: #242019;
+  --steep-fog: #1c1914;
+  --steep-ash: #c7bdae;
+  --steep-graphite: #958a7b;
+  --steep-dove: #5d5347;
+  --steep-slate: #786f63;
+  --steep-obsidian: #fff4e8;
+  --steep-rust: #ff9b69;
+  --steep-apricot-wash: #39261d;
+  --steep-sky-wash: #1d2a38;
+  --steep-blue: #86bfff;
+  --steep-shadow-subtle:
+    rgba(255, 244, 232, 0.1) 0 0 0 1px,
+    rgba(0, 0, 0, 0.28) 0 18px 34px -8px,
+    rgba(0, 0, 0, 0.22) 0 8px 14px -8px;
+}
+
 .steep-surface {
   color: var(--steep-ink);
   background: var(--steep-pure-white);
