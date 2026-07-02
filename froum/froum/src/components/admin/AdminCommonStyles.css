@@ -1,30 +1,33 @@
 /* Admin shared Kumo design layer */
 
 .admin-page-container {
-  --ad-bg: var(--kumo-bg-base);
-  --ad-surface: var(--kumo-bg-elevated);
-  --ad-surface-muted: var(--kumo-bg-subtle);
-  --ad-surface-strong: var(--kumo-bg-elevated);
-  --ad-border: var(--kumo-hairline);
-  --ad-border-strong: var(--kumo-hairline-strong);
-  --ad-text: var(--kumo-text-default);
-  --ad-muted: var(--kumo-text-muted);
-  --ad-soft: var(--kumo-text-subtle);
-  --ad-brand: var(--kumo-bg-brand);
-  --ad-brand-strong: var(--kumo-bg-brand-strong);
-  --ad-brand-soft: var(--kumo-bg-brand-soft);
-  --ad-info: var(--kumo-status-info);
-  --ad-info-soft: var(--kumo-status-info-tint);
-  --ad-success: var(--kumo-status-success);
-  --ad-success-soft: var(--kumo-status-success-tint);
-  --ad-warning: var(--kumo-status-warning);
-  --ad-warning-soft: var(--kumo-status-warning-tint);
-  --ad-danger: var(--kumo-status-danger);
-  --ad-danger-soft: var(--kumo-status-danger-tint);
-  --ad-radius: 8px;
-  --ad-radius-lg: 12px;
-  --ad-shadow: 0 10px 28px rgba(31, 28, 24, 0.06);
-  --ad-shadow-focus: 0 14px 36px rgba(31, 28, 24, 0.1);
+  --ad-bg: #f6f6f4;
+  --ad-surface: #ffffff;
+  --ad-surface-muted: #f2f1ee;
+  --ad-surface-strong: #ffffff;
+  --ad-surface-pressed: #eceae5;
+  --ad-border: #e4e2dd;
+  --ad-border-strong: #cfcac2;
+  --ad-text: #171717;
+  --ad-muted: #53514d;
+  --ad-soft: #7d7972;
+  --ad-ink: #171717;
+  --ad-ink-soft: #2d2c29;
+  --ad-brand: #8a8175;
+  --ad-brand-strong: #171717;
+  --ad-brand-soft: #eeebe5;
+  --ad-info: #596f8f;
+  --ad-info-soft: #edf1f6;
+  --ad-success: #4f6f5a;
+  --ad-success-soft: #edf4ef;
+  --ad-warning: #8b6f3e;
+  --ad-warning-soft: #f5efe1;
+  --ad-danger: #9d4a3f;
+  --ad-danger-soft: #f8ece9;
+  --ad-radius: 10px;
+  --ad-radius-lg: 14px;
+  --ad-shadow: 0 1px 2px rgba(23, 23, 23, 0.04), 0 10px 24px rgba(23, 23, 23, 0.04);
+  --ad-shadow-focus: 0 1px 2px rgba(23, 23, 23, 0.05), 0 16px 36px rgba(23, 23, 23, 0.06);
   --ad-blur: var(--kumo-blur);
 
   display: flex;
@@ -33,8 +36,8 @@
   padding: clamp(1rem, 2vw, 1.5rem);
   color: var(--ad-text);
   background:
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.04), transparent 14rem),
-    linear-gradient(120deg, rgba(var(--accent-rgb), 0.035), transparent 28rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), transparent 13rem),
+    linear-gradient(120deg, rgba(238, 235, 229, 0.55), transparent 28rem),
     linear-gradient(180deg, var(--ad-bg), var(--ad-surface-muted));
 }
 
@@ -49,8 +52,6 @@
   border-radius: var(--ad-radius-lg);
   background: var(--ad-surface);
   box-shadow: var(--ad-shadow);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .admin-page-header {
@@ -75,7 +76,7 @@
 }
 
 .admin-page-title svg {
-  color: var(--kumo-bg-accent);
+  color: var(--ad-brand);
 }
 
 .admin-content-card,
@@ -125,8 +126,8 @@
   padding: 0.85rem;
   border: 1px solid var(--ad-border);
   border-radius: var(--ad-radius);
-  background: color-mix(in srgb, var(--ad-surface-muted) 72%, var(--ad-surface));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  background: var(--ad-surface-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .admin-table-container {
@@ -171,7 +172,7 @@
 .admin-page-container .el-table th.el-table__cell {
   padding: 0.9rem 0.75rem;
   color: var(--ad-soft);
-  background: color-mix(in srgb, var(--ad-surface-muted) 92%, var(--ad-surface));
+  background: var(--ad-surface-muted);
   border-bottom: 1px solid var(--ad-border-strong);
   font-size: 0.76rem;
   font-weight: 780;
@@ -184,7 +185,7 @@
   padding: 0.9rem 0.75rem;
   color: var(--ad-text);
   border-bottom: 1px solid var(--ad-border);
-  background: color-mix(in srgb, var(--ad-surface) 92%, transparent);
+  background: var(--ad-surface);
 }
 
 .admin-page-container :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell),
@@ -205,8 +206,8 @@
 .admin-page-container .el-textarea__inner,
 .admin-page-container .el-range-editor {
   min-height: 2.55rem;
-  border-radius: var(--kumo-radius-md);
-  background: var(--ad-surface-muted);
+  border-radius: var(--ad-radius);
+  background: var(--ad-surface);
   box-shadow: inset 0 0 0 1px var(--ad-border);
   transition:
     background-color var(--kumo-transition),
@@ -222,7 +223,7 @@
 .admin-page-container .el-textarea__inner:focus,
 .admin-page-container .el-range-editor.is-active {
   background: var(--ad-surface-strong);
-  box-shadow: inset 0 0 0 1px var(--ad-brand), 0 0 0 4px var(--kumo-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--ad-ink), 0 0 0 4px rgba(23, 23, 23, 0.06);
 }
 
 .admin-action-btn,
@@ -234,14 +235,14 @@
   justify-content: center;
   gap: 0.5rem;
   min-height: 2.3rem;
-  padding: 0.52rem 0.9rem;
+  padding: 0.52rem 0.95rem;
   border: 1px solid var(--ad-border);
-  border-radius: var(--ad-radius);
+  border-radius: 999px;
   background: var(--ad-surface);
   color: var(--ad-muted);
   box-shadow: none;
   font-size: 0.86rem;
-  font-weight: 720;
+  font-weight: 650;
   cursor: pointer;
   transition:
     border-color var(--kumo-transition),
@@ -257,8 +258,8 @@
 .admin-page-container .el-button:hover {
   color: var(--ad-brand-strong);
   border-color: var(--ad-border-strong);
-  background: color-mix(in srgb, var(--kumo-bg-accent-soft) 64%, var(--ad-surface));
-  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.12);
+  background: var(--ad-surface-muted);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05);
   transform: translateY(-1px);
 }
 
@@ -277,8 +278,18 @@
 .admin-page-container .el-button--primary {
   color: var(--kumo-text-inverse);
   border-color: transparent;
-  background: var(--kumo-text-default);
-  box-shadow: 0 1px 3px rgba(32, 32, 32, 0.08);
+  background: var(--ad-ink);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.12);
+}
+
+.admin-action-btn.primary:hover,
+.ad-btn.is-primary:hover,
+.admin-page-container :deep(.el-button--primary:hover),
+.admin-page-container .el-button--primary:hover {
+  color: var(--kumo-text-inverse);
+  border-color: transparent;
+  background: var(--ad-ink-soft);
+  box-shadow: 0 6px 16px rgba(23, 23, 23, 0.12);
 }
 
 .admin-action-btn.danger,
@@ -287,21 +298,30 @@
 .admin-page-container .el-button--danger {
   color: var(--ad-danger);
   background: var(--ad-danger-soft);
-  border-color: var(--ad-danger);
+  border-color: color-mix(in srgb, var(--ad-danger) 28%, var(--ad-border));
+}
+
+.admin-action-btn.danger:hover,
+.ad-btn.is-danger:hover,
+.admin-page-container :deep(.el-button--danger:hover),
+.admin-page-container .el-button--danger:hover {
+  color: var(--ad-danger);
+  background: color-mix(in srgb, var(--ad-danger-soft) 72%, var(--ad-surface));
+  border-color: color-mix(in srgb, var(--ad-danger) 42%, var(--ad-border));
 }
 
 .admin-action-btn.success,
 .ad-btn.is-success {
   color: var(--ad-success);
   background: var(--ad-success-soft);
-  border-color: var(--ad-success);
+  border-color: color-mix(in srgb, var(--ad-success) 28%, var(--ad-border));
 }
 
 .admin-action-btn.warning,
 .ad-btn.is-warning {
   color: var(--ad-warning);
   background: var(--ad-warning-soft);
-  border-color: var(--ad-warning);
+  border-color: color-mix(in srgb, var(--ad-warning) 28%, var(--ad-border));
 }
 
 .admin-tag,
@@ -312,7 +332,7 @@
   min-height: 1.7rem;
   padding: 0.25rem 0.65rem;
   border: 1px solid transparent;
-  border-radius: var(--ad-radius);
+  border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 760;
 }
@@ -320,7 +340,7 @@
 .admin-tag.primary,
 .ad-pill.is-accent {
   color: var(--ad-brand-strong);
-  background: color-mix(in srgb, var(--ad-brand-soft) 72%, var(--ad-surface));
+  background: var(--ad-brand-soft);
 }
 
 .admin-tag.success,
@@ -360,13 +380,14 @@
 .admin-page-container .el-pagination.is-background .btn-prev,
 .admin-page-container .el-pagination.is-background .btn-next {
   border-radius: var(--kumo-radius-sm);
-  background: var(--ad-surface-muted);
+  background: var(--ad-surface);
   color: var(--ad-muted);
+  border: 1px solid var(--ad-border);
 }
 
 .admin-page-container :deep(.el-pagination.is-background .el-pager li.is-active),
 .admin-page-container .el-pagination.is-background .el-pager li.is-active {
-  background: var(--ad-brand);
+  background: var(--ad-ink);
   color: var(--kumo-text-inverse);
 }
 
@@ -412,8 +433,8 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  color: var(--kumo-bg-brand-strong);
-  background: var(--kumo-bg-brand-soft);
+  color: var(--ad-brand-strong);
+  background: var(--ad-brand-soft);
 }
 
 .ad-kpi__icon {
@@ -559,7 +580,7 @@
   padding: 0;
   border: 1px solid var(--ad-border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--ad-surface) 88%, var(--ad-surface-muted));
+  background: var(--ad-surface);
   color: var(--ad-muted);
   cursor: pointer;
   transition:
@@ -572,15 +593,15 @@
 
 .ad-icon-action:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--kumo-bg-accent) 42%, var(--ad-border));
-  background: color-mix(in srgb, var(--kumo-bg-accent-soft) 68%, var(--ad-surface));
-  color: var(--kumo-bg-accent);
-  box-shadow: 0 6px 14px rgba(var(--accent-rgb), 0.12);
+  border-color: var(--ad-border-strong);
+  background: var(--ad-surface-muted);
+  color: var(--ad-ink);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06);
 }
 
 .ad-icon-action.is-edit,
 .ad-icon-action.is-restore {
-  color: var(--kumo-bg-accent);
+  color: var(--ad-info);
 }
 
 .ad-icon-action.is-delete {
@@ -589,9 +610,9 @@
 
 .ad-icon-action.is-delete:hover {
   border-color: color-mix(in srgb, var(--ad-danger) 44%, var(--ad-border));
-  background: color-mix(in srgb, var(--ad-danger-soft) 76%, var(--ad-surface));
+  background: var(--ad-danger-soft);
   color: var(--ad-danger);
-  box-shadow: 0 6px 14px rgba(var(--error-rgb), 0.12);
+  box-shadow: 0 1px 2px rgba(157, 74, 63, 0.08);
 }
 
 .ad-card__metrics {
@@ -684,7 +705,7 @@
 .ad-view-toggle button.active {
   color: var(--ad-brand-strong);
   background: var(--ad-surface-strong);
-  box-shadow: var(--ad-shadow);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05);
 }
 
 .comment-text,

@@ -446,7 +446,7 @@ onMounted(refreshAll)
 }
 
 .stat-label {
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
   font-weight: 700;
 }
@@ -503,13 +503,13 @@ onMounted(refreshAll)
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
 }
 
 .target-id {
   margin-left: 8px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
 }
 
 .pagination-container {
@@ -543,7 +543,7 @@ onMounted(refreshAll)
 .filter-panel :deep(.el-input__wrapper.is-focus),
 .filter-panel :deep(.el-select__wrapper.is-focused) {
   background: var(--ad-surface);
-  box-shadow: inset 0 0 0 1px var(--kumo-bg-accent), 0 0 0 4px var(--kumo-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--ad-ink), 0 0 0 4px rgba(23, 23, 23, 0.06);
 }
 
 .comment-management :deep(.el-button) {

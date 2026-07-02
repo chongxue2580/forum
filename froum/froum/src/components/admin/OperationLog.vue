@@ -100,11 +100,11 @@ const normalizeLog = (log) => ({
 
 const getAvatarColor = (name) => {
   const colors = [
-    'var(--kumo-bg-brand)',
-    'var(--kumo-bg-accent)',
-    'var(--kumo-status-success)',
-    'var(--kumo-status-warning)',
-    'var(--kumo-status-danger)'
+    '#596f8f',
+    '#4f6f5a',
+    '#8b6f3e',
+    '#8a8175',
+    '#9d4a3f'
   ]
   const safeName = name || '系统'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -322,7 +322,7 @@ onMounted(loadLogs)
 <style scoped>
 .log-detail {
   margin: 0;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   word-break: break-word;
@@ -392,7 +392,7 @@ onMounted(loadLogs)
 .target-info,
 .detail-text,
 .cell-icon {
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
 }
 

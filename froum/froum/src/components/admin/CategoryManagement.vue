@@ -414,7 +414,7 @@ onMounted(loadCategories)
 
 .category-desc {
   margin: 0;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -465,7 +465,7 @@ onMounted(loadCategories)
 .category-description {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -497,7 +497,7 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   background: var(--ad-brand-soft);
@@ -509,7 +509,7 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   background: var(--ad-brand-soft);
@@ -527,7 +527,7 @@ onMounted(loadCategories)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.375rem 0.75rem;
   background: var(--ad-surface-muted);

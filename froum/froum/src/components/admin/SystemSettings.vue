@@ -544,7 +544,7 @@ onMounted(loadSettings)
 }
 
 :deep(.el-form-item__label) {
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-weight: 600;
 }
 
@@ -562,12 +562,12 @@ onMounted(loadSettings)
 :deep(.el-textarea__inner:focus),
 :deep(.el-select__wrapper.is-focused) {
   background: var(--ad-surface);
-  box-shadow: inset 0 0 0 1px var(--ad-brand), 0 0 0 4px var(--kumo-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--ad-ink), 0 0 0 4px rgba(23, 23, 23, 0.06);
 }
 
 :deep(.el-switch.is-checked .el-switch__core) {
-  background-color: var(--ad-brand);
-  border-color: var(--ad-brand);
+  background-color: var(--ad-success);
+  border-color: var(--ad-success);
 }
 
 @media (max-width: 768px) {

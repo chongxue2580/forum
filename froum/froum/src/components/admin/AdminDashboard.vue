@@ -312,14 +312,14 @@ const normalizeUser = (user) => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    'var(--kumo-status-info)',
-    'var(--kumo-status-success)',
-    'var(--kumo-status-warning)',
-    'var(--kumo-bg-accent)',
-    'var(--kumo-status-danger)',
-    'var(--kumo-bg-brand)',
-    'var(--kumo-bg-brand-strong)',
-    'var(--kumo-text-muted)'
+    '#596f8f',
+    '#4f6f5a',
+    '#8b6f3e',
+    '#8a8175',
+    '#9d4a3f',
+    '#6f6254',
+    '#171717',
+    '#53514d'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -426,7 +426,7 @@ const approvalDonut = computed(() => {
     approvedPct,
     pendingPct,
     style: {
-      background: `conic-gradient(var(--kumo-status-success) 0 ${approvedPct}%, var(--kumo-status-warning) ${approvedPct}% ${approvedPct + pendingPct}%, var(--kumo-status-danger) ${approvedPct + pendingPct}% 100%)`
+      background: `conic-gradient(var(--admin-success) 0 ${approvedPct}%, var(--admin-warning) ${approvedPct}% ${approvedPct + pendingPct}%, var(--admin-danger) ${approvedPct + pendingPct}% 100%)`
     }
   }
 })
@@ -1072,38 +1072,56 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .admin-dashboard-container {
+  --admin-bg: #f6f6f4;
+  --admin-surface: #ffffff;
+  --admin-muted-surface: #f2f1ee;
+  --admin-pressed: #eceae5;
+  --admin-border: #e4e2dd;
+  --admin-border-strong: #cfcac2;
+  --admin-ink: #171717;
+  --admin-muted: #53514d;
+  --admin-soft: #7d7972;
+  --admin-info: #596f8f;
+  --admin-info-soft: #edf1f6;
+  --admin-success: #4f6f5a;
+  --admin-success-soft: #edf4ef;
+  --admin-warning: #8b6f3e;
+  --admin-warning-soft: #f5efe1;
+  --admin-danger: #9d4a3f;
+  --admin-danger-soft: #f8ece9;
+
   min-height: 100vh;
-  color: var(--kumo-text-default);
+  color: var(--admin-ink);
   background:
-    linear-gradient(180deg, var(--ad-theme-one, rgba(var(--primary-rgb), 0.04)), transparent 15rem),
-    linear-gradient(120deg, var(--ad-theme-two, rgba(var(--accent-rgb), 0.035)), transparent 32rem),
-    linear-gradient(180deg, var(--kumo-bg-base), var(--kumo-bg-subtle));
+    linear-gradient(180deg, var(--ad-theme-one, rgba(255, 255, 255, 0.8)), transparent 15rem),
+    linear-gradient(120deg, var(--ad-theme-two, rgba(238, 235, 229, 0.56)), transparent 32rem),
+    linear-gradient(180deg, var(--admin-bg), var(--admin-muted-surface));
   background-attachment: fixed;
 }
 
 .admin-dashboard-container.bg-mint {
-  --ad-theme-one: rgba(var(--primary-rgb), 0.055);
-  --ad-theme-two: rgba(var(--success-rgb), 0.04);
+  --ad-theme-one: rgba(237, 244, 239, 0.84);
+  --ad-theme-two: rgba(246, 246, 244, 0.72);
 }
 
 .admin-dashboard-container.bg-ice {
-  --ad-theme-one: rgba(var(--primary-rgb), 0.035);
-  --ad-theme-two: rgba(var(--accent-rgb), 0.045);
+  --ad-theme-one: rgba(255, 255, 255, 0.84);
+  --ad-theme-two: rgba(242, 241, 238, 0.72);
 }
 
 .admin-dashboard-container.bg-gold {
-  --ad-theme-one: rgba(var(--warning-rgb), 0.08);
-  --ad-theme-two: rgba(var(--primary-rgb), 0.035);
+  --ad-theme-one: rgba(245, 239, 225, 0.72);
+  --ad-theme-two: rgba(246, 246, 244, 0.72);
 }
 
 .admin-dashboard-container.bg-violet {
-  --ad-theme-one: rgba(var(--accent-rgb), 0.055);
-  --ad-theme-two: rgba(var(--primary-rgb), 0.035);
+  --ad-theme-one: rgba(237, 241, 246, 0.78);
+  --ad-theme-two: rgba(246, 246, 244, 0.72);
 }
 
 .admin-dashboard-container.bg-gray {
-  --ad-theme-one: var(--kumo-bg-subtle);
-  --ad-theme-two: var(--kumo-bg-recessed);
+  --ad-theme-one: #f2f1ee;
+  --ad-theme-two: #e4e2dd;
 }
 
 .admin-dashboard-shell {
@@ -1128,12 +1146,10 @@ onBeforeUnmount(() => {
 .dashboard-hero,
 .dashboard-card,
 .stat-card {
-  border: 1px solid var(--kumo-hairline);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: var(--kumo-bg-elevated);
-  box-shadow: 0 10px 28px rgba(19, 32, 33, 0.07);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--admin-surface);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.04), 0 10px 24px rgba(23, 23, 23, 0.04);
 }
 
 .sidebar-menu {
@@ -1185,8 +1201,8 @@ onBeforeUnmount(() => {
   width: 42px;
   height: 42px;
   border-radius: var(--kumo-radius-md);
-  color: var(--kumo-status-info);
-  background: var(--kumo-status-info-tint);
+  color: var(--admin-ink);
+  background: var(--admin-muted-surface);
 }
 
 .logo-title,
@@ -1211,7 +1227,7 @@ onBeforeUnmount(() => {
 .meter-label strong,
 .system-mini-grid strong,
 .stat-label {
-  color: var(--kumo-text-default);
+  color: var(--admin-ink);
   font-weight: 800;
 }
 
@@ -1231,7 +1247,7 @@ onBeforeUnmount(() => {
 .system-mini-grid span,
 .feed-title span,
 .feed-item p {
-  color: var(--kumo-text-muted);
+  color: var(--admin-muted);
 }
 
 .logo-title {
@@ -1258,7 +1274,7 @@ onBeforeUnmount(() => {
   height: 46px;
   margin: 4px 0;
   border-radius: 8px;
-  color: var(--kumo-text-muted);
+  color: var(--admin-muted);
   line-height: 46px;
   transition:
     background-color var(--kumo-transition),
@@ -1268,12 +1284,12 @@ onBeforeUnmount(() => {
 
 .menu-list :deep(.el-menu-item:hover),
 .menu-list :deep(.el-menu-item.is-active) {
-  color: var(--kumo-bg-accent);
-  background: var(--kumo-bg-accent-soft);
+  color: var(--admin-ink);
+  background: var(--admin-muted-surface);
 }
 
 .menu-list :deep(.el-menu-item.is-active) {
-  box-shadow: inset 0 0 0 1px var(--kumo-hairline-strong);
+  box-shadow: inset 0 0 0 1px var(--admin-border-strong);
 }
 
 .menu-icon {
@@ -1303,8 +1319,8 @@ onBeforeUnmount(() => {
   height: 24px;
   margin-left: auto;
   padding: 0 8px;
-  color: var(--kumo-status-danger);
-  background: var(--kumo-status-danger-tint);
+  color: var(--admin-danger);
+  background: var(--admin-danger-soft);
   font-size: 0.72rem;
   font-weight: 750;
 }
@@ -1315,8 +1331,8 @@ onBeforeUnmount(() => {
 .pending-item,
 .system-mini-grid div,
 .tab-header {
-  border: 1px solid var(--kumo-hairline);
-  background: var(--kumo-bg-subtle);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-muted-surface);
 }
 
 .sidebar-profile {
@@ -1394,7 +1410,7 @@ onBeforeUnmount(() => {
   inset: auto 0 0 auto;
   width: 38%;
   height: 100%;
-  background: linear-gradient(135deg, transparent, rgba(var(--accent-rgb), 0.08));
+  background: linear-gradient(135deg, transparent, rgba(237, 241, 246, 0.72));
   pointer-events: none;
 }
 
@@ -1402,7 +1418,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   margin-bottom: 8px;
-  color: var(--kumo-text-subtle);
+  color: var(--admin-soft);
   font-size: 0.72rem;
   font-weight: 750;
   letter-spacing: 0;
@@ -1412,7 +1428,7 @@ onBeforeUnmount(() => {
 .dashboard-hero h1,
 .card-header h2 {
   margin: 0;
-  color: var(--kumo-text-default);
+  color: var(--admin-ink);
   letter-spacing: 0;
 }
 
@@ -1444,8 +1460,8 @@ onBeforeUnmount(() => {
 .status-dot {
   width: 10px;
   height: 10px;
-  background: var(--kumo-status-success);
-  box-shadow: 0 0 0 6px var(--kumo-status-success-tint);
+  background: var(--admin-success);
+  box-shadow: 0 0 0 6px var(--admin-success-soft);
 }
 
 .stats-cards {
@@ -1468,8 +1484,8 @@ onBeforeUnmount(() => {
 .stat-card:hover,
 .dashboard-card:hover {
   transform: translateY(-1px);
-  border-color: var(--kumo-hairline-strong);
-  box-shadow: 0 14px 36px rgba(19, 32, 33, 0.1);
+  border-color: var(--admin-border-strong);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05), 0 16px 36px rgba(23, 23, 23, 0.06);
 }
 
 .stat-card::before {
@@ -1482,15 +1498,15 @@ onBeforeUnmount(() => {
 
 .stat-card.blue::before,
 .stat-card.lavender::before {
-  background: linear-gradient(135deg, var(--kumo-status-info-tint), transparent 64%);
+  background: linear-gradient(135deg, var(--admin-info-soft), transparent 64%);
 }
 
 .stat-card.mint::before {
-  background: linear-gradient(135deg, var(--kumo-status-success-tint), transparent 64%);
+  background: linear-gradient(135deg, var(--admin-success-soft), transparent 64%);
 }
 
 .stat-card.pink::before {
-  background: linear-gradient(135deg, var(--kumo-status-danger-tint), transparent 64%);
+  background: linear-gradient(135deg, var(--admin-danger-soft), transparent 64%);
 }
 
 .stat-card > * {
@@ -1512,13 +1528,13 @@ onBeforeUnmount(() => {
 .users-line,
 .users-dot,
 .role-user {
-  color: var(--kumo-status-info);
-  stroke: var(--kumo-status-info);
+  color: var(--admin-info);
+  stroke: var(--admin-info);
 }
 
 .blue .stat-icon,
 .role-user {
-  background: var(--kumo-status-info-tint);
+  background: var(--admin-info-soft);
 }
 
 .mint .stat-icon,
@@ -1528,21 +1544,21 @@ onBeforeUnmount(() => {
 .approved-dot,
 .status-active,
 .line-action.success {
-  color: var(--kumo-status-success);
-  stroke: var(--kumo-status-success);
+  color: var(--admin-success);
+  stroke: var(--admin-success);
 }
 
 .mint .stat-icon,
 .status-active,
 .line-action.success {
-  background: var(--kumo-status-success-tint);
+  background: var(--admin-success-soft);
 }
 
 .lavender .stat-icon,
 .lavender .sparkline polyline {
-  color: var(--kumo-bg-accent);
-  stroke: var(--kumo-bg-accent);
-  background: var(--kumo-bg-accent-soft);
+  color: var(--admin-muted);
+  stroke: var(--admin-muted);
+  background: var(--admin-muted-surface);
 }
 
 .pink .stat-icon,
@@ -1550,38 +1566,38 @@ onBeforeUnmount(() => {
 .rejected-dot,
 .status-disabled,
 .line-action.danger {
-  color: var(--kumo-status-danger);
-  stroke: var(--kumo-status-danger);
+  color: var(--admin-danger);
+  stroke: var(--admin-danger);
 }
 
 .pink .stat-icon,
 .status-disabled,
 .line-action.danger {
-  background: var(--kumo-status-danger-tint);
+  background: var(--admin-danger-soft);
 }
 
 .questions-line,
 .questions-dot,
 .pending-dot,
 .role-admin {
-  color: var(--kumo-status-warning);
-  stroke: var(--kumo-status-warning);
+  color: var(--admin-warning);
+  stroke: var(--admin-warning);
 }
 
 .role-admin {
-  background: var(--kumo-status-warning-tint);
+  background: var(--admin-warning-soft);
 }
 
 .stat-chip {
   padding: 4px 9px;
-  color: var(--kumo-status-success);
-  background: var(--kumo-status-success-tint);
+  color: var(--admin-success);
+  background: var(--admin-success-soft);
   font-size: 0.72rem;
   font-weight: 750;
 }
 
 .stat-value {
-  color: var(--kumo-text-default);
+  color: var(--admin-ink);
   font-size: 2rem;
   font-weight: 820;
   line-height: 1;
@@ -1642,8 +1658,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--kumo-hairline);
-  color: var(--kumo-text-muted);
-  background: var(--kumo-bg-elevated);
+  color: var(--admin-muted);
+  background: var(--admin-surface);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 700;
@@ -1666,10 +1682,10 @@ onBeforeUnmount(() => {
 .line-action:hover,
 .line-icon-btn:hover {
   transform: translateY(-1px);
-  color: var(--kumo-bg-accent);
-  border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-accent-soft);
-  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.12);
+  color: var(--admin-ink);
+  border-color: var(--admin-border-strong);
+  background: var(--admin-muted-surface);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06);
 }
 
 .ghost-command:disabled {
@@ -1749,9 +1765,9 @@ onBeforeUnmount(() => {
   padding: 5px;
   margin-bottom: 14px;
   overflow-x: auto;
-  border: 1px solid var(--kumo-hairline);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--kumo-bg-subtle) 72%, var(--kumo-bg-elevated));
+  background: var(--admin-muted-surface);
 }
 
 .tab-item {
@@ -1762,7 +1778,7 @@ onBeforeUnmount(() => {
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
-  color: var(--kumo-text-muted);
+  color: var(--admin-muted);
   background: transparent;
   font: inherit;
   font-size: 0.84rem;
@@ -1774,14 +1790,14 @@ onBeforeUnmount(() => {
 .tab-item span {
   min-width: 22px;
   height: 22px;
-  background: var(--kumo-bg-elevated);
+  background: var(--admin-surface);
   font-size: 0.72rem;
 }
 
 .tab-item.active {
-  color: var(--kumo-bg-accent);
-  background: var(--kumo-bg-elevated);
-  box-shadow: 0 6px 16px rgba(19, 32, 33, 0.08);
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05);
 }
 
 .pending-list {
@@ -1820,7 +1836,7 @@ onBeforeUnmount(() => {
 }
 
 .item-description span {
-  color: var(--kumo-text-default);
+  color: var(--admin-ink);
   font-weight: 750;
 }
 
@@ -1836,11 +1852,11 @@ onBeforeUnmount(() => {
 }
 
 .line-action.success {
-  border-color: var(--kumo-status-success-tint);
+  border-color: color-mix(in srgb, var(--admin-success) 24%, var(--admin-border));
 }
 
 .line-action.danger {
-  border-color: var(--kumo-status-danger-tint);
+  border-color: color-mix(in srgb, var(--admin-danger) 24%, var(--admin-border));
 }
 
 .chart-card,
@@ -1857,7 +1873,7 @@ onBeforeUnmount(() => {
 }
 
 .chart-area {
-  fill: var(--kumo-status-success-tint);
+  fill: var(--admin-info-soft);
 }
 
 .chart-line {
@@ -1889,21 +1905,21 @@ onBeforeUnmount(() => {
 }
 
 .users-dot {
-  background: var(--kumo-status-info);
+  background: var(--admin-info);
 }
 
 .articles-dot,
 .approved-dot {
-  background: var(--kumo-status-success);
+  background: var(--admin-success);
 }
 
 .questions-dot,
 .pending-dot {
-  background: var(--kumo-status-warning);
+  background: var(--admin-warning);
 }
 
 .rejected-dot {
-  background: var(--kumo-status-danger);
+  background: var(--admin-danger);
 }
 
 .donut-layout {
@@ -1919,7 +1935,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--kumo-hairline);
+  box-shadow: inset 0 0 0 1px var(--admin-border);
 }
 
 .donut-hole {
@@ -1929,8 +1945,8 @@ onBeforeUnmount(() => {
   place-items: center;
   align-content: center;
   border-radius: 50%;
-  background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-sm);
+  background: var(--admin-surface);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05);
 }
 
 .donut-hole strong {
@@ -1966,14 +1982,14 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--kumo-bg-recessed);
+  background: var(--admin-pressed);
 }
 
 .meter-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--kumo-status-info), var(--kumo-status-success));
+  background: var(--admin-ink);
 }
 
 .system-mini-grid {
@@ -2032,7 +2048,7 @@ onBeforeUnmount(() => {
   left: 18px;
   bottom: -12px;
   width: 1px;
-  background: var(--kumo-hairline);
+  background: var(--admin-border);
 }
 
 .feed-icon {
@@ -2041,23 +2057,23 @@ onBeforeUnmount(() => {
   width: 38px;
   height: 38px;
   border-radius: var(--kumo-radius-md);
-  color: var(--kumo-status-info);
-  background: var(--kumo-status-info-tint);
+  color: var(--admin-info);
+  background: var(--admin-info-soft);
 }
 
 .feed-icon.success {
-  color: var(--kumo-status-success);
-  background: var(--kumo-status-success-tint);
+  color: var(--admin-success);
+  background: var(--admin-success-soft);
 }
 
 .feed-icon.warning {
-  color: var(--kumo-status-warning);
-  background: var(--kumo-status-warning-tint);
+  color: var(--admin-warning);
+  background: var(--admin-warning-soft);
 }
 
 .feed-icon.info {
-  color: var(--kumo-status-info);
-  background: var(--kumo-status-info-tint);
+  color: var(--admin-info);
+  background: var(--admin-info-soft);
 }
 
 .feed-title {

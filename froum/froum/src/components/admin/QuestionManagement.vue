@@ -101,11 +101,11 @@ const filteredQuestions = computed(() => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    'var(--kumo-bg-brand)',
-    'var(--kumo-bg-accent)',
-    'var(--kumo-status-success)',
-    'var(--kumo-status-warning)',
-    'var(--kumo-status-danger)'
+    '#596f8f',
+    '#4f6f5a',
+    '#8b6f3e',
+    '#8a8175',
+    '#9d4a3f'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -397,7 +397,7 @@ onMounted(loadQuestions)
 /* 问答管理特定样式 */
 .question-desc {
   margin: 0;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -425,7 +425,7 @@ onMounted(loadQuestions)
 .admin-cell-desc {
   margin: 0;
   font-size: 12px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -453,7 +453,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
 }
 
 .admin-time-info {
@@ -461,7 +461,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--ad-text-soft);
+  color: var(--ad-soft);
 }
 
 .admin-tags {
@@ -481,7 +481,7 @@ onMounted(loadQuestions)
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
 }
 
 .admin-table-actions {

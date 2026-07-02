@@ -10,7 +10,7 @@ import {
   updateTag as updateTagApi
 } from '@/api/admin'
 
-const DEFAULT_TAG_COLOR = 'var(--kumo-bg-brand)'
+const DEFAULT_TAG_COLOR = '#8a8175'
 const loading = ref(false)
 const tags = ref([])
 // 视图模式：标签默认列表（横排）
@@ -384,7 +384,7 @@ onMounted(loadTags)
 <style scoped>
 .tag-desc {
   margin: 0;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.86rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -448,7 +448,7 @@ onMounted(loadTags)
 .tag-description {
   margin: 0;
   font-size: 13px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -474,7 +474,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
 }
 
@@ -482,7 +482,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
 }
 
@@ -495,7 +495,7 @@ onMounted(loadTags)
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 13px;
 }
 

@@ -498,7 +498,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   background: var(--ad-brand-soft);
@@ -510,7 +510,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   background: var(--ad-brand-soft);
@@ -534,7 +534,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.875rem;
   padding: 0.375rem 0.75rem;
   background: var(--ad-surface-muted);

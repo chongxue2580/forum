@@ -162,11 +162,11 @@ const normalizeUser = (user) => {
 
 const getAvatarColor = (name) => {
   const colors = [
-    'var(--kumo-bg-brand)',
-    'var(--kumo-bg-accent)',
-    'var(--kumo-status-success)',
-    'var(--kumo-status-warning)',
-    'var(--kumo-status-danger)'
+    '#596f8f',
+    '#4f6f5a',
+    '#8b6f3e',
+    '#8a8175',
+    '#9d4a3f'
   ]
   const safeName = name || '用户'
   const index = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length
@@ -879,7 +879,7 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.82rem;
 }
 
@@ -899,7 +899,7 @@ onMounted(loadUsers)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.82rem;
   padding: 0.375rem 0.75rem;
   background: var(--ad-surface-muted);
@@ -993,7 +993,7 @@ onMounted(loadUsers)
 
 .detail-profile-head p {
   margin: 0;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.86rem;
 }
 
@@ -1030,7 +1030,7 @@ onMounted(loadUsers)
 .detail-stat-row span {
   display: block;
   margin-bottom: 5px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   font-size: 0.78rem;
   line-height: 1.3;
 }
@@ -1098,7 +1098,7 @@ onMounted(loadUsers)
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--ad-border);
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
   background: var(--ad-surface);
   font-weight: 700;
   cursor: pointer;

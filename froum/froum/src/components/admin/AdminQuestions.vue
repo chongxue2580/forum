@@ -463,7 +463,7 @@ const formatDate = (dateString) => {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: var(--ad-text-muted);
+  color: var(--ad-muted);
 }
 
 .pagination-container {

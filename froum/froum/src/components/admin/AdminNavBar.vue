@@ -16,11 +16,11 @@ const emit = defineEmits(['toggle-theme', 'set-bg'])
 
 // 背景主题预设（色卡）
 const bgPresets = [
-  { key: 'ice', label: '暖白', swatch: 'linear-gradient(135deg, var(--kumo-bg-base), var(--kumo-bg-subtle))' },
-  { key: 'mint', label: '陶土', swatch: 'linear-gradient(135deg, var(--kumo-bg-brand-soft), var(--kumo-bg-subtle))' },
-  { key: 'gold', label: '砂岩', swatch: 'linear-gradient(135deg, var(--kumo-bg-warm), var(--kumo-bg-subtle))' },
-  { key: 'violet', label: '系统蓝', swatch: 'linear-gradient(135deg, var(--kumo-bg-accent-soft), var(--kumo-bg-subtle))' },
-  { key: 'gray', label: '极简', swatch: 'linear-gradient(135deg, var(--kumo-bg-subtle), var(--kumo-bg-recessed))' }
+  { key: 'ice', label: 'Paper', swatch: 'linear-gradient(135deg, #ffffff, #f6f6f4)' },
+  { key: 'mint', label: 'Sage', swatch: 'linear-gradient(135deg, #eef3ee, #f6f6f4)' },
+  { key: 'gold', label: 'Sand', swatch: 'linear-gradient(135deg, #f4efe2, #f6f6f4)' },
+  { key: 'violet', label: 'Slate', swatch: 'linear-gradient(135deg, #edf1f6, #f6f6f4)' },
+  { key: 'gray', label: 'Mono', swatch: 'linear-gradient(135deg, #f2f1ee, #e4e2dd)' }
 ]
 const unreadNotificationCount = ref(0)
 const recentNotifications = ref([])
@@ -298,6 +298,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .admin-nav-bar {
+  --admin-nav-surface: #ffffff;
+  --admin-nav-bg: #f6f6f4;
+  --admin-nav-muted: #53514d;
+  --admin-nav-soft: #7d7972;
+  --admin-nav-border: #e4e2dd;
+  --admin-nav-border-strong: #cfcac2;
+  --admin-nav-ink: #171717;
+  --admin-nav-hover: #f2f1ee;
+  --admin-nav-info: #596f8f;
+  --admin-nav-danger: #9d4a3f;
+
   position: fixed;
   top: 0;
   left: 0;
@@ -308,12 +319,10 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
-  color: var(--kumo-text-default);
-  border-bottom: 1px solid var(--kumo-hairline);
-  background: color-mix(in srgb, var(--kumo-bg-elevated) 92%, var(--kumo-bg-subtle));
-  box-shadow: 0 8px 24px rgba(19, 32, 33, 0.07);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  color: var(--admin-nav-ink);
+  border-bottom: 1px solid var(--admin-nav-border);
+  background: color-mix(in srgb, var(--admin-nav-surface) 94%, var(--admin-nav-bg));
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.04), 0 10px 24px rgba(23, 23, 23, 0.04);
 }
 
 .admin-nav-left,
@@ -341,9 +350,9 @@ onBeforeUnmount(() => {
 .nav-greeting,
 .user-info,
 .nav-button {
-  border: 1px solid var(--kumo-hairline);
-  background: var(--kumo-bg-subtle);
-  color: var(--kumo-text-muted);
+  border: 1px solid var(--admin-nav-border);
+  background: var(--admin-nav-surface);
+  color: var(--admin-nav-muted);
   transition:
     transform var(--kumo-transition),
     border-color var(--kumo-transition),
@@ -374,10 +383,10 @@ onBeforeUnmount(() => {
 .user-info:hover,
 .nav-button:hover {
   transform: translateY(-1px);
-  color: var(--kumo-bg-accent);
-  border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-accent-soft);
-  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.12);
+  color: var(--admin-nav-ink);
+  border-color: var(--admin-nav-border-strong);
+  background: var(--admin-nav-hover);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06);
 }
 
 .nav-greeting {
@@ -388,7 +397,7 @@ onBeforeUnmount(() => {
 }
 
 .greeting {
-  color: var(--kumo-text-default);
+  color: var(--admin-nav-ink);
   font-size: 1rem;
   font-weight: 650;
 }
@@ -400,7 +409,7 @@ onBeforeUnmount(() => {
 .notification-time,
 .bg-picker-tip,
 .bg-swatch-label {
-  color: var(--kumo-text-muted);
+  color: var(--admin-nav-muted);
 }
 
 .date {
@@ -428,8 +437,8 @@ onBeforeUnmount(() => {
 .notification-panel-header {
   justify-content: space-between;
   padding-bottom: 8px;
-  color: var(--kumo-text-default);
-  border-bottom: 1px solid var(--kumo-hairline);
+  color: var(--admin-nav-ink);
+  border-bottom: 1px solid var(--admin-nav-border);
 }
 
 .notification-panel-header span,
@@ -439,14 +448,14 @@ onBeforeUnmount(() => {
 
 .notification-empty {
   padding: 24px 0;
-  color: var(--kumo-text-subtle);
+  color: var(--admin-nav-soft);
   text-align: center;
 }
 
 .notification-row,
 .notification-footer {
-  border: 1px solid var(--kumo-hairline);
-  background: var(--kumo-bg-elevated);
+  border: 1px solid var(--admin-nav-border);
+  background: var(--admin-nav-surface);
   cursor: pointer;
   transition:
     background-color var(--kumo-transition),
@@ -466,12 +475,12 @@ onBeforeUnmount(() => {
 .notification-row:hover,
 .notification-row.unread,
 .notification-footer:hover {
-  border-color: var(--kumo-hairline-strong);
-  background: var(--kumo-bg-accent-soft);
+  border-color: var(--admin-nav-border-strong);
+  background: var(--admin-nav-hover);
 }
 
 .notification-title {
-  color: var(--kumo-text-default);
+  color: var(--admin-nav-ink);
   font-weight: 650;
 }
 
@@ -484,7 +493,7 @@ onBeforeUnmount(() => {
 .notification-footer {
   padding: 8px 10px;
   border-radius: var(--kumo-radius-sm);
-  color: var(--kumo-bg-accent);
+  color: var(--admin-nav-info);
 }
 
 .nav-button {
@@ -509,7 +518,7 @@ onBeforeUnmount(() => {
 }
 
 .user-avatar {
-  border: 2px solid var(--kumo-hairline-strong);
+  border: 2px solid var(--admin-nav-border-strong);
 }
 
 .user-details {
@@ -518,7 +527,7 @@ onBeforeUnmount(() => {
 }
 
 .user-name {
-  color: var(--kumo-text-default);
+  color: var(--admin-nav-ink);
   font-size: 14px;
   font-weight: 650;
 }
@@ -530,7 +539,7 @@ onBeforeUnmount(() => {
 .dropdown-icon {
   margin-left: 5px;
   font-size: 12px;
-  color: var(--kumo-text-subtle);
+  color: var(--admin-nav-soft);
 }
 
 .dropdown-menu {
@@ -540,10 +549,10 @@ onBeforeUnmount(() => {
   z-index: 1000;
   width: 200px;
   overflow: hidden;
-  border: 1px solid var(--kumo-hairline);
+  border: 1px solid var(--admin-nav-border);
   border-radius: 12px;
-  background: var(--kumo-bg-elevated);
-  box-shadow: 0 18px 48px rgba(19, 32, 33, 0.16);
+  background: var(--admin-nav-surface);
+  box-shadow: 0 1px 2px rgba(23, 23, 23, 0.05), 0 18px 44px rgba(23, 23, 23, 0.08);
   animation: dropdown-fade 0.2s ease;
 }
 
@@ -560,8 +569,8 @@ onBeforeUnmount(() => {
 
 .dropdown-header {
   padding: 12px 15px;
-  background: var(--kumo-bg-subtle);
-  color: var(--kumo-text-default);
+  background: var(--admin-nav-hover);
+  color: var(--admin-nav-ink);
   font-size: 14px;
   font-weight: 650;
 }
@@ -569,26 +578,26 @@ onBeforeUnmount(() => {
 .dropdown-item {
   gap: 12px;
   padding: 12px 15px;
-  color: var(--kumo-text-default);
+  color: var(--admin-nav-ink);
   transition:
     background-color var(--kumo-transition),
     color var(--kumo-transition);
 }
 
 .dropdown-item:hover {
-  color: var(--kumo-bg-accent);
-  background: var(--kumo-bg-accent-soft);
+  color: var(--admin-nav-ink);
+  background: var(--admin-nav-hover);
 }
 
 .dropdown-divider {
   height: 1px;
   margin: 5px 0;
-  background: var(--kumo-hairline);
+  background: var(--admin-nav-border);
 }
 
 .bg-picker-title {
   margin-bottom: 10px;
-  color: var(--kumo-text-default);
+  color: var(--admin-nav-ink);
   font-size: 13px;
   font-weight: 650;
 }
@@ -616,18 +625,18 @@ onBeforeUnmount(() => {
 
 .bg-swatch:hover,
 .bg-swatch.active {
-  background: var(--kumo-bg-accent-soft);
+  background: var(--admin-nav-hover);
 }
 
 .bg-swatch.active {
-  border-color: var(--kumo-bg-accent);
+  border-color: var(--admin-nav-ink);
 }
 
 .bg-swatch-dot {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--kumo-hairline);
+  box-shadow: inset 0 0 0 1px var(--admin-nav-border);
 }
 
 .bg-swatch-label,
