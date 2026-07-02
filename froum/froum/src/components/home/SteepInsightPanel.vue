@@ -87,12 +87,21 @@
         </article>
 
         <article class="steep-dashboard-card steep-ai-card">
-          <div class="steep-chat-input">
-            <span>{{ insightPrompt }}</span>
-            <button type="button" aria-label="查看高价值讨论" @click="openPrimaryDiscussion">
+          <form class="steep-chat-input" role="search" @submit.prevent="runInsightSearch">
+            <font-awesome-icon :icon="['fas', 'magnifying-glass-chart']" />
+            <input
+              v-model.trim="insightQuery"
+              type="search"
+              :placeholder="insightPrompt"
+              aria-label="输入关键词分析高价值技术讨论"
+            >
+            <button type="submit" aria-label="分析高价值讨论">
               <font-awesome-icon :icon="['fas', 'arrow-right']" />
             </button>
-          </div>
+          </form>
+          <p class="steep-query-hint">
+            输入关键词后，会在最近文章和问答里筛选标题、摘要与标签，并按浏览、回答/评论、点赞和精选权重重新计算价值分。
+          </p>
           <div class="steep-ai-response">
             <div class="steep-ai-response-head">
               <span class="steep-avatar-badge">AI</span>
@@ -111,20 +120,26 @@
 
             <div class="insight-layout">
               <div class="insight-discussions">
-                <button
-                  v-for="item in highValueDiscussions"
-                  :key="`${item.type}-${item.id}`"
-                  type="button"
-                  class="insight-discussion"
-                  @click="openDiscussion(item)"
-                >
-                  <span class="discussion-score">{{ item.score }}</span>
-                  <span class="discussion-body">
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.meta }}</small>
-                  </span>
-                  <font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" />
-                </button>
+                <template v-if="highValueDiscussions.length">
+                  <button
+                    v-for="item in highValueDiscussions"
+                    :key="`${item.type}-${item.id}`"
+                    type="button"
+                    class="insight-discussion"
+                    @click="openDiscussion(item)"
+                  >
+                    <span class="discussion-score">{{ item.score }}</span>
+                    <span class="discussion-body">
+                      <strong>{{ item.title }}</strong>
+                      <small>{{ item.meta }}</small>
+                    </span>
+                    <font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" />
+                  </button>
+                </template>
+                <div v-else class="insight-empty">
+                  <font-awesome-icon :icon="['fas', 'filter-circle-xmark']" />
+                  <span>没有匹配的讨论，换个关键词试试</span>
+                </div>
               </div>
 
               <div class="insight-actions">
@@ -139,7 +154,15 @@
             </div>
 
             <div class="insight-keywords" aria-label="高价值主题">
-              <span v-for="keyword in insightKeywords" :key="keyword">#{{ keyword }}</span>
+              <button
+                v-for="keyword in insightKeywords"
+                :key="keyword"
+                type="button"
+                :class="{ active: normalizedInsightQuery === normalizeText(keyword) }"
+                @click="applyInsightKeyword(keyword)"
+              >
+                #{{ keyword }}
+              </button>
             </div>
           </div>
         </article>
@@ -149,10 +172,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const insightQuery = ref('')
 
 const props = defineProps({
   articleCount: {
@@ -220,6 +244,7 @@ const regionRows = computed(() => [
 ])
 
 const normalizeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0
+const normalizeText = (value = '') => String(value).trim().toLowerCase()
 const getItemTitle = (item, fallback) => item?.title || item?.name || fallback
 const getItemSummary = (item) => String(item?.summary || item?.content || item?.description || '')
 const stripMarkdown = (value = '') => String(value)
@@ -251,6 +276,8 @@ const dedupeByTypeAndId = (items) => {
     return true
   })
 }
+
+const normalizedInsightQuery = computed(() => normalizeText(insightQuery.value))
 
 const articleDiscussions = computed(() => {
   const combined = [
@@ -288,16 +315,35 @@ const questionDiscussions = computed(() => props.questions.map((item, index) => 
   navigable: Boolean(item.id)
 })))
 
+const discussionSearchText = (item) => [
+  item.title,
+  item.summary,
+  item.type === 'article' ? '文章 article' : '问答 question',
+  ...item.tags
+]
+  .map(normalizeText)
+  .join(' ')
+
+const matchesInsightQuery = (item) => {
+  if (!normalizedInsightQuery.value) return true
+  return discussionSearchText(item).includes(normalizedInsightQuery.value)
+}
+
 const scoredDiscussions = computed(() => {
   return [...articleDiscussions.value, ...questionDiscussions.value]
+    .filter(matchesInsightQuery)
     .map((item) => {
+      const queryBoost = normalizedInsightQuery.value && discussionSearchText(item).includes(normalizedInsightQuery.value)
+        ? 12
+        : 0
       const score = Math.min(99, Math.round(
         item.views * 0.08 +
         item.answers * 7 +
         item.likes * 5 +
         item.tags.length * 3 +
         item.boost +
-        (item.featured ? 10 : 0)
+        (item.featured ? 10 : 0) +
+        queryBoost
       ))
       return {
         ...item,
@@ -330,16 +376,19 @@ const fallbackDiscussions = computed(() => {
 })
 
 const highValueDiscussions = computed(() => {
+  if (normalizedInsightQuery.value && !scoredDiscussions.value.length) return []
   const discussions = scoredDiscussions.value.length ? scoredDiscussions.value : fallbackDiscussions.value
   return discussions.slice(0, 3)
 })
 
 const insightKeywords = computed(() => {
-  const fromDiscussions = highValueDiscussions.value
+  const keywordSource = highValueDiscussions.value.length ? highValueDiscussions.value : scoredDiscussions.value
+  const fromDiscussions = keywordSource
     .flatMap(item => item.tags)
     .filter(Boolean)
   const fromTopics = topicPreview.value.map(topic => topic.label)
-  return [...new Set([...fromDiscussions, ...fromTopics])].slice(0, 6)
+  const queryKeyword = insightQuery.value ? [insightQuery.value] : []
+  return [...new Set([...queryKeyword, ...fromDiscussions, ...fromTopics])].slice(0, 6)
 })
 
 const averageDiscussionScore = computed(() => {
@@ -355,23 +404,33 @@ const questionDiscussionCount = computed(() => questionDiscussions.value.length)
 
 const insightPrompt = computed(() => {
   const keyword = insightKeywords.value[0] || '社区内容'
-  return `分析最近的高价值技术讨论：${keyword}`
+  return `输入关键词，例如 ${keyword}`
 })
 
 const insightTitle = computed(() => {
+  if (normalizedInsightQuery.value && !scoredDiscussions.value.length) return `未找到「${insightQuery.value}」相关讨论`
   if (!scoredDiscussions.value.length) return '等待更多讨论样本'
+  if (normalizedInsightQuery.value) return `正在分析「${insightQuery.value}」相关讨论`
   if (averageDiscussionScore.value >= 72) return '高价值讨论正在聚集'
   if (unresolvedQuestionCount.value > solvedQuestionCount.value) return '问答协作需要跟进'
   return '今日讨论结构稳定'
 })
 
 const insightSummary = computed(() => {
+  if (normalizedInsightQuery.value && !scoredDiscussions.value.length) {
+    return `当前首页样本中没有匹配「${insightQuery.value}」的标题、摘要或标签。可以尝试 Java、Vue、Spring、架构等更宽的关键词。`
+  }
+
   if (!scoredDiscussions.value.length) {
     return `当前内容池里文章占比 ${articleShare.value}%，问答占比 ${questionShare.value}%。发布更多文章或问题后，这里会自动生成讨论价值分析。`
   }
 
   const top = highValueDiscussions.value[0]
   const focus = insightKeywords.value.slice(0, 2).join('、') || '核心主题'
+  if (normalizedInsightQuery.value) {
+    return `已按「${insightQuery.value}」筛选最近讨论，共命中 ${scoredDiscussions.value.length} 条。“${top.title}”价值分最高，适合优先阅读、回答或整理成知识沉淀。`
+  }
+
   return `最近 ${articleDiscussionCount.value + questionDiscussionCount.value} 条内容中，“${top.title}”价值分最高。主题集中在 ${focus}，建议优先跟进高回答问题并把成熟方案整理为文章。`
 })
 
@@ -416,6 +475,14 @@ const openDiscussion = (item) => {
 
 const openPrimaryDiscussion = () => {
   openDiscussion(highValueDiscussions.value[0])
+}
+
+const runInsightSearch = () => {
+  insightQuery.value = insightQuery.value.trim()
+}
+
+const applyInsightKeyword = (keyword) => {
+  insightQuery.value = keyword
 }
 </script>
 
@@ -630,6 +697,46 @@ const openPrimaryDiscussion = () => {
   gap: 1rem;
 }
 
+.steep-chat-input {
+  grid-template-columns: auto minmax(0, 1fr) 40px;
+  padding-left: 1rem;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.steep-chat-input:focus-within {
+  border-color: rgba(23, 25, 28, 0.24);
+  box-shadow: 0 0 0 4px rgba(93, 42, 26, 0.08);
+}
+
+.steep-chat-input > svg {
+  color: var(--steep-rust);
+  font-size: 15px;
+}
+
+.steep-chat-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--steep-ink);
+  font: 450 15px/1.25 var(--steep-font-body);
+  letter-spacing: -0.009em;
+  outline: none;
+}
+
+.steep-chat-input input::placeholder {
+  color: var(--steep-graphite);
+}
+
+.steep-query-hint {
+  margin: -0.35rem 0 0;
+  color: var(--steep-graphite);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .steep-ai-response {
   display: grid;
   gap: 1rem;
@@ -772,6 +879,25 @@ const openPrimaryDiscussion = () => {
   font-size: 13px;
 }
 
+.insight-empty {
+  display: grid;
+  place-items: center;
+  gap: 0.55rem;
+  min-height: 8rem;
+  padding: 1rem;
+  border: 1px dashed rgba(23, 25, 28, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--steep-ash);
+  font-size: 14px;
+  text-align: center;
+}
+
+.insight-empty svg {
+  color: var(--steep-rust);
+  font-size: 1.35rem;
+}
+
 .insight-action {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -812,7 +938,7 @@ const openPrimaryDiscussion = () => {
   gap: 0.45rem;
 }
 
-.insight-keywords span {
+.insight-keywords button {
   display: inline-flex;
   align-items: center;
   min-height: 1.75rem;
@@ -823,6 +949,14 @@ const openPrimaryDiscussion = () => {
   color: var(--steep-ash);
   font-size: 13px;
   font-weight: 450;
+  cursor: pointer;
+}
+
+.insight-keywords button:hover,
+.insight-keywords button.active {
+  border-color: rgba(93, 42, 26, 0.2);
+  background: var(--steep-apricot-wash);
+  color: var(--steep-rust);
 }
 
 @media (max-width: 1080px) {
@@ -859,6 +993,17 @@ const openPrimaryDiscussion = () => {
   .steep-ai-response-head,
   .insight-discussion {
     grid-template-columns: 1fr;
+  }
+
+  .steep-chat-input {
+    grid-template-columns: auto minmax(0, 1fr) 36px;
+    gap: 0.6rem;
+    padding: 0.55rem 0.55rem 0.55rem 0.8rem;
+  }
+
+  .steep-chat-input button {
+    width: 36px;
+    height: 36px;
   }
 
   .discussion-body strong,
