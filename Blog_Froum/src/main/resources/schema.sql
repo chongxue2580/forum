@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS articles (
     view_count INT DEFAULT 0 COMMENT '浏览量',
     like_count INT DEFAULT 0 COMMENT '点赞数',
     comment_count INT DEFAULT 0 COMMENT '评论数',
+    edit_count INT DEFAULT 0 COMMENT '编辑次数',
     is_official BOOLEAN DEFAULT FALSE COMMENT '是否官方',
     is_pinned BOOLEAN DEFAULT FALSE COMMENT '是否置顶',
     is_featured BOOLEAN DEFAULT FALSE COMMENT '是否加精',
@@ -91,6 +92,7 @@ ALTER TABLE articles MODIFY COLUMN content LONGTEXT COMMENT '文章内容';
 ALTER TABLE articles MODIFY COLUMN cover_image TEXT COMMENT '封面图片';
 ALTER TABLE articles ADD COLUMN tags_string TEXT COMMENT '标签字符串';
 ALTER TABLE articles MODIFY COLUMN tags_string TEXT COMMENT '标签字符串';
+ALTER TABLE articles ADD COLUMN edit_count INT DEFAULT 0 COMMENT '编辑次数';
 
 -- 问答表
 CREATE TABLE IF NOT EXISTS questions (

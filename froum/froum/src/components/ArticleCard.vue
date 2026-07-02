@@ -1,7 +1,7 @@
 <template>
   <router-link :to="`/article/${article.id}`" class="article-card kumo-surface magnetic-card">
     <div v-if="coverImage" class="article-cover">
-      <img :src="coverImage" :alt="article.title" loading="lazy">
+      <img :src="coverImage" :alt="article.title" loading="lazy" referrerpolicy="no-referrer">
     </div>
 
     <div class="article-body">

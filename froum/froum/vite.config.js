@@ -18,6 +18,9 @@ export default defineConfig({
   server: {
     port: 5181,
     historyApiFallback: true,
+    headers: {
+      'Referrer-Policy': 'no-referrer'
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

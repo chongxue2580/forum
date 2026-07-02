@@ -107,7 +107,7 @@ onMounted(() => {
             </div>
           </div>
           <div v-if="article.coverImage" class="article-cover">
-            <img :src="article.coverImage" :alt="article.title" />
+            <img :src="article.coverImage" :alt="article.title" referrerpolicy="no-referrer" />
           </div>
         </router-link>
       </div>

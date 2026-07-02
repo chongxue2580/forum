@@ -35,6 +35,7 @@ const isEditMode = computed(() => route.params.id !== undefined)
 const isSaving = ref(false)
 const saveError = ref('')
 const store = useStore()
+let isEditorReady = false
 let saveErrorTimer = null
 let successMessageTimer = null
 
@@ -233,10 +234,15 @@ const uploadCover = async (event) => {
 onMounted(async () => {
   await nextTick()
   await loadEditorOptions()
-  
+
+  if (isEditMode.value) {
+    await loadArticle(route.params.id)
+  }
+
   editor.value = new Editor({
     el: editorEl.value,
-    height: '600px',
+    height: '620px',
+    initialValue: article.value.content || '',
     initialEditType: 'markdown',
     previewStyle: 'vertical',
     hooks: {
@@ -269,16 +275,13 @@ onMounted(async () => {
     }
   })
 
-  // 如果是编辑模式，加载文章数据
-  if (isEditMode.value) {
-    await loadArticle(route.params.id)
-  }
-
   // 监听内容变化
   editor.value.on('change', () => {
+    if (!isEditorReady) return
     article.value.content = editor.value.getMarkdown()
     if (saveError.value) clearSaveError()
   })
+  isEditorReady = true
 })
 
 // 加载文章数据
@@ -296,7 +299,6 @@ const loadArticle = async (id) => {
       summary: data.summary || '',
       isDraft: data.isDraft ?? data.status === 'DRAFT'
     }
-    editor.value.setMarkdown(data.content || '')
   } catch (error) {
     showSaveError(error.message || '加载文章失败')
   }
@@ -439,6 +441,7 @@ const handleDrop = async (e) => {
 
 // 组件销毁时清理编辑器
 onUnmounted(() => {
+  isEditorReady = false
   if (saveErrorTimer) clearTimeout(saveErrorTimer)
   if (successMessageTimer) clearTimeout(successMessageTimer)
   if (editor.value) {
@@ -454,18 +457,23 @@ onUnmounted(() => {
     @drop="handleDrop"
     @dragover.prevent
   >
-    <!-- 标题输入 -->
     <div class="editor-header">
       <div class="header-left">
+        <span class="editor-eyebrow">{{ isEditMode ? 'Edit article' : 'New article' }}</span>
         <h1 class="editor-title">{{ isEditMode ? '编辑文章' : '创建文章' }}</h1>
         <input
           ref="titleInput"
           v-model="article.title"
           type="text"
-          placeholder="请输入文章标题..."
+          placeholder="输入一个清晰的文章标题"
           class="title-input"
           @input="clearSaveError"
         />
+        <div class="editor-meta">
+          <span>{{ wordCount }} 字符</span>
+          <span>{{ article.categoryId ? '已选择分类' : '未选择分类' }}</span>
+          <span>{{ article.coverImage ? '已有封面' : '无封面' }}</span>
+        </div>
       </div>
 
       <div class="header-right">
@@ -504,23 +512,30 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 编辑器主体 -->
     <div class="editor-main">
       <div class="editor-container">
+        <div class="editor-panel-heading">
+          <div>
+            <strong>Markdown</strong>
+            <span>支持拖拽图片、代码块、表格和实时预览</span>
+          </div>
+          <button class="panel-tool" type="button" @click="toggleFullscreen">
+            <font-awesome-icon :icon="['fas', editorConfig.fullscreen ? 'compress' : 'expand']" />
+            {{ editorConfig.fullscreen ? '退出全屏' : '全屏编辑' }}
+          </button>
+        </div>
         <div ref="editorEl"></div>
       </div>
 
-      <!-- 侧边栏 -->
       <div class="editor-sidebar">
-        <!-- 封面图片 -->
-        <div class="cover-upload">
+        <div class="side-card cover-upload">
           <h3>文章封面</h3>
           <div 
             class="cover-preview"
             :class="{ 'has-image': article.coverImage }"
             @click="$refs.coverInput.click()"
           >
-            <img v-if="article.coverImage" :src="article.coverImage" alt="封面图片">
+            <img v-if="article.coverImage" :src="article.coverImage" alt="封面图片" referrerpolicy="no-referrer">
             <div v-else class="upload-placeholder">
               <font-awesome-icon :icon="['fas', 'image']" />
               <span>点击上传封面图片</span>
@@ -535,8 +550,7 @@ onUnmounted(() => {
           >
         </div>
 
-        <!-- 分类选择 -->
-        <div class="category-select">
+        <div class="side-card category-select">
           <h3>文章分类</h3>
           <select v-model="article.categoryId" required @change="clearSaveError">
             <option value="">选择分类</option>
@@ -563,8 +577,7 @@ onUnmounted(() => {
           </select>
         </div>
 
-        <!-- 标签选择 -->
-        <div class="tag-select">
+        <div class="side-card tag-select">
           <h3>文章标签</h3>
           <div class="selected-tags">
             <span 
@@ -592,8 +605,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 文章摘要 -->
-        <div class="summary-input">
+        <div class="side-card summary-input">
           <h3>文章摘要</h3>
           <textarea
             v-model="article.summary"
@@ -612,7 +624,11 @@ onUnmounted(() => {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: calc(100vh - 4rem);
-  gap: 1rem;
+  gap: 1.25rem;
+  padding: clamp(0.8rem, 2.4vw, 1.4rem);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(245, 245, 245, 0.86)),
+    var(--kumo-bg-base);
 }
 
 .article-editor.fullscreen {
@@ -627,19 +643,18 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 1rem;
-  padding: clamp(1rem, 2.4vw, 1.5rem);
+  gap: 1.2rem;
+  padding: clamp(1rem, 2.6vw, 1.6rem);
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-xl);
-  background:
-    linear-gradient(135deg, var(--kumo-bg-elevated), var(--kumo-bg-subtle));
+  border-radius: 1.35rem;
+  background: rgba(255, 255, 255, 0.86);
   box-shadow: var(--kumo-shadow-sm);
   backdrop-filter: var(--kumo-blur);
 }
 
 .header-left {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.65rem;
   min-width: 0;
 }
 
@@ -651,25 +666,54 @@ onUnmounted(() => {
 .editor-title {
   margin: 0;
   color: var(--kumo-text-default);
-  font-size: clamp(1.25rem, 3vw, 2rem);
-  font-weight: 900;
+  font-size: clamp(1.35rem, 3vw, 2.05rem);
+  font-weight: 860;
   line-height: 1.1;
+}
+
+.editor-eyebrow {
+  width: max-content;
+  padding: 0.28rem 0.58rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-muted);
+  font-size: 0.76rem;
+  font-weight: 780;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .title-input {
   width: 100%;
-  min-height: 3.4rem;
-  padding: 0.8rem 1rem;
+  min-height: 3.8rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 1rem;
   background: var(--kumo-bg-base);
   color: var(--kumo-text-default);
-  font-size: 1.15rem;
-  font-weight: 760;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  font-weight: 780;
   outline: none;
   transition:
     border-color var(--kumo-transition),
     box-shadow var(--kumo-transition);
+}
+
+.editor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.editor-meta span {
+  padding: 0.26rem 0.55rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-subtle);
+  color: var(--kumo-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 720;
 }
 
 .title-input:focus {
@@ -724,6 +768,10 @@ onUnmounted(() => {
   color: var(--kumo-text-inverse);
 }
 
+.btn-secondary {
+  background: var(--kumo-bg-base);
+}
+
 .success-message,
 .error-message {
   position: fixed;
@@ -758,7 +806,7 @@ onUnmounted(() => {
 
 .editor-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 21rem);
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 21.5rem);
   min-height: 0;
   gap: 1rem;
 }
@@ -767,31 +815,75 @@ onUnmounted(() => {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-xl);
-  background: var(--kumo-bg-elevated);
+  border-radius: 1.35rem;
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--kumo-shadow-sm);
+}
+
+.editor-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--kumo-hairline);
+  background: rgba(247, 247, 248, 0.9);
+}
+
+.editor-panel-heading div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.editor-panel-heading strong {
+  color: var(--kumo-text-default);
+  font-size: 0.95rem;
+  font-weight: 820;
+}
+
+.editor-panel-heading span {
+  color: var(--kumo-text-subtle);
+  font-size: 0.82rem;
+}
+
+.panel-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 999px;
+  background: var(--kumo-bg-base);
+  color: var(--kumo-text-muted);
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.panel-tool:hover {
+  border-color: var(--kumo-hairline-strong);
+  color: var(--kumo-text-default);
 }
 
 .editor-sidebar {
   display: grid;
   align-content: start;
-  gap: 1rem;
+  gap: 0.9rem;
   min-height: 0;
-  padding: 1rem;
+  padding: 0;
   overflow-y: auto;
-  border: 1px solid var(--kumo-hairline);
-  border-radius: var(--kumo-radius-xl);
-  background: var(--kumo-bg-elevated);
-  box-shadow: var(--kumo-shadow-sm);
-  backdrop-filter: var(--kumo-blur);
 }
 
-.cover-upload,
-.category-select,
-.tag-select,
-.summary-input {
+.side-card {
   display: grid;
   gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--kumo-hairline);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--kumo-shadow-sm);
 }
 
 .cover-upload h3,
@@ -811,7 +903,7 @@ onUnmounted(() => {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px dashed var(--kumo-hairline-strong);
-  border-radius: var(--kumo-radius-lg);
+  border-radius: 0.95rem;
   background: var(--kumo-bg-base);
   cursor: pointer;
   transition:
@@ -929,19 +1021,35 @@ onUnmounted(() => {
 }
 
 :deep(.toastui-editor-defaultUI) {
+  min-height: 520px;
   overflow: hidden;
   border: 0;
-  border-radius: var(--kumo-radius-xl);
+  border-radius: 0;
   background: var(--kumo-bg-elevated);
+}
+
+.article-editor.fullscreen :deep(.toastui-editor-defaultUI) {
+  min-height: calc(100vh - 10rem);
 }
 
 :deep(.toastui-editor-toolbar) {
   border-bottom: 1px solid var(--kumo-hairline);
-  background: var(--kumo-bg-subtle);
+  background: #f7f7f8;
+}
+
+:deep(.toastui-editor-defaultUI-toolbar) {
+  padding: 0.55rem 0.7rem;
+  background: #f7f7f8;
 }
 
 :deep(.toastui-editor-defaultUI-toolbar button) {
-  border-radius: var(--kumo-radius-sm);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+}
+
+:deep(.toastui-editor-defaultUI-toolbar button:hover) {
+  background: #ffffff;
 }
 
 :deep(.toastui-editor-main),
@@ -955,11 +1063,42 @@ onUnmounted(() => {
 
 :deep(.toastui-editor-md-container),
 :deep(.toastui-editor-md-preview) {
-  background: var(--kumo-bg-base);
+  background: #ffffff;
+}
+
+:deep(.toastui-editor-md-splitter) {
+  background: var(--kumo-hairline);
+}
+
+:deep(.toastui-editor-md-container .toastui-editor) {
+  padding: 1rem;
+  font-size: 0.98rem;
+  line-height: 1.75;
+  color: var(--kumo-text-default);
+}
+
+:deep(.toastui-editor-md-heading),
+:deep(.toastui-editor-md-delimiter),
+:deep(.toastui-editor-md-list-item-style) {
+  color: var(--kumo-text-subtle);
 }
 
 :deep(.toastui-editor-preview) {
-  padding: 1.25rem;
+  padding: 1.35rem;
+  color: var(--kumo-text-default);
+}
+
+:deep(.toastui-editor-contents) {
+  font-size: 1rem;
+  line-height: 1.72;
+}
+
+:deep(.toastui-editor-contents h1),
+:deep(.toastui-editor-contents h2),
+:deep(.toastui-editor-contents h3) {
+  color: var(--kumo-text-default);
+  font-weight: 840;
+  letter-spacing: 0;
 }
 
 :deep(.toastui-editor-preview pre),
@@ -1003,6 +1142,19 @@ onUnmounted(() => {
 
   .action-buttons {
     justify-content: flex-start;
+  }
+
+  .editor-sidebar {
+    overflow: visible;
+  }
+
+  .editor-panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-tool {
+    width: 100%;
   }
 
   .success-message,

@@ -57,6 +57,9 @@ public class Article {
     @Column(name = "comment_count")
     private Integer commentCount = 0;
 
+    @Column(name = "edit_count")
+    private Integer editCount = 0;
+
     @Column(name = "is_official")
     private Boolean isOfficial = false;
 

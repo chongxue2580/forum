@@ -42,7 +42,8 @@ const error = ref('')
 
 // Computed properties
 const formattedContent = computed(() => {
-  return article.value?.content ? marked.parse(article.value.content) : ''
+  const html = article.value?.content ? marked.parse(article.value.content) : ''
+  return html.replace(/<img\b(?![^>]*\breferrerpolicy=)/gi, '<img referrerpolicy="no-referrer"')
 })
 
 const commentCount = computed(() => {
@@ -93,6 +94,8 @@ const authorAvatar = computed(() => {
 
 const articleViews = computed(() => article.value?.viewCount || article.value?.views || 0)
 const articleLikes = computed(() => article.value?.likes ?? article.value?.likeCount ?? 0)
+const articleCoverImage = computed(() => article.value?.coverImage || article.value?.coverImageUrl || '')
+const articleEditCount = computed(() => Number(article.value?.editCount || article.value?.revisionCount || 0))
 const isAuthorFollowing = computed(() => Boolean(author.value.isFollowing))
 const followButtonIcon = computed(() => {
   if (isOwnAuthor.value) return 'user'
@@ -109,6 +112,7 @@ const currentUserId = computed(() => store.state.user?.id)
 const isOwnAuthor = computed(() => {
   return Boolean(article.value?.author?.id && currentUserId.value && String(article.value.author.id) === String(currentUserId.value))
 })
+const canEditArticle = computed(() => isOwnAuthor.value || store.getters.isAdmin)
 
 const fetchArticle = async () => {
   loading.value = true
@@ -236,6 +240,11 @@ const reportArticle = () => {
   }
   reportReason.value = ''
   showReportModal.value = true
+}
+
+const editArticle = () => {
+  if (!article.value?.id) return
+  router.push({ name: 'EditArticle', params: { id: article.value.id } })
 }
 
 const followAuthor = async () => {
@@ -488,6 +497,10 @@ onMounted(() => {
             <font-awesome-icon :icon="['fas', 'flag']" />
             举报
           </button>
+          <button v-if="canEditArticle" class="kumo-button kumo-button--brand" type="button" @click="editArticle">
+            <font-awesome-icon :icon="['fas', 'pen']" />
+            编辑
+          </button>
         </template>
 
         <template #aside>
@@ -532,11 +545,18 @@ onMounted(() => {
             <font-awesome-icon :icon="['fas', 'tag']" />
             {{ tag }}
           </span>
+          <span class="tag-chip article-edit-count">
+            <font-awesome-icon :icon="['fas', 'pen-to-square']" />
+            {{ articleEditCount > 0 ? `作者编辑了 ${articleEditCount} 次` : '尚未编辑' }}
+          </span>
         </div>
       </section>
 
       <main class="article-layout">
         <article class="article-content-panel kumo-surface">
+          <figure v-if="articleCoverImage" class="article-cover-detail">
+            <img :src="articleCoverImage" :alt="article.title" loading="lazy" referrerpolicy="no-referrer">
+          </figure>
           <div class="article-content markdown-body" v-html="formattedContent"></div>
         </article>
 
@@ -563,6 +583,10 @@ onMounted(() => {
           </section>
 
           <section class="side-actions kumo-surface">
+            <button v-if="canEditArticle" class="side-action side-action--edit" type="button" @click="editArticle">
+              <font-awesome-icon :icon="['fas', 'pen-to-square']" />
+              <span>编辑文章</span>
+            </button>
             <button class="side-action" type="button" @click="likeArticle">
               <font-awesome-icon :icon="['fas', 'heart']" />
               <span>喜欢文章</span>
@@ -807,6 +831,26 @@ onMounted(() => {
   padding: clamp(1.25rem, 3vw, 2.4rem);
 }
 
+.article-cover-detail {
+  overflow: hidden;
+  margin: 0 0 clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--kumo-hairline);
+  border-radius: var(--kumo-radius-lg);
+  background: var(--kumo-bg-recessed);
+  box-shadow: var(--kumo-shadow-sm);
+}
+
+.article-cover-detail img {
+  display: block;
+  width: 100%;
+  max-height: min(32rem, 62vh);
+  object-fit: cover;
+}
+
+.article-edit-count {
+  background: var(--kumo-bg-recessed);
+}
+
 .article-content {
   color: var(--kumo-text-default);
   font-size: 1.05rem;
@@ -982,6 +1026,17 @@ onMounted(() => {
   border-color: var(--kumo-hairline-strong);
   background: var(--kumo-bg-brand-soft);
   color: var(--kumo-bg-brand-strong);
+}
+
+.side-action--edit {
+  border-color: transparent;
+  background: var(--kumo-text-default);
+  color: var(--kumo-text-inverse);
+}
+
+.side-action--edit:hover {
+  background: var(--kumo-bg-brand-strong);
+  color: var(--kumo-text-inverse);
 }
 
 .comments-panel {

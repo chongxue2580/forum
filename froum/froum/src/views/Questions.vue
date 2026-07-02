@@ -115,6 +115,7 @@
                 :src="getQuestionImage(question)"
                 :alt="question.title"
                 loading="lazy"
+                referrerpolicy="no-referrer"
                 @error="event => event.currentTarget.closest('.question-image-preview')?.classList.add('is-hidden')"
               >
             </div>

@@ -32,6 +32,7 @@ public class ArticleResponse {
     private Integer viewCount;
     private Integer likeCount;
     private Integer commentCount;
+    private Integer editCount;
     private Boolean isOfficial;
     private Boolean isPinned;
     private Boolean isFeatured;
@@ -65,6 +66,7 @@ public class ArticleResponse {
                 .viewCount(article.getViewCount())
                 .likeCount(article.getLikeCount())
                 .commentCount(article.getCommentCount())
+                .editCount(article.getEditCount() == null ? 0 : article.getEditCount())
                 .isOfficial(article.getIsOfficial())
                 .isPinned(article.getIsPinned())
                 .isFeatured(article.getIsFeatured())

@@ -79,6 +79,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setViewCount(0);
         article.setLikeCount(0);
         article.setCommentCount(0);
+        article.setEditCount(0);
         article.setIsFeatured(false);
         article.setIsPinned(false);
         article.setCreatedAt(LocalDateTime.now());
@@ -111,8 +112,12 @@ public class ArticleServiceImpl implements ArticleService {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new RuntimeException("文章不存在"));
 
-        // 验证作者权限
-        if (!article.getAuthorId().equals(authorId)) {
+        User actor = userMapper.findById(authorId);
+        if (actor == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        boolean canEdit = article.getAuthorId().equals(authorId) || actor.isAdmin();
+        if (!canEdit) {
             throw new RuntimeException("无权限修改此文章");
         }
         userService.assertCanCreateContent(authorId);
@@ -132,9 +137,16 @@ public class ArticleServiceImpl implements ArticleService {
         }
         
         if (request.getIsDraft() != null) {
-            article.setStatus(request.getIsDraft() ? ArticleStatus.DRAFT.name() : ArticleStatus.PENDING.name());
+            if (request.getIsDraft()) {
+                article.setStatus(ArticleStatus.DRAFT.name());
+            } else if (actor.isAdmin()) {
+                article.setStatus(ArticleStatus.APPROVED.name());
+            } else {
+                article.setStatus(ArticleStatus.PENDING.name());
+            }
         }
         
+        article.setEditCount((article.getEditCount() == null ? 0 : article.getEditCount()) + 1);
         article.setUpdatedAt(LocalDateTime.now());
 
         // 保存更新
