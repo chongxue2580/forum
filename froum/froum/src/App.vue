@@ -243,17 +243,25 @@ const stopAdminToolbarDrag = (event) => {
   if (adminToolbarDragState.moved) {
     adminToolbarClickSuppressed.value = true
     persistAdminToolbarPosition()
+    window.setTimeout(() => {
+      adminToolbarClickSuppressed.value = false
+    }, 250)
   }
 
   adminToolbarDragState = null
   adminToolbarDragging.value = false
 }
 
-const suppressAdminToolbarClickAfterDrag = (event) => {
-  if (!adminToolbarClickSuppressed.value) return
-  event.preventDefault()
+const handleAdminToolbarClick = (event) => {
+  if (adminToolbarClickSuppressed.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    adminToolbarClickSuppressed.value = false
+    return
+  }
+
   event.stopPropagation()
-  adminToolbarClickSuppressed.value = false
+  goToAdmin()
 }
 
 const handleAdminToolbarResize = () => {
@@ -466,14 +474,14 @@ watch([isAdmin, isAdminPage], ([admin, adminPage]) => {
       :style="adminToolbarStyle"
       title="按住拖动可移动后台入口"
       @pointerdown="startAdminToolbarDrag"
-      @click.capture="suppressAdminToolbarClickAfterDrag"
+      @click="handleAdminToolbarClick"
     >
       <span class="admin-toolbar-handle">
         <font-awesome-icon :icon="['fas', 'grip-lines']" />
         <font-awesome-icon :icon="['fas', 'shield-alt']" />
         管理员模式
       </span>
-      <button type="button" class="kumo-button kumo-button--brand" @click="goToAdmin">
+      <button type="button" class="kumo-button kumo-button--brand">
         <font-awesome-icon :icon="['fas', 'tachometer-alt']" />
         后台
       </button>
