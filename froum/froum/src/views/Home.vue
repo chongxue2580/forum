@@ -99,6 +99,10 @@
       :category-count="categoryCount"
       :tag-count="tagCount"
       :topics="popularTags"
+      :articles="articles"
+      :hot-articles="hotArticles"
+      :recommended-articles="recommendedArticles"
+      :questions="questions"
     />
 
     <div class="home-layout">

@@ -88,16 +88,59 @@
 
         <article class="steep-dashboard-card steep-ai-card">
           <div class="steep-chat-input">
-            <span>分析最近的高价值技术讨论...</span>
-            <button type="button" aria-label="发送">
+            <span>{{ insightPrompt }}</span>
+            <button type="button" aria-label="查看高价值讨论" @click="openPrimaryDiscussion">
               <font-awesome-icon :icon="['fas', 'arrow-right']" />
             </button>
           </div>
           <div class="steep-ai-response">
-            <h3>今日内容结构稳定</h3>
-            <p>
-              文章沉淀占比 {{ articleShare }}%，问答协作占比 {{ questionShare }}%。建议优先维护高频标签和活跃分类。
-            </p>
+            <div class="steep-ai-response-head">
+              <span class="steep-avatar-badge">AI</span>
+              <div>
+                <h3>{{ insightTitle }}</h3>
+                <p>{{ insightSummary }}</p>
+              </div>
+            </div>
+
+            <div class="insight-metrics">
+              <div v-for="metric in insightMetrics" :key="metric.label" class="insight-metric">
+                <strong>{{ metric.value }}</strong>
+                <span>{{ metric.label }}</span>
+              </div>
+            </div>
+
+            <div class="insight-layout">
+              <div class="insight-discussions">
+                <button
+                  v-for="item in highValueDiscussions"
+                  :key="`${item.type}-${item.id}`"
+                  type="button"
+                  class="insight-discussion"
+                  @click="openDiscussion(item)"
+                >
+                  <span class="discussion-score">{{ item.score }}</span>
+                  <span class="discussion-body">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.meta }}</small>
+                  </span>
+                  <font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" />
+                </button>
+              </div>
+
+              <div class="insight-actions">
+                <div v-for="action in insightActions" :key="action.title" class="insight-action">
+                  <font-awesome-icon :icon="['fas', action.icon]" />
+                  <span>
+                    <strong>{{ action.title }}</strong>
+                    <small>{{ action.detail }}</small>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="insight-keywords" aria-label="高价值主题">
+              <span v-for="keyword in insightKeywords" :key="keyword">#{{ keyword }}</span>
+            </div>
           </div>
         </article>
       </div>
@@ -107,6 +150,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
   articleCount: {
@@ -126,6 +172,22 @@ const props = defineProps({
     default: 0
   },
   topics: {
+    type: Array,
+    default: () => []
+  },
+  articles: {
+    type: Array,
+    default: () => []
+  },
+  hotArticles: {
+    type: Array,
+    default: () => []
+  },
+  recommendedArticles: {
+    type: Array,
+    default: () => []
+  },
+  questions: {
     type: Array,
     default: () => []
   }
@@ -156,6 +218,205 @@ const regionRows = computed(() => [
   { name: 'Categories', value: props.categoryCount },
   { name: 'Tags', value: props.tagCount }
 ])
+
+const normalizeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0
+const getItemTitle = (item, fallback) => item?.title || item?.name || fallback
+const getItemSummary = (item) => String(item?.summary || item?.content || item?.description || '')
+const stripMarkdown = (value = '') => String(value)
+  .replace(/```[\s\S]*?```/g, ' ')
+  .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+  .replace(/\[([^\]]*)]\([^)]*\)/g, '$1')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/[#>*_`~\-]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+
+const normalizeTags = (item) => {
+  const tags = item?.tags
+  if (!tags) return []
+  if (Array.isArray(tags)) {
+    return tags
+      .map(tag => typeof tag === 'string' ? tag : tag?.name || tag?.label || tag?.title)
+      .filter(Boolean)
+  }
+  return String(tags).split(',').map(tag => tag.trim()).filter(Boolean)
+}
+
+const dedupeByTypeAndId = (items) => {
+  const seen = new Set()
+  return items.filter((item) => {
+    const key = `${item.type}-${item.id || item.title}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const articleDiscussions = computed(() => {
+  const combined = [
+    ...props.hotArticles.map(item => ({ ...item, _sourceBoost: 24 })),
+    ...props.recommendedArticles.map(item => ({ ...item, _sourceBoost: 18 })),
+    ...props.articles.map(item => ({ ...item, _sourceBoost: 8 }))
+  ]
+
+  return dedupeByTypeAndId(combined.map((item, index) => ({
+    id: item.id || `article-${index}`,
+    type: 'article',
+    title: getItemTitle(item, `文章 ${index + 1}`),
+    summary: stripMarkdown(getItemSummary(item)),
+    tags: normalizeTags(item),
+    views: normalizeNumber(item.viewCount ?? item.views),
+    answers: normalizeNumber(item.commentCount ?? item.comments?.length ?? item.commentTotal),
+    likes: normalizeNumber(item.likeCount ?? item.likes),
+    featured: Boolean(item.isFeatured || item.isHighlight || item.isOfficial),
+    boost: item._sourceBoost || 0,
+    navigable: Boolean(item.id)
+  })))
+})
+
+const questionDiscussions = computed(() => props.questions.map((item, index) => ({
+  id: item.id || `question-${index}`,
+  type: 'question',
+  title: getItemTitle(item, `问题 ${index + 1}`),
+  summary: stripMarkdown(getItemSummary(item)),
+  tags: normalizeTags(item),
+  views: normalizeNumber(item.viewCount ?? item.views),
+  answers: normalizeNumber(item.answerCount ?? item.commentCount),
+  likes: normalizeNumber(item.voteCount ?? item.likeCount),
+  solved: Boolean(item.solved || item.isSolved),
+  boost: Boolean(item.solved || item.isSolved) ? 12 : 6,
+  navigable: Boolean(item.id)
+})))
+
+const scoredDiscussions = computed(() => {
+  return [...articleDiscussions.value, ...questionDiscussions.value]
+    .map((item) => {
+      const score = Math.min(99, Math.round(
+        item.views * 0.08 +
+        item.answers * 7 +
+        item.likes * 5 +
+        item.tags.length * 3 +
+        item.boost +
+        (item.featured ? 10 : 0)
+      ))
+      return {
+        ...item,
+        score: Math.max(18, score),
+        meta: [
+          item.type === 'article' ? '文章' : '问答',
+          `${item.views} 浏览`,
+          `${item.answers} ${item.type === 'article' ? '评论' : '回答'}`
+        ].join(' · ')
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+})
+
+const fallbackDiscussions = computed(() => {
+  const topics = topicPreview.value
+  return topics.slice(0, 3).map((topic, index) => ({
+    id: topic.label,
+    type: index === 0 ? 'article' : 'question',
+    title: `${topic.label} 方向值得继续沉淀`,
+    summary: '当前数据不足，先用热门主题生成观察线索。',
+    tags: [topic.label],
+    views: 0,
+    answers: 0,
+    likes: 0,
+    score: 42 - index * 4,
+    meta: '主题信号 · 待更多讨论',
+    navigable: false
+  }))
+})
+
+const highValueDiscussions = computed(() => {
+  const discussions = scoredDiscussions.value.length ? scoredDiscussions.value : fallbackDiscussions.value
+  return discussions.slice(0, 3)
+})
+
+const insightKeywords = computed(() => {
+  const fromDiscussions = highValueDiscussions.value
+    .flatMap(item => item.tags)
+    .filter(Boolean)
+  const fromTopics = topicPreview.value.map(topic => topic.label)
+  return [...new Set([...fromDiscussions, ...fromTopics])].slice(0, 6)
+})
+
+const averageDiscussionScore = computed(() => {
+  if (!highValueDiscussions.value.length) return 0
+  const total = highValueDiscussions.value.reduce((sum, item) => sum + item.score, 0)
+  return Math.round(total / highValueDiscussions.value.length)
+})
+
+const solvedQuestionCount = computed(() => props.questions.filter(item => item.solved || item.isSolved).length)
+const unresolvedQuestionCount = computed(() => Math.max(0, props.questions.length - solvedQuestionCount.value))
+const articleDiscussionCount = computed(() => articleDiscussions.value.length)
+const questionDiscussionCount = computed(() => questionDiscussions.value.length)
+
+const insightPrompt = computed(() => {
+  const keyword = insightKeywords.value[0] || '社区内容'
+  return `分析最近的高价值技术讨论：${keyword}`
+})
+
+const insightTitle = computed(() => {
+  if (!scoredDiscussions.value.length) return '等待更多讨论样本'
+  if (averageDiscussionScore.value >= 72) return '高价值讨论正在聚集'
+  if (unresolvedQuestionCount.value > solvedQuestionCount.value) return '问答协作需要跟进'
+  return '今日讨论结构稳定'
+})
+
+const insightSummary = computed(() => {
+  if (!scoredDiscussions.value.length) {
+    return `当前内容池里文章占比 ${articleShare.value}%，问答占比 ${questionShare.value}%。发布更多文章或问题后，这里会自动生成讨论价值分析。`
+  }
+
+  const top = highValueDiscussions.value[0]
+  const focus = insightKeywords.value.slice(0, 2).join('、') || '核心主题'
+  return `最近 ${articleDiscussionCount.value + questionDiscussionCount.value} 条内容中，“${top.title}”价值分最高。主题集中在 ${focus}，建议优先跟进高回答问题并把成熟方案整理为文章。`
+})
+
+const insightMetrics = computed(() => [
+  { label: '价值均分', value: averageDiscussionScore.value || '--' },
+  { label: '分析样本', value: articleDiscussionCount.value + questionDiscussionCount.value },
+  { label: '待跟进', value: unresolvedQuestionCount.value }
+])
+
+const insightActions = computed(() => {
+  const actions = []
+
+  if (unresolvedQuestionCount.value > 0) {
+    actions.push({
+      icon: 'circle-question',
+      title: '优先回答未解决问题',
+      detail: `${unresolvedQuestionCount.value} 个问题还可以继续补充方案`
+    })
+  }
+
+  if (insightKeywords.value.length) {
+    actions.push({
+      icon: 'tags',
+      title: '维护高频主题',
+      detail: `聚焦 ${insightKeywords.value.slice(0, 2).join('、')}`
+    })
+  }
+
+  actions.push({
+    icon: 'file-pen',
+    title: '沉淀成熟结论',
+    detail: `文章占比 ${articleShare.value}%，问答占比 ${questionShare.value}%`
+  })
+
+  return actions.slice(0, 3)
+})
+
+const openDiscussion = (item) => {
+  if (!item?.id || !item.navigable) return
+  router.push(item.type === 'article' ? `/article/${item.id}` : `/question/${item.id}`)
+}
+
+const openPrimaryDiscussion = () => {
+  openDiscussion(highValueDiscussions.value[0])
+}
 </script>
 
 <style scoped>
@@ -370,9 +631,18 @@ const regionRows = computed(() => [
 }
 
 .steep-ai-response {
+  display: grid;
+  gap: 1rem;
   padding: 1rem;
   border-radius: 16px;
   background: var(--steep-sky-wash);
+}
+
+.steep-ai-response-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
 }
 
 .steep-ai-response h3 {
@@ -388,6 +658,171 @@ const regionRows = computed(() => [
   color: var(--steep-ash);
   font-size: 16px;
   line-height: 1.38;
+}
+
+.insight-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.insight-metric {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid rgba(23, 25, 28, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.insight-metric strong {
+  color: var(--steep-ink);
+  font-size: 24px;
+  font-weight: 480;
+  line-height: 1;
+}
+
+.insight-metric span {
+  color: var(--steep-graphite);
+  font-size: 13px;
+  font-weight: 450;
+}
+
+.insight-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(12rem, 0.9fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.insight-discussions,
+.insight-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.insight-discussion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(23, 25, 28, 0.08);
+  border-radius: 14px;
+  background: var(--steep-pure-white);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.insight-discussion:hover {
+  transform: translateY(-1px);
+  border-color: rgba(23, 25, 28, 0.18);
+  box-shadow: 0 8px 18px rgba(23, 25, 28, 0.08);
+}
+
+.discussion-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: var(--steep-apricot-wash);
+  color: var(--steep-rust);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.discussion-body {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.discussion-body strong {
+  overflow: hidden;
+  color: var(--steep-ink);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discussion-body small {
+  overflow: hidden;
+  color: var(--steep-graphite);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insight-discussion > svg {
+  color: var(--steep-graphite);
+  font-size: 13px;
+}
+
+.insight-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.72rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.insight-action > svg {
+  margin-top: 0.1rem;
+  color: var(--steep-rust);
+}
+
+.insight-action span {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.insight-action strong {
+  color: var(--steep-ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.insight-action small {
+  color: var(--steep-ash);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.insight-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.insight-keywords span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid rgba(23, 25, 28, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--steep-ash);
+  font-size: 13px;
+  font-weight: 450;
 }
 
 @media (max-width: 1080px) {
@@ -410,7 +845,28 @@ const regionRows = computed(() => [
     grid-column: auto;
   }
 
+  .insight-layout,
+  .insight-metrics {
+    grid-template-columns: 1fr;
+  }
+
   .steep-sidebar-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .steep-ai-response-head,
+  .insight-discussion {
+    grid-template-columns: 1fr;
+  }
+
+  .discussion-body strong,
+  .discussion-body small {
+    white-space: normal;
+  }
+
+  .insight-discussion > svg {
     display: none;
   }
 }
