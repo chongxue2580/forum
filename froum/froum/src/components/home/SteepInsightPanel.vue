@@ -698,7 +698,8 @@ const applyInsightKeyword = (keyword) => {
 }
 
 .steep-chat-input {
-  grid-template-columns: auto minmax(0, 1fr) 40px;
+  display: flex;
+  align-items: center;
   padding-left: 1rem;
   transition:
     border-color 180ms ease,
@@ -716,6 +717,7 @@ const applyInsightKeyword = (keyword) => {
 }
 
 .steep-chat-input input {
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
   border: 0;
@@ -728,6 +730,11 @@ const applyInsightKeyword = (keyword) => {
 
 .steep-chat-input input::placeholder {
   color: var(--steep-graphite);
+}
+
+.steep-chat-input button {
+  flex: 0 0 40px;
+  margin-left: auto;
 }
 
 .steep-query-hint {
@@ -996,12 +1003,12 @@ const applyInsightKeyword = (keyword) => {
   }
 
   .steep-chat-input {
-    grid-template-columns: auto minmax(0, 1fr) 36px;
     gap: 0.6rem;
     padding: 0.55rem 0.55rem 0.55rem 0.8rem;
   }
 
   .steep-chat-input button {
+    flex-basis: 36px;
     width: 36px;
     height: 36px;
   }
