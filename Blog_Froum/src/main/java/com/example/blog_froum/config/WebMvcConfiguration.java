@@ -39,7 +39,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
     @Autowired
     private JwtTokenUserInterceptor jwtTokenUserInterceptor;
 
-    @Value("${file.upload.path:./uploads}")
+    @Value("${file.storage.local.path:${file.upload.path:./uploads}}")
     private String uploadPath;
 
     /**

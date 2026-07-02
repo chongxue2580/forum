@@ -1,10 +1,10 @@
 /**
  * 统一头像 URL 解析。
- * 后端头像保存在 uploads/images/avatars/ 下，返回 /uploads/images/avatars/xxx。
- * 开发环境通过 Vite 把 /uploads 代理到后端 8080。
+ * 后端头像可能保存在本地 uploads，也可能保存在 Cloudflare R2 并通过 Worker 域名访问。
+ * 开发环境仍可通过 Vite 把 /uploads 代理到后端 8080。
  *
  * - 空值返回 ''（由调用方回退到文字首字母）
- * - 绝对地址 / data URI 原样返回
+ * - Worker/R2/外部绝对地址 / data URI 原样返回
  * - 以 / 开头的相对路径原样返回（含 /uploads、/images 等，交给代理或静态资源处理）
  * - 其余视为纯文件名，拼到默认头像目录下
  *
